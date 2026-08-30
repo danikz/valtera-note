@@ -98,6 +98,10 @@ class EditorStore {
     }
   }
 
+  setActiveTab(index: number) {
+    this.selectTab(index);
+  }
+
   updateContent(newContent: string) {
     const tab = this.activeTab;
     if (tab && tab.content !== newContent) {

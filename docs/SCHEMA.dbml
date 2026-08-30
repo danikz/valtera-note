@@ -1,0 +1,100 @@
+// DBML Specification for Valtera Note
+// Ultra-lightweight Local Database Schema (Embedded SQLite + Appwrite Sync Support)
+
+Table workspaces {
+  id integer [pk, increment]
+  appwrite_id varchar(36) [unique, null] // Remote Appwrite Document ID
+  name varchar(255) [not null]
+  root_path text [unique, null] // null if cloud-only or ad-hoc workspace
+  icon varchar(50) [default: 'folder']
+  settings_json text [null]
+  sync_status varchar(20) [default: 'synced'] // synced, pending, error
+  is_deleted boolean [default: false] // Soft delete for cloud sync
+  synced_at timestamp [null]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  last_opened_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Directory workspace or logical project group with Appwrite sync link'
+}
+
+Table documents {
+  id integer [pk, increment]
+  appwrite_id varchar(36) [unique, null] // Remote Appwrite Document ID
+  workspace_id integer [ref: > workspaces.id, null]
+  file_path text [unique, null] // null if pure cloud note or unsaved scratchpad
+  file_name varchar(255) [not null, default: 'Untitled']
+  file_extension varchar(30) [default: 'txt'] // txt, md, sql, json, csv, etc.
+  file_hash varchar(64) [null] // SHA-256 to track external file changes
+  encoding varchar(30) [default: 'UTF-8'] // UTF-8, UTF-16LE, ASCII, etc.
+  line_ending varchar(10) [default: 'LF'] // LF, CRLF
+  is_pinned boolean [default: false]
+  is_scratchpad boolean [default: false]
+  scratchpad_content text [null] // Stored locally for unsaved scratchpads or cloud-synced notes
+  sync_status varchar(20) [default: 'local'] // local, pending, synced, conflict, error
+  is_deleted boolean [default: false] // Soft delete to sync deletions to Appwrite
+  synced_at timestamp [null]
+  last_opened_at timestamp [default: `CURRENT_TIMESTAMP`]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Local metadata index & cloud-synced note buffer'
+}
+
+Table tabs_state {
+  id integer [pk, increment]
+  document_id integer [ref: > documents.id, null]
+  session_id varchar(64) [default: 'default'] // Multi-window or session identifier
+  tab_order integer [not null, default: 0]
+  is_active boolean [default: false]
+  cursor_line integer [default: 1]
+  cursor_col integer [default: 1]
+  scroll_top real [default: 0.0]
+  split_mode varchar(20) [default: 'none'] // none, editor-only, preview-only, split-horizontal, split-vertical
+  is_dirty boolean [default: false]
+  unsaved_buffer text [null] // Temporary recovery buffer in case of crash/power loss
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Active tab state, cursor position, and crash recovery buffers'
+}
+
+Table snippets {
+  id integer [pk, increment]
+  appwrite_id varchar(36) [unique, null] // Remote Appwrite Document ID
+  title varchar(255) [not null]
+  language varchar(50) [not null, default: 'sql'] // sql, markdown, rust, typescript, etc.
+  category varchar(100) [default: 'general']
+  content text [not null]
+  tags text [null] // JSON array or comma-separated tags
+  is_favorite boolean [default: false]
+  sync_status varchar(20) [default: 'local'] // local, pending, synced, error
+  is_deleted boolean [default: false]
+  synced_at timestamp [null]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'SQL templates, markdown boilerplate, or code snippets with optional Appwrite sync'
+}
+
+Table app_settings {
+  key varchar(100) [pk]
+  value_json text [not null]
+  is_synced boolean [default: false] // whether this key syncs with Appwrite user_settings
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Key-value app configuration + Appwrite connection credentials'
+}
+
+Table sql_history {
+  id integer [pk, increment]
+  query_text text [not null]
+  dialect varchar(50) [default: 'sqlite']
+  execution_duration_ms integer [null]
+  row_count integer [null]
+  status varchar(20) [default: 'draft'] // draft, success, failed
+  error_message text [null]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Local history log for SQL scratchpad executions'
+}

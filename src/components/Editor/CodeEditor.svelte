@@ -10,9 +10,12 @@
   import { sql } from '@codemirror/lang-sql';
   import { editorStore } from '../../stores/editorStore.svelte';
 
-  let editorContainer: HTMLDivElement;
+  let editorContainer = $state<HTMLDivElement | null>(null);
   let view: EditorView | null = null;
   let languageCompartment = new Compartment();
+  let isInternalUpdate = false;
+  let currentLoadedTabId: string | null = null;
+  let currentLanguageExt = '';
 
   let { onRunSql }: { onRunSql?: () => void } = $props();
 
@@ -30,10 +33,16 @@
 
   function initEditor() {
     if (!editorContainer) return;
+    if (view) {
+      view.destroy();
+      view = null;
+    }
 
     const currentTab = editorStore.activeTab;
     const initialContent = currentTab ? currentTab.content : '';
     const initialExt = currentTab ? currentTab.file_extension : 'txt';
+    currentLanguageExt = initialExt;
+    currentLoadedTabId = currentTab ? `${currentTab.title}_${currentTab.file_path || ''}` : null;
 
     const state = EditorState.create({
       doc: initialContent,
@@ -69,8 +78,10 @@
         ]),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
+            isInternalUpdate = true;
             const newContent = update.state.doc.toString();
             editorStore.updateContent(newContent);
+            isInternalUpdate = false;
           }
           if (update.selectionSet) {
             const pos = update.state.selection.main.head;
@@ -111,23 +122,29 @@
     });
   }
 
-  // Reactive effect when active tab changes or content is updated externally
   $effect(() => {
     const activeTab = editorStore.activeTab;
-    if (!activeTab || !view) return;
+    if (!activeTab || !view || isInternalUpdate) return;
 
-    // Check if doc content differs from active tab content
+    const tabKey = `${activeTab.title}_${activeTab.file_path || ''}`;
+    const docLength = view.state.doc.length;
     const currentDoc = view.state.doc.toString();
-    if (currentDoc !== activeTab.content) {
+
+    // If tab switched or external content updated
+    if (tabKey !== currentLoadedTabId || currentDoc !== activeTab.content) {
+      currentLoadedTabId = tabKey;
       view.dispatch({
-        changes: { from: 0, to: currentDoc.length, insert: activeTab.content }
+        changes: { from: 0, to: docLength, insert: activeTab.content }
       });
     }
 
-    // Update language extension dynamically
-    view.dispatch({
-      effects: languageCompartment.reconfigure(getLanguageExtension(activeTab.file_extension))
-    });
+    // Reconfigure language only if extension changed
+    if (activeTab.file_extension !== currentLanguageExt) {
+      currentLanguageExt = activeTab.file_extension;
+      view.dispatch({
+        effects: languageCompartment.reconfigure(getLanguageExtension(activeTab.file_extension))
+      });
+    }
   });
 
   onMount(() => {

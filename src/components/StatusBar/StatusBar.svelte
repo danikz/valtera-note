@@ -1,6 +1,6 @@
 <script lang="ts">
   import { editorStore } from '../../stores/editorStore.svelte';
-  import { Cloud, CheckCircle2, Check, Sparkles } from 'lucide-svelte';
+  import { Cloud, CheckCircle2, Check } from 'lucide-svelte';
 
   const languages = [
     { label: 'Plain Text', ext: 'txt' },
@@ -80,11 +80,11 @@
 
     <div class="text-slate-600">|</div>
 
-    <!-- Appwrite Sync Status -->
-    <div class="flex items-center space-x-1 {editorStore.appwriteConfig.is_configured ? 'text-emerald-400' : 'text-slate-500'}">
-      {#if editorStore.appwriteConfig.is_configured}
+    <!-- Supabase Sync Status -->
+    <div class="flex items-center space-x-1 {editorStore.supabaseConfig.is_configured ? 'text-emerald-400' : 'text-slate-500'}">
+      {#if editorStore.supabaseConfig.is_configured}
         <CheckCircle2 class="w-3 h-3 text-emerald-400" />
-        <span>Appwrite Connected</span>
+        <span>Supabase Connected</span>
       {:else}
         <Cloud class="w-3 h-3 text-slate-600" />
         <span>Offline</span>

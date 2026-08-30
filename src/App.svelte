@@ -113,7 +113,7 @@
   <!-- Bottom Status Bar -->
   <StatusBar />
 
-  <!-- Appwrite Cloud Sync Modal -->
+  <!-- Supabase Cloud Sync Modal -->
   <SyncModal 
     isOpen={isSyncModalOpen} 
     onClose={() => (isSyncModalOpen = false)} 

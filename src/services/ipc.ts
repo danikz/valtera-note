@@ -204,6 +204,70 @@ export const ipc = {
     }
   },
 
+  async autoCreateSupabaseTable(url: string, anonKey: string, token: string): Promise<string> {
+    const cleanUrl = url.trim().replace(/\/+$/, '');
+    const cleanKey = anonKey.trim();
+
+    if (isTauri) {
+      try {
+        return await invoke<string>('auto_create_supabase_table', {
+          url: cleanUrl,
+          anonKey: cleanKey,
+          anon_key: cleanKey,
+          token: token.trim()
+        });
+      } catch (err: any) {
+        throw new Error(typeof err === 'string' ? err : err?.message || 'Gagal membuat tabel via Tauri command');
+      }
+    }
+
+    // Extract project ref
+    let projectRef = '';
+    try {
+      const parsed = new URL(cleanUrl);
+      projectRef = parsed.hostname.split('.')[0];
+    } catch {
+      projectRef = cleanUrl.replace(/https?:\/\//, '').split('.')[0];
+    }
+
+    const sql = `
+      create table if not exists public.notes (
+          id uuid default gen_random_uuid() primary key,
+          title text not null default 'Untitled',
+          content text not null default '',
+          file_extension text not null default 'md',
+          is_pinned boolean not null default false,
+          is_deleted boolean not null default false,
+          created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+          updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+      );
+      create index if not exists idx_notes_updated_at on public.notes(updated_at desc);
+      alter table public.notes enable row level security;
+      do $$
+      begin
+          if not exists (select 1 from pg_policies where policyname = 'Allow API access' and tablename = 'notes') then
+              create policy "Allow API access" on public.notes for all using (true) with check (true);
+          end if;
+      end
+      $$;
+    `;
+
+    const res = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token.trim()}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ query: sql })
+    });
+
+    if (res.ok) {
+      return "Tabel 'notes' berhasil dibuat secara otomatis!";
+    }
+    const errText = await res.text().catch(() => '');
+    throw new Error(`Supabase Management API error: ${errText}`);
+  },
+
   async testSupabaseConnection(url: string, anonKey: string): Promise<string> {
     const cleanUrl = url.trim().replace(/\/+$/, '');
     const cleanKey = anonKey.trim();

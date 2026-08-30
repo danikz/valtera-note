@@ -15,7 +15,8 @@
     ExternalLink, 
     Check, 
     ShieldCheck, 
-    Zap 
+    Zap,
+    Wrench
   } from 'lucide-svelte';
 
   let { isOpen, onClose }: { isOpen: boolean; onClose: () => void } = $props();
@@ -24,6 +25,9 @@
   let anonKey = $state(editorStore.supabaseConfig.anon_key || '');
   let isTesting = $state(false);
   let isCheckingTable = $state(false);
+  let isAutoCreating = $state(false);
+  let showAutoCreateInput = $state(false);
+  let managementToken = $state('');
   let tableStatus = $state<'ready' | 'missing' | 'unknown'>('unknown');
   let isLoading = $state(false);
   let copiedSql = $state(false);
@@ -97,6 +101,31 @@ create policy "Allow API access" on public.notes for all using (true) with check
       };
     } finally {
       isTesting = false;
+    }
+  }
+
+  async function handleAutoCreateTable() {
+    const tokenToUse = managementToken.trim() || anonKey.trim();
+    if (!url || !tokenToUse) {
+      statusMessage = { text: 'Masukkan Access Token atau Service Key untuk membuat tabel otomatis.', type: 'error' };
+      return;
+    }
+
+    isAutoCreating = true;
+    statusMessage = null;
+
+    try {
+      const msg = await ipc.autoCreateSupabaseTable(url, anonKey, tokenToUse);
+      statusMessage = { text: `✅ ${msg}`, type: 'success' };
+      showAutoCreateInput = false;
+      await checkTable();
+    } catch (e: any) {
+      statusMessage = { 
+        text: typeof e === 'string' ? e : e?.message || 'Gagal membuat tabel secara otomatis. Gunakan Access Token akun Supabase Anda.', 
+        type: 'error' 
+      };
+    } finally {
+      isAutoCreating = false;
     }
   }
 
@@ -208,11 +237,11 @@ create policy "Allow API access" on public.notes for all using (true) with check
             </button>
           </div>
         {:else if tableStatus === 'missing'}
-          <div class="p-3 rounded-lg bg-amber-950/50 border border-amber-700/70 text-amber-200 space-y-2">
+          <div class="p-3.5 rounded-lg bg-amber-950/50 border border-amber-700/70 text-amber-200 space-y-2.5">
             <div class="flex items-center justify-between font-semibold text-amber-300">
               <div class="flex items-center space-x-1.5">
                 <AlertCircle class="w-4 h-4 text-amber-400" />
-                <span>Tabel <code>notes</code> Belum Ditemukan</span>
+                <span>Tabel <code>notes</code> Belum Ada di Supabase</span>
               </div>
               <button 
                 onclick={checkTable}
@@ -222,20 +251,59 @@ create policy "Allow API access" on public.notes for all using (true) with check
                 {isCheckingTable ? 'Checking...' : 'Re-check'}
               </button>
             </div>
+            
             <p class="text-[11px] text-amber-200/80 leading-relaxed">
-              Buat tabel <code>notes</code> sekali saja di SQL Editor Supabase agar catatan otomatis tersinkronisasi:
+              Anda bisa membuat tabel secara otomatis dalam 1-klik menggunakan Access Token, atau salin skrip SQL:
             </p>
+
+            {#if showAutoCreateInput}
+              <div class="space-y-2 pt-1 bg-amber-950/70 p-2.5 rounded border border-amber-800/80">
+                <label for="mgmt-token" class="block text-[11px] text-amber-300 font-medium">
+                  Supabase Access Token (<a href="https://supabase.com/dashboard/account/tokens" target="_blank" class="underline text-amber-200 hover:text-white">Dapatkan di sini</a>)
+                </label>
+                <div class="flex items-center space-x-2">
+                  <input 
+                    id="mgmt-token"
+                    type="password"
+                    bind:value={managementToken}
+                    placeholder="sbp_xxxxxxxxxxxx..."
+                    class="flex-1 bg-slate-950 border border-amber-700 rounded px-2.5 py-1 text-xs text-white placeholder-slate-600 focus:outline-none"
+                  />
+                  <button 
+                    onclick={handleAutoCreateTable}
+                    disabled={isAutoCreating}
+                    class="flex items-center space-x-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-medium text-xs disabled:opacity-50"
+                  >
+                    {#if isAutoCreating}
+                      <Loader2 class="w-3 h-3 animate-spin" />
+                    {:else}
+                      <Zap class="w-3 h-3" />
+                    {/if}
+                    <span>Eksekusi</span>
+                  </button>
+                </div>
+              </div>
+            {/if}
+
             <div class="flex items-center space-x-2 pt-1">
               <button 
-                onclick={handleCopySql}
+                onclick={() => (showAutoCreateInput = !showAutoCreateInput)}
                 class="flex items-center space-x-1 px-2.5 py-1 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold transition-colors"
+              >
+                <Wrench class="w-3.5 h-3.5" />
+                <span>{showAutoCreateInput ? 'Tutup Auto-Setup' : '⚡ Buat Otomatis (1-Klik)'}</span>
+              </button>
+
+              <button 
+                onclick={handleCopySql}
+                class="flex items-center space-x-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium transition-colors"
               >
                 {#if copiedSql}
                   <Check class="w-3.5 h-3.5" />
                   <span>Copied!</span>
                 {:else}
                   <Copy class="w-3.5 h-3.5" />
-                  <span>Copy SQL Migration</span>
+                  <span>Copy SQL</span>
                 {/if}
               </button>
 
@@ -244,7 +312,7 @@ create policy "Allow API access" on public.notes for all using (true) with check
                 class="flex items-center space-x-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium transition-colors"
               >
                 <ExternalLink class="w-3.5 h-3.5" />
-                <span>Buka SQL Editor</span>
+                <span>SQL Editor</span>
               </button>
             </div>
           </div>

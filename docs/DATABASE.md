@@ -3,15 +3,15 @@
 ## 1. Storage Strategy & Architecture
 To achieve sub-50MB RAM footprint, instant startup, and seamless open-source cloud sync:
 1. **Local-First Always**: The app works 100% offline immediately using embedded **SQLite 3** (`rusqlite`).
-2. **Appwrite Cloud Sync Layer**:
+2. **Supabase Cloud Sync Layer**:
    - Physical filesystem files (`.txt`, `.md`, `.sql` opened from disk) remain on the local disk.
-   - Cloud notes, scratchpads, snippets, workspaces, and user settings sync bidirectionally with a self-hosted or cloud Appwrite instance.
-   - Sync tracking uses `appwrite_id`, `sync_status` (`local`, `pending`, `synced`, `conflict`), `is_deleted` (soft-delete), and `synced_at`.
+   - Cloud notes, scratchpads, snippets, workspaces, and user settings sync bidirectionally with a self-hosted or cloud Supabase instance.
+   - Sync tracking uses `supabase_id`, `sync_status` (`local`, `pending`, `synced`, `conflict`), `is_deleted` (soft-delete), and `synced_at`.
 3. **Database Engine**: Embedded **SQLite 3** in Rust with `WAL` mode and `PRAGMA synchronous = NORMAL`.
 
 ---
 
-## 2. SQLite Database DDL (Schema with Appwrite Sync)
+## 2. SQLite Database DDL (Schema with Supabase Sync)
 
 ```sql
 PRAGMA journal_mode = WAL;
@@ -22,7 +22,7 @@ PRAGMA temp_store = MEMORY;
 -- 1. Workspaces / Folder Projects
 CREATE TABLE IF NOT EXISTS workspaces (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    appwrite_id TEXT UNIQUE,
+    supabase_id TEXT UNIQUE,
     name TEXT NOT NULL,
     root_path TEXT UNIQUE,
     icon TEXT DEFAULT 'folder',
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS workspaces (
 -- 2. Document Registry & Scratchpad Cache
 CREATE TABLE IF NOT EXISTS documents (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    appwrite_id TEXT UNIQUE,
+    supabase_id TEXT UNIQUE,
     workspace_id INTEGER REFERENCES workspaces(id) ON DELETE SET NULL,
     file_path TEXT UNIQUE,
     file_name TEXT NOT NULL DEFAULT 'Untitled',

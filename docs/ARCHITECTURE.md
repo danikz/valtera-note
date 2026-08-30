@@ -59,15 +59,15 @@ flowchart TB
 | **Editor Engine** | **CodeMirror 6** | Modular, DOM-virtualized text editor. Uses only **4-8MB RAM** compared to Monaco Editor's 40-70MB footprint. |
 | **Markdown Parser** | **markdown-it** + **DOMPurify** | Fast synchronous parser with zero heavy dependency tree; safe XSS sanitization. |
 | **Local Database** | **SQLite 3** (via `rusqlite`) | Embedded C-native DB, WAL mode, memory consumption < 2MB. |
-| **Cloud Sync & BaaS** | **Appwrite** (Self-Hosted or Cloud) | 100% Open Source Backend-as-a-Service with built-in Auth, Document DB, and REST/Realtime API. Anyone can deploy via Docker. |
+| **Cloud Sync & BaaS** | **Supabase** (Self-Hosted or Cloud) | Open Source Backend-as-a-Service with built-in GoTrue Auth, PostgreSQL DB, and REST/Realtime API. Anyone can deploy via Docker or use Supabase Cloud. |
 | **Sync Engine Layer** | **Rust Async Worker (`reqwest` + `tokio`)** | Runs sync in background native threads; zero Webview CPU/RAM lag. |
 
 ---
 
-## 3. Appwrite Sync Engine Design
+## 3. Supabase Sync Engine Design
 
 ### 3.1. Why Sync in Rust instead of Frontend JS?
-Running heavy network sync loops, token refreshing, and JSON diffing in the frontend Webview increases memory pressure and can cause frame drops during fast typing. By moving the Appwrite REST client into Rust:
+Running heavy network sync loops, token refreshing, and JSON diffing in the frontend Webview increases memory pressure and can cause frame drops during fast typing. By moving the Supabase REST client into Rust:
 1. Webview stays clean (< 40MB RAM).
 2. Sync occurs in background asynchronous tasks (`tokio::spawn`).
 3. Offline queue persists in SQLite even if the app crashes.
@@ -75,8 +75,8 @@ Running heavy network sync loops, token refreshing, and JSON diffing in the fron
 ### 3.2. Sync Workflow
 1. User writes a note $\rightarrow$ Saved locally to SQLite (`sync_status = 'pending'`).
 2. Debounce timer (3s) fires in Rust.
-3. Rust calls Appwrite Database REST API:
-   - Push: Upsert changed records to Appwrite Collections.
+3. Rust calls Supabase PostgREST API:
+   - Push: Upsert changed records to Supabase `notes` table with Row-Level Security.
    - Pull: Fetch remote records modified after `synced_at`.
 4. Update local SQLite status to `synced` and notify frontend via Tauri Event `sync:status-changed`.
 
@@ -98,29 +98,23 @@ async fn write_file_content(
 ) -> Result<FileSaveResultDto, String>;
 ```
 
-### 4.2. Appwrite Auth & Sync Commands (`src-tauri/src/commands/appwrite.rs`)
+### 4.2. Supabase Auth & Sync Commands (`src-tauri/src/commands/supabase.rs`)
 ```rust
-// Configure or update Appwrite connection
+// Get Supabase credentials
 #[tauri::command]
-async fn configure_appwrite(
-    endpoint: String, 
-    project_id: String
-) -> Result<(), String>;
+async fn get_supabase_config() -> Result<SupabaseConfigDto, String>;
+
+// Save Supabase credentials
+#[tauri::command]
+async fn save_supabase_config(url: String, anon_key: String) -> Result<(), String>;
+
+// Test connection
+#[tauri::command]
+async fn test_supabase_connection(url: String, anon_key: String) -> Result<String, String>;
 
 // Login with email & password
 #[tauri::command]
-async fn appwrite_login(
-    email: String, 
-    password: String
-) -> Result<UserSessionDto, String>;
-
-// Trigger manual sync or check sync status
-#[tauri::command]
-async fn appwrite_trigger_sync() -> Result<SyncSummaryDto, String>;
-
-// Logout from Appwrite
-#[tauri::command]
-async fn appwrite_logout() -> Result<(), String>;
+async fn supabase_login(url: String, anon_key: String, email: String, password: String) -> Result<String, String>;
 ```
 
 ---

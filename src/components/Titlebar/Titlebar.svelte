@@ -168,15 +168,15 @@
     <kbd class="px-1.5 py-0.2 bg-slate-900 border border-slate-700/80 rounded text-[10px] text-slate-400 font-mono">Ctrl+K</kbd>
   </button>
 
-  <!-- Right: Appwrite Sync Status & Window Buttons -->
+  <!-- Right: Supabase Sync Status & Window Buttons -->
   <div class="flex items-center space-x-1 pointer-events-auto">
-    <!-- Appwrite Sync Button -->
+    <!-- Supabase Sync Button -->
     <button 
       onclick={onOpenSyncModal}
-      class="flex items-center space-x-1 px-2 py-0.5 rounded text-xs hover:bg-slate-800 transition-colors {editorStore.appwriteConfig.is_configured ? 'text-emerald-400' : 'text-slate-400'}"
-      title="Appwrite Cloud Sync Settings"
+      class="flex items-center space-x-1 px-2 py-0.5 rounded text-xs hover:bg-slate-800 transition-colors {editorStore.supabaseConfig.is_configured ? 'text-emerald-400' : 'text-slate-400'}"
+      title="Supabase Cloud Sync Settings"
     >
-      {#if editorStore.appwriteConfig.is_configured}
+      {#if editorStore.supabaseConfig.is_configured}
         <CheckCircle2 class="w-3.5 h-3.5 text-emerald-400" />
         <span class="hidden md:inline text-[11px]">Synced</span>
       {:else}

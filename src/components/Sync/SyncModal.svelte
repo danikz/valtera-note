@@ -3,37 +3,33 @@
   import { ipc } from '../../services/ipc';
   import { 
     X, 
-    Cloud, 
+    Database, 
     Server, 
     Key, 
     Mail, 
     Lock, 
-    User, 
     CheckCircle2, 
     AlertCircle, 
     Loader2, 
-    Sparkles, 
     HelpCircle, 
     Activity 
   } from 'lucide-svelte';
 
   let { isOpen, onClose }: { isOpen: boolean; onClose: () => void } = $props();
 
-  let endpoint = $state(editorStore.appwriteConfig.endpoint || 'https://cloud.appwrite.io/v1');
-  let projectId = $state(editorStore.appwriteConfig.project_id || '');
-  let databaseId = $state(editorStore.appwriteConfig.database_id || 'valtera_note_db');
-  let email = $state('');
+  let url = $state(editorStore.supabaseConfig.url || '');
+  let anonKey = $state(editorStore.supabaseConfig.anon_key || '');
+  let email = $state(editorStore.supabaseConfig.user_email || '');
   let password = $state('');
-  let name = $state('');
   let authMode = $state<'login' | 'register'>('login');
   let isTesting = $state(false);
   let isLoading = $state(false);
   let statusMessage = $state<{ text: string; type: 'success' | 'error' } | null>(null);
 
   async function handleTestConnection() {
-    if (!endpoint || !projectId) {
+    if (!url || !anonKey) {
       statusMessage = { 
-        text: 'Please provide both Appwrite API Endpoint and Project ID first.', 
+        text: 'Please provide both Supabase Project URL and Anon API Key first.', 
         type: 'error' 
       };
       return;
@@ -43,11 +39,11 @@
     statusMessage = null;
 
     try {
-      const msg = await ipc.testAppwriteConnection(endpoint, projectId);
+      const msg = await ipc.testSupabaseConnection(url, anonKey);
       statusMessage = { text: `✅ ${msg}`, type: 'success' };
     } catch (e: any) {
       statusMessage = { 
-        text: typeof e === 'string' ? e : e?.message || 'Cannot reach Appwrite server', 
+        text: typeof e === 'string' ? e : e?.message || 'Cannot reach Supabase server', 
         type: 'error' 
       };
     } finally {
@@ -59,11 +55,10 @@
     isLoading = true;
     statusMessage = null;
     try {
-      await ipc.saveAppwriteConfig(endpoint, projectId, databaseId);
-      editorStore.appwriteConfig.endpoint = endpoint;
-      editorStore.appwriteConfig.project_id = projectId;
-      editorStore.appwriteConfig.database_id = databaseId;
-      editorStore.appwriteConfig.is_configured = !(!endpoint || !projectId);
+      await ipc.saveSupabaseConfig(url, anonKey);
+      editorStore.supabaseConfig.url = url;
+      editorStore.supabaseConfig.anon_key = anonKey;
+      editorStore.supabaseConfig.is_configured = !(!url || !anonKey);
 
       statusMessage = { text: 'Configuration saved locally!', type: 'success' };
     } catch (e: any) {
@@ -74,8 +69,8 @@
   }
 
   async function handleAuthSubmit() {
-    if (!endpoint || !projectId || !email || !password) {
-      statusMessage = { text: 'Please fill in Endpoint, Project ID, Email, and Password.', type: 'error' };
+    if (!url || !anonKey || !email || !password) {
+      statusMessage = { text: 'Please fill in Project URL, Anon Key, Email, and Password.', type: 'error' };
       return;
     }
 
@@ -84,15 +79,15 @@
 
     try {
       if (authMode === 'register') {
-        await ipc.appwriteRegister(endpoint, projectId, email, password, name);
-        editorStore.appwriteConfig.is_configured = true;
-        editorStore.appwriteConfig.user_email = email;
-        statusMessage = { text: 'Account created and connected to Appwrite successfully!', type: 'success' };
+        const msg = await ipc.supabaseRegister(url, anonKey, email, password);
+        editorStore.supabaseConfig.is_configured = true;
+        editorStore.supabaseConfig.user_email = email;
+        statusMessage = { text: msg, type: 'success' };
       } else {
-        await ipc.appwriteLogin(endpoint, projectId, email, password);
-        editorStore.appwriteConfig.is_configured = true;
-        editorStore.appwriteConfig.user_email = email;
-        statusMessage = { text: 'Connected and logged in to Appwrite successfully!', type: 'success' };
+        await ipc.supabaseLogin(url, anonKey, email, password);
+        editorStore.supabaseConfig.is_configured = true;
+        editorStore.supabaseConfig.user_email = email;
+        statusMessage = { text: 'Connected and logged in to Supabase successfully!', type: 'success' };
       }
     } catch (e: any) {
       statusMessage = { 
@@ -112,8 +107,8 @@
       <!-- Modal Header -->
       <div class="h-12 bg-slate-950 border-b border-slate-800 flex items-center justify-between px-4">
         <div class="flex items-center space-x-2 text-sm font-semibold text-slate-100">
-          <Cloud class="w-4 h-4 text-pink-500" />
-          <span>Appwrite Cloud Sync Settings</span>
+          <Database class="w-4 h-4 text-emerald-400" />
+          <span>Supabase Cloud Sync Settings</span>
         </div>
         <button 
           onclick={onClose}
@@ -140,11 +135,11 @@
         <!-- Server Configuration -->
         <div class="space-y-3 bg-slate-950/60 p-3.5 rounded-lg border border-slate-800/70">
           <div class="flex items-center justify-between">
-            <span class="font-semibold text-slate-200">1. Appwrite Server Endpoint</span>
+            <span class="font-semibold text-slate-200">1. Supabase Project Credentials</span>
             <button 
               onclick={handleTestConnection}
               disabled={isTesting}
-              class="flex items-center space-x-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-blue-400 font-medium transition-colors disabled:opacity-50"
+              class="flex items-center space-x-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-emerald-400 font-medium transition-colors disabled:opacity-50"
             >
               {#if isTesting}
                 <Loader2 class="w-3 h-3 animate-spin" />
@@ -155,32 +150,32 @@
             </button>
           </div>
 
-          <!-- Endpoint URL -->
+          <!-- Project URL -->
           <div class="space-y-1">
-            <label for="endpoint-input" class="block text-slate-400">Endpoint URL (Cloud or Self-Hosted)</label>
+            <label for="url-input" class="block text-slate-400">Project URL</label>
             <div class="relative">
               <Server class="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
               <input 
-                id="endpoint-input"
+                id="url-input"
                 type="text" 
-                bind:value={endpoint} 
-                placeholder="https://cloud.appwrite.io/v1 or http://localhost/v1"
-                class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-pink-500 font-mono"
+                bind:value={url} 
+                placeholder="https://xyzcompany.supabase.co"
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono"
               />
             </div>
           </div>
 
-          <!-- Project ID -->
+          <!-- Anon Public Key -->
           <div class="space-y-1">
-            <label for="project-id-input" class="block text-slate-400">Project ID (from Appwrite Console)</label>
+            <label for="key-input" class="block text-slate-400">Anon Public API Key</label>
             <div class="relative">
               <Key class="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
               <input 
-                id="project-id-input"
-                type="text" 
-                bind:value={projectId} 
-                placeholder="e.g. 660f... or valtera-note"
-                class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-pink-500 font-mono"
+                id="key-input"
+                type="password" 
+                bind:value={anonKey} 
+                placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono"
               />
             </div>
           </div>
@@ -189,39 +184,23 @@
         <!-- Auth Section -->
         <div class="space-y-3 bg-slate-950/60 p-3.5 rounded-lg border border-slate-800/70">
           <div class="flex items-center justify-between">
-            <span class="font-semibold text-slate-200">2. Account Authentication</span>
+            <span class="font-semibold text-slate-200">2. Supabase User Authentication</span>
             <!-- Tab switch login/register -->
             <div class="flex rounded bg-slate-900 p-0.5 border border-slate-800">
               <button 
                 onclick={() => (authMode = 'login')}
-                class="px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors {authMode === 'login' ? 'bg-pink-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'}"
+                class="px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors {authMode === 'login' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'}"
               >
                 Login
               </button>
               <button 
                 onclick={() => (authMode = 'register')}
-                class="px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors {authMode === 'register' ? 'bg-pink-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'}"
+                class="px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors {authMode === 'register' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'}"
               >
-                Create Account
+                Sign Up
               </button>
             </div>
           </div>
-
-          {#if authMode === 'register'}
-            <div class="space-y-1">
-              <label for="name-input" class="block text-slate-400">Full Name</label>
-              <div class="relative">
-                <User class="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
-                <input 
-                  id="name-input"
-                  type="text" 
-                  bind:value={name} 
-                  placeholder="Your Name"
-                  class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-pink-500"
-                />
-              </div>
-            </div>
-          {/if}
 
           <div class="space-y-1">
             <label for="email-input" class="block text-slate-400">Email Address</label>
@@ -232,13 +211,13 @@
                 type="email" 
                 bind:value={email} 
                 placeholder="user@example.com"
-                class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-pink-500"
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500"
               />
             </div>
           </div>
 
           <div class="space-y-1">
-            <label for="password-input" class="block text-slate-400">Password (min. 8 characters)</label>
+            <label for="password-input" class="block text-slate-400">Password</label>
             <div class="relative">
               <Lock class="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
               <input 
@@ -246,21 +225,20 @@
                 type="password" 
                 bind:value={password} 
                 placeholder="••••••••"
-                class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-pink-500"
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500"
               />
             </div>
           </div>
         </div>
 
         <!-- Help Guide Info -->
-        <div class="p-3 bg-blue-950/30 border border-blue-900/40 rounded-lg text-slate-400 space-y-1 text-[11px] leading-relaxed">
-          <div class="flex items-center space-x-1.5 text-blue-400 font-semibold">
+        <div class="p-3 bg-emerald-950/20 border border-emerald-900/30 rounded-lg text-slate-400 space-y-1 text-[11px] leading-relaxed">
+          <div class="flex items-center space-x-1.5 text-emerald-400 font-semibold">
             <HelpCircle class="w-3.5 h-3.5" />
-            <span>Petunjuk Koneksi Appwrite:</span>
+            <span>Petunjuk Koneksi Supabase:</span>
           </div>
-          <p>1. <strong>Endpoint:</strong> Gunakan <code>https://cloud.appwrite.io/v1</code> (Appwrite Cloud) atau <code>http://localhost/v1</code> (Docker lokal).</p>
-          <p>2. <strong>Project ID:</strong> Buat Project di Appwrite Console dan salin Project ID nya ke kolom di atas.</p>
-          <p>3. <strong>Web Platform (Penting):</strong> Di Appwrite Console ➡️ Project Settings ➡️ <strong>Add Platform (Web App)</strong> ➡️ Masukkan Hostname: <code>localhost</code>.</p>
+          <p>1. <strong>Project URL & Anon Key:</strong> Buka <strong>Supabase Dashboard</strong> ➡️ <strong>Project Settings</strong> ➡️ <strong>API</strong> ➡️ Salin <em>Project URL</em> dan <em>anon public key</em>.</p>
+          <p>2. <strong>Tabel Notes (PostgreSQL):</strong> Buat tabel <code>notes</code> dengan Row-Level Security (RLS) sesuai panduan di <code>docs/SUPABASE_SETUP.md</code>.</p>
         </div>
 
       </div>
@@ -286,12 +264,12 @@
           <button 
             onclick={handleAuthSubmit}
             disabled={isLoading}
-            class="flex items-center space-x-1.5 px-4 py-1.5 rounded-lg bg-pink-600 hover:bg-pink-500 disabled:opacity-50 text-white font-medium shadow-md transition-colors"
+            class="flex items-center space-x-1.5 px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-medium shadow-md transition-colors"
           >
             {#if isLoading}
               <Loader2 class="w-3.5 h-3.5 animate-spin" />
             {/if}
-            <span>{authMode === 'register' ? 'Register & Connect' : 'Login & Connect'}</span>
+            <span>{authMode === 'register' ? 'Sign Up & Connect' : 'Login & Connect'}</span>
           </button>
         </div>
       </div>

@@ -9,7 +9,7 @@ pub async fn save_tabs_state(
     db: State<'_, Arc<DatabaseManager>>,
 ) -> Result<(), String> {
     let db = Arc::clone(&db);
-    tokio::task::spawn_blocking(move || db.save_tabs_state(&tabs))
+    tokio::task::spawn_blocking(move || db.save_session_tabs(&tabs))
         .await
         .map_err(|e| e.to_string())?
 }
@@ -19,16 +19,9 @@ pub async fn load_session(
     db: State<'_, Arc<DatabaseManager>>,
 ) -> Result<SessionStateDto, String> {
     let db = Arc::clone(&db);
-    tokio::task::spawn_blocking(move || {
-        let tabs = db.load_tabs_state()?;
-        let active_tab_index = tabs.iter().position(|t| t.is_active).unwrap_or(0);
-        Ok(SessionStateDto {
-            tabs,
-            active_tab_index,
-        })
-    })
-    .await
-    .map_err(|e| e.to_string())?
+    tokio::task::spawn_blocking(move || db.load_session_tabs())
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -45,11 +38,11 @@ pub async fn get_app_setting(
 #[tauri::command]
 pub async fn set_app_setting(
     key: String,
-    value_json: String,
+    value: String,
     db: State<'_, Arc<DatabaseManager>>,
 ) -> Result<(), String> {
     let db = Arc::clone(&db);
-    tokio::task::spawn_blocking(move || db.set_setting(&key, &value_json))
+    tokio::task::spawn_blocking(move || db.set_setting(&key, &value))
         .await
         .map_err(|e| e.to_string())?
 }

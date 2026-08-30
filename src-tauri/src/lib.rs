@@ -1,8 +1,8 @@
-pub mod appwrite;
 pub mod commands;
 pub mod db;
 pub mod models;
 pub mod services;
+pub mod supabase;
 
 use std::sync::Arc;
 use crate::db::DatabaseManager;
@@ -35,12 +35,12 @@ pub fn run() {
             // SQL runner operations
             commands::sql::execute_sqlite_query,
             commands::sql::format_sql_query,
-            // Appwrite operations
-            commands::appwrite::get_appwrite_config,
-            commands::appwrite::save_appwrite_config,
-            commands::appwrite::test_appwrite_connection,
-            commands::appwrite::appwrite_register,
-            commands::appwrite::appwrite_login,
+            // Supabase operations
+            commands::supabase::get_supabase_config,
+            commands::supabase::save_supabase_config,
+            commands::supabase::test_supabase_connection,
+            commands::supabase::supabase_register,
+            commands::supabase::supabase_login,
         ])
         .run(tauri::generate_context!())
         .expect("error while running valtera-note application");

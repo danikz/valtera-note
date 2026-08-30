@@ -1,12 +1,12 @@
 import { ipc } from '../services/ipc';
-import type { TabState, AppwriteConfig, SplitMode } from '../types';
+import type { TabState, SupabaseConfig, SplitMode } from '../types';
 
 class EditorStore {
   tabs = $state<TabState[]>([
     {
       title: 'Welcome.md',
       file_extension: 'md',
-      content: '# Welcome to Valtera Note 📝\n\n- Ultra-lightweight Notepad alternative (< 40MB RAM)\n- Fast Markdown Preview & SQL scratchpad\n- 100% Local-First with Appwrite Cloud Sync\n\nStart typing your notes or SQL queries here!',
+      content: '# Welcome to Valtera Note 📝\n\n- Ultra-lightweight Notepad alternative (< 40MB RAM)\n- Fast Markdown Preview & SQL scratchpad\n- 100% Local-First with Supabase Cloud Sync\n\nStart typing your notes or SQL queries here!',
       is_active: true,
       is_dirty: false,
       is_scratchpad: true,
@@ -17,10 +17,9 @@ class EditorStore {
   ]);
   activeTabIndex = $state<number>(0);
   isSaving = $state<boolean>(false);
-  appwriteConfig = $state<AppwriteConfig>({
-    endpoint: '',
-    project_id: '',
-    database_id: 'valtera_note_db',
+  supabaseConfig = $state<SupabaseConfig>({
+    url: '',
+    anon_key: '',
     is_configured: false
   });
   isSyncing = $state<boolean>(false);
@@ -42,7 +41,7 @@ class EditorStore {
         this.tabs = session.tabs;
         this.activeTabIndex = Math.min(session.active_tab_index, session.tabs.length - 1);
       }
-      this.appwriteConfig = await ipc.getAppwriteConfig();
+      this.supabaseConfig = await ipc.getSupabaseConfig();
     } catch (e) {
       console.error('Failed to init session:', e);
     }
@@ -60,7 +59,6 @@ class EditorStore {
       cursor_col: 1,
       split_mode: file_extension === 'md' ? 'split-horizontal' : 'none'
     };
-
     this.tabs.push(newTab);
     this.activeTabIndex = this.tabs.length - 1;
     this.persistTabs();
@@ -68,17 +66,19 @@ class EditorStore {
 
   closeTab(index: number) {
     if (this.tabs.length <= 1) {
-      this.tabs = [{
-        title: 'Untitled-1',
-        file_extension: 'txt',
-        content: '',
-        is_active: true,
-        is_dirty: false,
-        is_scratchpad: true,
-        cursor_line: 1,
-        cursor_col: 1,
-        split_mode: 'none'
-      }];
+      this.tabs = [
+        {
+          title: 'Untitled.txt',
+          file_extension: 'txt',
+          content: '',
+          is_active: true,
+          is_dirty: false,
+          is_scratchpad: true,
+          cursor_line: 1,
+          cursor_col: 1,
+          split_mode: 'none'
+        }
+      ];
       this.activeTabIndex = 0;
       this.persistTabs();
       return;
@@ -91,17 +91,17 @@ class EditorStore {
     this.persistTabs();
   }
 
-  setActiveTab(index: number) {
+  selectTab(index: number) {
     if (index >= 0 && index < this.tabs.length) {
       this.activeTabIndex = index;
       this.persistTabs();
     }
   }
 
-  updateContent(content: string) {
+  updateContent(newContent: string) {
     const tab = this.activeTab;
-    if (tab && tab.content !== content) {
-      tab.content = content;
+    if (tab && tab.content !== newContent) {
+      tab.content = newContent;
       tab.is_dirty = true;
       this.debounceAutoPersist();
     }
@@ -127,8 +127,10 @@ class EditorStore {
     const tab = this.activeTab;
     if (tab) {
       tab.file_extension = ext;
-      if (ext === 'md' && tab.split_mode === 'none') {
-        tab.split_mode = 'split-horizontal';
+      if (tab.title.includes('.')) {
+        tab.title = `${tab.title.substring(0, tab.title.lastIndexOf('.'))}.${ext}`;
+      } else {
+        tab.title = `${tab.title}.${ext}`;
       }
       this.persistTabs();
     }
@@ -138,15 +140,11 @@ class EditorStore {
     const tab = this.activeTab;
     if (!tab) return;
 
-    const path = customPath || tab.file_path;
-    if (!path) {
-      return false;
-    }
-
     this.isSaving = true;
     try {
-      const res = await ipc.writeFile(path, tab.content);
-      if (res.success) {
+      const path = customPath || tab.file_path;
+      if (path) {
+        await ipc.writeFile(path, tab.content);
         tab.file_path = path;
         tab.title = path.split(/[\\/]/).pop() || tab.title;
         tab.file_extension = path.split('.').pop() || tab.file_extension;

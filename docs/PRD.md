@@ -1,13 +1,13 @@
 # Product Requirements Document (PRD) — Valtera Note
 
 ## 1. Overview & Vision
-**Valtera Note** is an ultra-lightweight, lightning-fast desktop text editor, viewer, and scratchpad built for Windows and Linux. It combines the simplicity and low resource footprint of classic Notepad with modern developer-centric features: syntax highlighting, Markdown preview/viewer, SQL scratchpad/formatter, and **Open-Source Cloud Sync powered by Appwrite**.
+**Valtera Note** is an ultra-lightweight, lightning-fast desktop text editor, viewer, and scratchpad built for Windows and Linux. It combines the simplicity and low resource footprint of classic Notepad with modern developer-centric features: syntax highlighting, Markdown preview/viewer, SQL scratchpad/formatter, and **Open-Source Cloud Sync powered by Supabase**.
 
 ### Key Objectives
 - **Memory Footprint**: Target idle RAM consumption under **40MB - 60MB** (compared to Electron-based editors consuming 400MB - 1GB+).
 - **Startup Speed**: Cold startup time under **250ms**.
 - **Cross-Platform**: First-class support for **Windows 10/11** and **Linux (X11 & Wayland)**.
-- **Open-Source Cloud Sync (Appwrite)**: Users can sync their notes, snippets, and settings to their own self-hosted Appwrite instance or Appwrite Cloud.
+- **Open-Source Cloud Sync (Supabase)**: Users can sync their notes, snippets, and settings to their own self-hosted Supabase instance or Supabase Cloud.
 - **AI-Driven Extensibility**: Modular, type-safe architecture strictly documented so AI agents can independently build and maintain features.
 
 ---
@@ -22,8 +22,8 @@
 
 ## 3. Core Personas & User Scenarios
 1. **Developer / DBA on Low-Resource Machine**: Needs to quickly open a 20MB `.sql` dump or query scratchpad without freezing the machine.
-2. **Technical Writer / Note Taker**: Needs a distraction-free Markdown editor with instant side-by-side rendering and multi-device sync via self-hosted Appwrite.
-3. **Open-Source Enthusiast & Privacy Advocate**: Wants full ownership of their cloud data by hosting their own Appwrite backend via Docker.
+2. **Technical Writer / Note Taker**: Needs a distraction-free Markdown editor with instant side-by-side rendering and multi-device sync via self-hosted Supabase.
+3. **Open-Source Enthusiast & Privacy Advocate**: Wants full ownership of their cloud data by hosting their own Supabase backend via Docker.
 
 ---
 
@@ -46,9 +46,9 @@
 - **Formatter**: Built-in fast SQL formatting / indentation.
 - **Lightweight Query Runner**: Ability to open and query local `.db` / `.sqlite` files directly in a read-only scratchpad grid without launching heavy database GUIs.
 
-### 4.4. Appwrite Open-Source Sync Engine
+### 4.4. Supabase Open-Source Sync Engine
 - **Local-First**: Works 100% offline out-of-the-box using local SQLite.
-- **Self-Hosted / Cloud Appwrite**: Users input their custom Appwrite Endpoint URL and Project ID in settings.
+- **Self-Hosted / Cloud Supabase**: Users input their custom Supabase Project URL and Anon Key in settings.
 - **Bi-directional Sync**: Automatically syncs notes, snippets, workspaces, and user settings in the background using Rust async workers.
 - **Conflict Resolution**: Timestamp-based Last-Write-Wins (LWW) with automated conflict file backup.
 

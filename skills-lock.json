@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "appwrite-cli": {
+      "source": "appwrite/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/appwrite-cli/SKILL.md",
+      "computedHash": "1c6ba8029433edffcb9b5e1d8660a0a60eeed7493bb514e76d9f4805b0138f97"
+    },
+    "appwrite-rust": {
+      "source": "appwrite/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/appwrite-rust/SKILL.md",
+      "computedHash": "f47741cfa4daf25e7b0170c2240efd4ac61e692fd8d4e485cc8a9ae56d510635"
+    },
+    "appwrite-typescript": {
+      "source": "appwrite/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/appwrite-typescript/SKILL.md",
+      "computedHash": "3efb5d412ca6602cf13058c2671f06d2710a0280c2310b2d32638769e7db3f38"
+    }
+  }
+}

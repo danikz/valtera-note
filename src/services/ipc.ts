@@ -167,6 +167,43 @@ export const ipc = {
     localStorage.setItem('valtera_supabase_anon_key', anonKey.trim());
   },
 
+  async checkSupabaseTable(url: string, anonKey: string, accessToken?: string): Promise<boolean> {
+    const cleanUrl = url.trim().replace(/\/+$/, '');
+    const cleanKey = anonKey.trim();
+
+    if (isTauri) {
+      try {
+        return await invoke<boolean>('check_supabase_table', {
+          url: cleanUrl,
+          anonKey: cleanKey,
+          anon_key: cleanKey,
+          accessToken: accessToken || null,
+          access_token: accessToken || null
+        });
+      } catch (err) {
+        console.warn('Native check table error, fallback to fetch:', err);
+      }
+    }
+
+    try {
+      const res = await fetch(`${cleanUrl}/rest/v1/notes?select=id&limit=1`, {
+        method: 'GET',
+        headers: {
+          'apikey': cleanKey,
+          'Authorization': `Bearer ${accessToken || cleanKey}`
+        }
+      });
+      if (res.ok) return true;
+      const text = await res.text().catch(() => '');
+      if (text.includes('42P01') || text.includes('does not exist') || text.includes('PGRST204') || text.includes('PGRST205')) {
+        return false;
+      }
+      return res.status === 401 || res.status === 403;
+    } catch {
+      return false;
+    }
+  },
+
   async testSupabaseConnection(url: string, anonKey: string): Promise<string> {
     const cleanUrl = url.trim().replace(/\/+$/, '');
     const cleanKey = anonKey.trim();

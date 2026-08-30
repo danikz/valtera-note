@@ -12,7 +12,11 @@
     AlertCircle, 
     Loader2, 
     HelpCircle, 
-    Activity 
+    Activity, 
+    Copy, 
+    ExternalLink, 
+    Check, 
+    ShieldCheck 
   } from 'lucide-svelte';
 
   let { isOpen, onClose }: { isOpen: boolean; onClose: () => void } = $props();
@@ -23,8 +27,63 @@
   let password = $state('');
   let authMode = $state<'login' | 'register'>('login');
   let isTesting = $state(false);
+  let isCheckingTable = $state(false);
+  let tableStatus = $state<'ready' | 'missing' | 'unknown'>('unknown');
   let isLoading = $state(false);
+  let copiedSql = $state(false);
   let statusMessage = $state<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  const SQL_MIGRATION = `-- 1. Create notes table
+create table if not exists public.notes (
+    id uuid default gen_random_uuid() primary key,
+    user_id uuid references auth.users(id) on delete cascade not null,
+    title text not null default 'Untitled',
+    content text not null default '',
+    file_extension text not null default 'md',
+    is_pinned boolean not null default false,
+    is_deleted boolean not null default false,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- 2. Create index
+create index if not exists idx_notes_user_id on public.notes(user_id);
+create index if not exists idx_notes_updated_at on public.notes(updated_at desc);
+
+-- 3. Enable Row Level Security (RLS)
+alter table public.notes enable row level security;
+
+-- 4. Create RLS Policies
+create policy "Users can view own notes" on public.notes for select using (auth.uid() = user_id);
+create policy "Users can insert own notes" on public.notes for insert with check (auth.uid() = user_id);
+create policy "Users can update own notes" on public.notes for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can delete own notes" on public.notes for delete using (auth.uid() = user_id);`;
+
+  function getProjectRef(): string | null {
+    try {
+      const parsed = new URL(url);
+      const host = parsed.hostname;
+      if (host.endsWith('.supabase.co')) {
+        return host.replace('.supabase.co', '');
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  }
+
+  async function checkTable() {
+    if (!url || !anonKey) return;
+    isCheckingTable = true;
+    try {
+      const exists = await ipc.checkSupabaseTable(url, anonKey, editorStore.supabaseConfig.access_token || undefined);
+      tableStatus = exists ? 'ready' : 'missing';
+    } catch {
+      tableStatus = 'unknown';
+    } finally {
+      isCheckingTable = false;
+    }
+  }
 
   async function handleTestConnection() {
     if (!url || !anonKey) {
@@ -41,6 +100,7 @@
     try {
       const msg = await ipc.testSupabaseConnection(url, anonKey);
       statusMessage = { text: `✅ ${msg}`, type: 'success' };
+      await checkTable();
     } catch (e: any) {
       statusMessage = { 
         text: typeof e === 'string' ? e : e?.message || 'Cannot reach Supabase server', 
@@ -49,6 +109,24 @@
     } finally {
       isTesting = false;
     }
+  }
+
+  async function handleCopySql() {
+    try {
+      await navigator.clipboard.writeText(SQL_MIGRATION);
+      copiedSql = true;
+      setTimeout(() => { copiedSql = false; }, 2000);
+    } catch (e) {
+      console.warn('Copy failed:', e);
+    }
+  }
+
+  function handleOpenSqlEditor() {
+    const ref = getProjectRef();
+    const targetUrl = ref 
+      ? `https://supabase.com/dashboard/project/${ref}/sql/new` 
+      : 'https://supabase.com/dashboard';
+    window.open(targetUrl, '_blank');
   }
 
   async function handleSaveConfig() {
@@ -61,6 +139,7 @@
       editorStore.supabaseConfig.is_configured = !(!url || !anonKey);
 
       statusMessage = { text: 'Configuration saved locally!', type: 'success' };
+      await checkTable();
     } catch (e: any) {
       statusMessage = { text: e?.toString() || 'Failed to save configuration', type: 'error' };
     } finally {
@@ -89,6 +168,7 @@
         editorStore.supabaseConfig.user_email = email;
         statusMessage = { text: 'Connected and logged in to Supabase successfully!', type: 'success' };
       }
+      await checkTable();
     } catch (e: any) {
       statusMessage = { 
         text: typeof e === 'string' ? e : e?.message || 'Authentication failed', 
@@ -98,6 +178,12 @@
       isLoading = false;
     }
   }
+
+  $effect(() => {
+    if (isOpen && url && anonKey && tableStatus === 'unknown') {
+      checkTable();
+    }
+  });
 </script>
 
 {#if isOpen}
@@ -129,6 +215,64 @@
               <AlertCircle class="w-4 h-4 flex-shrink-0 mt-0.5" />
             {/if}
             <span class="font-medium leading-relaxed">{statusMessage.text}</span>
+          </div>
+        {/if}
+
+        <!-- Table Status Indicator Banner -->
+        {#if tableStatus === 'ready'}
+          <div class="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-700/60 flex items-center justify-between text-emerald-300">
+            <div class="flex items-center space-x-2">
+              <ShieldCheck class="w-4 h-4 text-emerald-400" />
+              <span class="font-medium">Tabel <code>notes</code> Siap & RLS Aktif</span>
+            </div>
+            <button 
+              onclick={checkTable}
+              disabled={isCheckingTable}
+              class="text-[11px] underline hover:text-emerald-200"
+            >
+              {isCheckingTable ? 'Checking...' : 'Re-check'}
+            </button>
+          </div>
+        {:else if tableStatus === 'missing'}
+          <div class="p-3 rounded-lg bg-amber-950/50 border border-amber-700/70 text-amber-200 space-y-2">
+            <div class="flex items-center justify-between font-semibold text-amber-300">
+              <div class="flex items-center space-x-1.5">
+                <AlertCircle class="w-4 h-4 text-amber-400" />
+                <span>Tabel <code>notes</code> Belum Ditemukan di Supabase</span>
+              </div>
+              <button 
+                onclick={checkTable}
+                disabled={isCheckingTable}
+                class="text-[11px] underline text-amber-300 hover:text-white"
+              >
+                {isCheckingTable ? 'Checking...' : 'Re-check'}
+              </button>
+            </div>
+            <p class="text-[11px] text-amber-200/80 leading-relaxed">
+              Jalankan skrip DDL SQL berikut di SQL Editor Supabase untuk membuat tabel dan mengaktifkan Row-Level Security:
+            </p>
+            <div class="flex items-center space-x-2 pt-1">
+              <button 
+                onclick={handleCopySql}
+                class="flex items-center space-x-1 px-2.5 py-1 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold transition-colors"
+              >
+                {#if copiedSql}
+                  <Check class="w-3.5 h-3.5" />
+                  <span>Copied!</span>
+                {:else}
+                  <Copy class="w-3.5 h-3.5" />
+                  <span>Copy SQL Migration</span>
+                {/if}
+              </button>
+
+              <button 
+                onclick={handleOpenSqlEditor}
+                class="flex items-center space-x-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium transition-colors"
+              >
+                <ExternalLink class="w-3.5 h-3.5" />
+                <span>Buka SQL Editor</span>
+              </button>
+            </div>
           </div>
         {/if}
 
@@ -235,10 +379,10 @@
         <div class="p-3 bg-emerald-950/20 border border-emerald-900/30 rounded-lg text-slate-400 space-y-1 text-[11px] leading-relaxed">
           <div class="flex items-center space-x-1.5 text-emerald-400 font-semibold">
             <HelpCircle class="w-3.5 h-3.5" />
-            <span>Petunjuk Koneksi Supabase:</span>
+            <span>Petunjuk Supabase RLS:</span>
           </div>
-          <p>1. <strong>Project URL & Anon Key:</strong> Buka <strong>Supabase Dashboard</strong> ➡️ <strong>Project Settings</strong> ➡️ <strong>API</strong> ➡️ Salin <em>Project URL</em> dan <em>anon public key</em>.</p>
-          <p>2. <strong>Tabel Notes (PostgreSQL):</strong> Buat tabel <code>notes</code> dengan Row-Level Security (RLS) sesuai panduan di <code>docs/SUPABASE_SETUP.md</code>.</p>
+          <p>1. <strong>Project URL & Anon Key:</strong> Buka <strong>Supabase Dashboard</strong> ➡️ <strong>Project Settings</strong> ➡️ <strong>API</strong>.</p>
+          <p>2. <strong>Row-Level Security:</strong> Dengan RLS aktif, catatan Anda hanya bisa dibaca dan diubah oleh akun Anda sendiri.</p>
         </div>
 
       </div>

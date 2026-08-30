@@ -107,6 +107,30 @@ impl SupabaseClient {
         }
     }
 
+    pub async fn execute_sql_management(&self, project_ref: &str, token: &str, sql: &str) -> Result<String, String> {
+        let endpoint = format!("https://api.supabase.com/v1/projects/{}/database/query", project_ref);
+        let body = serde_json::json!({
+            "query": sql
+        });
+
+        let res = self.client.post(&endpoint)
+            .header("Authorization", format!("Bearer {}", token.trim()))
+            .header("Content-Type", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("Gagal memanggil Supabase Management API: {}", e))?;
+
+        let status = res.status();
+        let text = res.text().await.unwrap_or_default();
+
+        if status.is_success() {
+            Ok("Tabel 'notes' dan RLS policy berhasil dibuat secara otomatis!".to_string())
+        } else {
+            Err(format!("Supabase API error (HTTP {}): {}", status.as_u16(), text))
+        }
+    }
+
     pub async fn register_email(&self, email: &str, password: &str) -> Result<SupabaseAuthResponse, String> {
         let url = format!("{}/auth/v1/signup", self.url);
         let body = serde_json::json!({

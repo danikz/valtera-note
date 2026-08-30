@@ -40,6 +40,7 @@ pub fn run() {
             commands::supabase::save_supabase_config,
             commands::supabase::test_supabase_connection,
             commands::supabase::check_supabase_table,
+            commands::supabase::auto_create_supabase_table,
             commands::supabase::supabase_register,
             commands::supabase::supabase_login,
         ])

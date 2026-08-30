@@ -68,6 +68,53 @@ pub async fn check_supabase_table(
 }
 
 #[tauri::command]
+pub async fn auto_create_supabase_table(
+    url: String,
+    anon_key: String,
+    token: String,
+) -> Result<String, String> {
+    let client = SupabaseClient::new(url.clone(), anon_key);
+    
+    // Extract project ref from URL (e.g. https://xyz.supabase.co -> xyz)
+    let project_ref = if let Ok(parsed) = reqwest::Url::parse(&url) {
+        parsed.host_str().unwrap_or("").split('.').next().unwrap_or("").to_string()
+    } else {
+        url.trim_start_matches("https://").trim_start_matches("http://").split('.').next().unwrap_or("").to_string()
+    };
+
+    if project_ref.is_empty() {
+        return Err("URL Supabase tidak valid".to_string());
+    }
+
+    let sql = "
+        create table if not exists public.notes (
+            id uuid default gen_random_uuid() primary key,
+            title text not null default 'Untitled',
+            content text not null default '',
+            file_extension text not null default 'md',
+            is_pinned boolean not null default false,
+            is_deleted boolean not null default false,
+            created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+            updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+        );
+
+        create index if not exists idx_notes_updated_at on public.notes(updated_at desc);
+
+        alter table public.notes enable row level security;
+        
+        do $$
+        begin
+            if not exists (select 1 from pg_policies where policyname = 'Allow API access' and tablename = 'notes') then
+                create policy \"Allow API access\" on public.notes for all using (true) with check (true);
+            end if;
+        end
+        $$;
+    ";
+
+    client.execute_sql_management(&project_ref, &token, sql).await
+}
+
+#[tauri::command]
 pub async fn supabase_register(
     url: String,
     anon_key: String,

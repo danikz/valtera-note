@@ -6,8 +6,6 @@
     Database, 
     Server, 
     Key, 
-    Mail, 
-    Lock, 
     CheckCircle2, 
     AlertCircle, 
     Loader2, 
@@ -16,16 +14,14 @@
     Copy, 
     ExternalLink, 
     Check, 
-    ShieldCheck 
+    ShieldCheck, 
+    Zap 
   } from 'lucide-svelte';
 
   let { isOpen, onClose }: { isOpen: boolean; onClose: () => void } = $props();
 
   let url = $state(editorStore.supabaseConfig.url || '');
   let anonKey = $state(editorStore.supabaseConfig.anon_key || '');
-  let email = $state(editorStore.supabaseConfig.user_email || '');
-  let password = $state('');
-  let authMode = $state<'login' | 'register'>('login');
   let isTesting = $state(false);
   let isCheckingTable = $state(false);
   let tableStatus = $state<'ready' | 'missing' | 'unknown'>('unknown');
@@ -36,7 +32,6 @@
   const SQL_MIGRATION = `-- 1. Create notes table
 create table if not exists public.notes (
     id uuid default gen_random_uuid() primary key,
-    user_id uuid references auth.users(id) on delete cascade not null,
     title text not null default 'Untitled',
     content text not null default '',
     file_extension text not null default 'md',
@@ -46,18 +41,12 @@ create table if not exists public.notes (
     updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- 2. Create index
-create index if not exists idx_notes_user_id on public.notes(user_id);
+-- 2. Create indices
 create index if not exists idx_notes_updated_at on public.notes(updated_at desc);
 
--- 3. Enable Row Level Security (RLS)
+-- 3. Enable RLS and allow full access with API Key
 alter table public.notes enable row level security;
-
--- 4. Create RLS Policies
-create policy "Users can view own notes" on public.notes for select using (auth.uid() = user_id);
-create policy "Users can insert own notes" on public.notes for insert with check (auth.uid() = user_id);
-create policy "Users can update own notes" on public.notes for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy "Users can delete own notes" on public.notes for delete using (auth.uid() = user_id);`;
+create policy "Allow API access" on public.notes for all using (true) with check (true);`;
 
   function getProjectRef(): string | null {
     try {
@@ -76,7 +65,7 @@ create policy "Users can delete own notes" on public.notes for delete using (aut
     if (!url || !anonKey) return;
     isCheckingTable = true;
     try {
-      const exists = await ipc.checkSupabaseTable(url, anonKey, editorStore.supabaseConfig.access_token || undefined);
+      const exists = await ipc.checkSupabaseTable(url, anonKey);
       tableStatus = exists ? 'ready' : 'missing';
     } catch {
       tableStatus = 'unknown';
@@ -88,7 +77,7 @@ create policy "Users can delete own notes" on public.notes for delete using (aut
   async function handleTestConnection() {
     if (!url || !anonKey) {
       statusMessage = { 
-        text: 'Please provide both Supabase Project URL and Anon API Key first.', 
+        text: 'Masukkan Project URL dan API Key Supabase Anda terlebih dahulu.', 
         type: 'error' 
       };
       return;
@@ -103,7 +92,7 @@ create policy "Users can delete own notes" on public.notes for delete using (aut
       await checkTable();
     } catch (e: any) {
       statusMessage = { 
-        text: typeof e === 'string' ? e : e?.message || 'Cannot reach Supabase server', 
+        text: typeof e === 'string' ? e : e?.message || 'Gagal menghubungi server Supabase', 
         type: 'error' 
       };
     } finally {
@@ -129,27 +118,9 @@ create policy "Users can delete own notes" on public.notes for delete using (aut
     window.open(targetUrl, '_blank');
   }
 
-  async function handleSaveConfig() {
-    isLoading = true;
-    statusMessage = null;
-    try {
-      await ipc.saveSupabaseConfig(url, anonKey);
-      editorStore.supabaseConfig.url = url;
-      editorStore.supabaseConfig.anon_key = anonKey;
-      editorStore.supabaseConfig.is_configured = !(!url || !anonKey);
-
-      statusMessage = { text: 'Configuration saved locally!', type: 'success' };
-      await checkTable();
-    } catch (e: any) {
-      statusMessage = { text: e?.toString() || 'Failed to save configuration', type: 'error' };
-    } finally {
-      isLoading = false;
-    }
-  }
-
-  async function handleAuthSubmit() {
-    if (!url || !anonKey || !email || !password) {
-      statusMessage = { text: 'Please fill in Project URL, Anon Key, Email, and Password.', type: 'error' };
+  async function handleConnectAndSave() {
+    if (!url || !anonKey) {
+      statusMessage = { text: 'Harap isi Project URL dan API Key.', type: 'error' };
       return;
     }
 
@@ -157,26 +128,29 @@ create policy "Users can delete own notes" on public.notes for delete using (aut
     statusMessage = null;
 
     try {
-      if (authMode === 'register') {
-        const msg = await ipc.supabaseRegister(url, anonKey, email, password);
-        editorStore.supabaseConfig.is_configured = true;
-        editorStore.supabaseConfig.user_email = email;
-        statusMessage = { text: msg, type: 'success' };
-      } else {
-        await ipc.supabaseLogin(url, anonKey, email, password);
-        editorStore.supabaseConfig.is_configured = true;
-        editorStore.supabaseConfig.user_email = email;
-        statusMessage = { text: 'Connected and logged in to Supabase successfully!', type: 'success' };
-      }
+      await ipc.saveSupabaseConfig(url, anonKey);
+      editorStore.supabaseConfig.url = url;
+      editorStore.supabaseConfig.anon_key = anonKey;
+      editorStore.supabaseConfig.is_configured = true;
+
+      statusMessage = { text: 'Tersambung ke Supabase! Sinkronisasi cloud aktif.', type: 'success' };
       await checkTable();
     } catch (e: any) {
-      statusMessage = { 
-        text: typeof e === 'string' ? e : e?.message || 'Authentication failed', 
-        type: 'error' 
-      };
+      statusMessage = { text: e?.toString() || 'Gagal menyimpan konfigurasi', type: 'error' };
     } finally {
       isLoading = false;
     }
+  }
+
+  async function handleDisconnect() {
+    await ipc.saveSupabaseConfig('', '');
+    editorStore.supabaseConfig.url = '';
+    editorStore.supabaseConfig.anon_key = '';
+    editorStore.supabaseConfig.is_configured = false;
+    url = '';
+    anonKey = '';
+    tableStatus = 'unknown';
+    statusMessage = { text: 'Koneksi Supabase diputuskan. Bekerja dalam mode offline.', type: 'success' };
   }
 
   $effect(() => {
@@ -194,7 +168,7 @@ create policy "Users can delete own notes" on public.notes for delete using (aut
       <div class="h-12 bg-slate-950 border-b border-slate-800 flex items-center justify-between px-4">
         <div class="flex items-center space-x-2 text-sm font-semibold text-slate-100">
           <Database class="w-4 h-4 text-emerald-400" />
-          <span>Supabase Cloud Sync Settings</span>
+          <span>Supabase API Sync Settings</span>
         </div>
         <button 
           onclick={onClose}
@@ -223,7 +197,7 @@ create policy "Users can delete own notes" on public.notes for delete using (aut
           <div class="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-700/60 flex items-center justify-between text-emerald-300">
             <div class="flex items-center space-x-2">
               <ShieldCheck class="w-4 h-4 text-emerald-400" />
-              <span class="font-medium">Tabel <code>notes</code> Siap & RLS Aktif</span>
+              <span class="font-medium">Tabel <code>notes</code> Siap & Terhubung</span>
             </div>
             <button 
               onclick={checkTable}
@@ -238,7 +212,7 @@ create policy "Users can delete own notes" on public.notes for delete using (aut
             <div class="flex items-center justify-between font-semibold text-amber-300">
               <div class="flex items-center space-x-1.5">
                 <AlertCircle class="w-4 h-4 text-amber-400" />
-                <span>Tabel <code>notes</code> Belum Ditemukan di Supabase</span>
+                <span>Tabel <code>notes</code> Belum Ditemukan</span>
               </div>
               <button 
                 onclick={checkTable}
@@ -249,7 +223,7 @@ create policy "Users can delete own notes" on public.notes for delete using (aut
               </button>
             </div>
             <p class="text-[11px] text-amber-200/80 leading-relaxed">
-              Jalankan skrip DDL SQL berikut di SQL Editor Supabase untuk membuat tabel dan mengaktifkan Row-Level Security:
+              Buat tabel <code>notes</code> sekali saja di SQL Editor Supabase agar catatan otomatis tersinkronisasi:
             </p>
             <div class="flex items-center space-x-2 pt-1">
               <button 
@@ -276,10 +250,10 @@ create policy "Users can delete own notes" on public.notes for delete using (aut
           </div>
         {/if}
 
-        <!-- Server Configuration -->
+        <!-- Credentials Form -->
         <div class="space-y-3 bg-slate-950/60 p-3.5 rounded-lg border border-slate-800/70">
           <div class="flex items-center justify-between">
-            <span class="font-semibold text-slate-200">1. Supabase Project Credentials</span>
+            <span class="font-semibold text-slate-200">Supabase API Credentials</span>
             <button 
               onclick={handleTestConnection}
               disabled={isTesting}
@@ -311,7 +285,7 @@ create policy "Users can delete own notes" on public.notes for delete using (aut
 
           <!-- Anon Public Key -->
           <div class="space-y-1">
-            <label for="key-input" class="block text-slate-400">Anon Public API Key</label>
+            <label for="key-input" class="block text-slate-400">API Key (anon public atau service role)</label>
             <div class="relative">
               <Key class="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
               <input 
@@ -325,95 +299,50 @@ create policy "Users can delete own notes" on public.notes for delete using (aut
           </div>
         </div>
 
-        <!-- Auth Section -->
-        <div class="space-y-3 bg-slate-950/60 p-3.5 rounded-lg border border-slate-800/70">
-          <div class="flex items-center justify-between">
-            <span class="font-semibold text-slate-200">2. Supabase User Authentication</span>
-            <!-- Tab switch login/register -->
-            <div class="flex rounded bg-slate-900 p-0.5 border border-slate-800">
-              <button 
-                onclick={() => (authMode = 'login')}
-                class="px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors {authMode === 'login' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'}"
-              >
-                Login
-              </button>
-              <button 
-                onclick={() => (authMode = 'register')}
-                class="px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors {authMode === 'register' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'}"
-              >
-                Sign Up
-              </button>
-            </div>
-          </div>
-
-          <div class="space-y-1">
-            <label for="email-input" class="block text-slate-400">Email Address</label>
-            <div class="relative">
-              <Mail class="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
-              <input 
-                id="email-input"
-                type="email" 
-                bind:value={email} 
-                placeholder="user@example.com"
-                class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-          </div>
-
-          <div class="space-y-1">
-            <label for="password-input" class="block text-slate-400">Password</label>
-            <div class="relative">
-              <Lock class="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
-              <input 
-                id="password-input"
-                type="password" 
-                bind:value={password} 
-                placeholder="••••••••"
-                class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-          </div>
-        </div>
-
         <!-- Help Guide Info -->
         <div class="p-3 bg-emerald-950/20 border border-emerald-900/30 rounded-lg text-slate-400 space-y-1 text-[11px] leading-relaxed">
           <div class="flex items-center space-x-1.5 text-emerald-400 font-semibold">
             <HelpCircle class="w-3.5 h-3.5" />
-            <span>Petunjuk Supabase RLS:</span>
+            <span>Cara Menemukan API Key:</span>
           </div>
-          <p>1. <strong>Project URL & Anon Key:</strong> Buka <strong>Supabase Dashboard</strong> ➡️ <strong>Project Settings</strong> ➡️ <strong>API</strong>.</p>
-          <p>2. <strong>Row-Level Security:</strong> Dengan RLS aktif, catatan Anda hanya bisa dibaca dan diubah oleh akun Anda sendiri.</p>
+          <p>1. Buka <strong>Supabase Dashboard</strong> ➡️ Pilih Project Anda ➡️ <strong>Project Settings</strong> ➡️ <strong>API</strong>.</p>
+          <p>2. Salin <strong>Project URL</strong> dan <strong>anon public key</strong>, lalu klik <strong>Connect & Sync</strong>.</p>
         </div>
 
       </div>
 
       <!-- Modal Footer -->
       <div class="h-14 bg-slate-950 border-t border-slate-800 flex items-center justify-between px-5 text-xs">
-        <button 
-          onclick={handleSaveConfig}
-          disabled={isLoading}
-          class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition-colors"
-        >
-          Save Config Only
-        </button>
+        {#if editorStore.supabaseConfig.is_configured}
+          <button 
+            onclick={handleDisconnect}
+            class="px-3.5 py-1.5 rounded-lg bg-red-950/60 hover:bg-red-900/80 border border-red-800/60 text-red-300 font-medium transition-colors"
+          >
+            Disconnect
+          </button>
+        {:else}
+          <div></div>
+        {/if}
 
         <div class="flex items-center space-x-2">
           <button 
             onclick={onClose}
             class="px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-colors"
           >
-            Cancel
+            Tutup
           </button>
 
           <button 
-            onclick={handleAuthSubmit}
+            onclick={handleConnectAndSave}
             disabled={isLoading}
             class="flex items-center space-x-1.5 px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-medium shadow-md transition-colors"
           >
             {#if isLoading}
               <Loader2 class="w-3.5 h-3.5 animate-spin" />
+            {:else}
+              <Zap class="w-3.5 h-3.5" />
             {/if}
-            <span>{authMode === 'register' ? 'Sign Up & Connect' : 'Login & Connect'}</span>
+            <span>Connect & Sync</span>
           </button>
         </div>
       </div>

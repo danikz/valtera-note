@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+@layer base {
+  /* Scrollbar custom styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #090d16;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #1e293b;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #334155;
+  }
+}
+
+/* CodeMirror 6 custom styling for minimal RAM & dark aesthetic */
+.cm-editor {
+  height: 100% !important;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace !important;
+  font-size: 13.5px !important;
+}
+
+.cm-scroller {
+  overflow: auto !important;
+}
+
+.cm-gutters {
+  background-color: #0b0f19 !important;
+  color: #475569 !important;
+  border-right: 1px solid #1e293b !important;
+}

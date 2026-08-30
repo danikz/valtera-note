@@ -55,6 +55,19 @@ pub async fn test_supabase_connection(
 }
 
 #[tauri::command]
+pub async fn check_supabase_table(
+    url: String,
+    anon_key: String,
+    access_token: Option<String>,
+) -> Result<bool, String> {
+    let mut client = SupabaseClient::new(url, anon_key);
+    if let Some(token) = access_token {
+        client.set_access_token(token);
+    }
+    client.check_table_exists().await
+}
+
+#[tauri::command]
 pub async fn supabase_register(
     url: String,
     anon_key: String,

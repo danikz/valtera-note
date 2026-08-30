@@ -78,6 +78,35 @@ impl SupabaseClient {
         }
     }
 
+    pub async fn check_table_exists(&self) -> Result<bool, String> {
+        let url = format!("{}/rest/v1/notes?select=id&limit=1", self.url);
+        let mut req = self.client.get(&url)
+            .header("apikey", &self.anon_key);
+        
+        if let Some(token) = &self.access_token {
+            req = req.header("Authorization", format!("Bearer {}", token));
+        } else {
+            req = req.header("Authorization", format!("Bearer {}", self.anon_key));
+        }
+
+        let res = req.send().await.map_err(|e| format!("Request failed: {}", e))?;
+        let status = res.status();
+
+        if status.is_success() {
+            Ok(true)
+        } else {
+            let text = res.text().await.unwrap_or_default();
+            if text.contains("42P01") || text.contains("does not exist") || text.contains("PGRST204") || text.contains("PGRST205") {
+                Ok(false)
+            } else if status.as_u16() == 401 || status.as_u16() == 403 {
+                // RLS protected table exists
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        }
+    }
+
     pub async fn register_email(&self, email: &str, password: &str) -> Result<SupabaseAuthResponse, String> {
         let url = format!("{}/auth/v1/signup", self.url);
         let body = serde_json::json!({

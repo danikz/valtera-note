@@ -97,7 +97,7 @@
     },
     {
       id: 'cloud-sync',
-      title: 'Appwrite Cloud Sync Settings',
+      title: 'Supabase Cloud Sync Settings',
       shortcut: '',
       icon: Cloud,
       action: () => onOpenSync()

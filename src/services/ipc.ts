@@ -5,7 +5,7 @@ import type {
   SessionState, 
   TabState, 
   SqlResult, 
-  AppwriteConfig, 
+  SupabaseConfig, 
   Snippet 
 } from '../types';
 
@@ -76,7 +76,7 @@ export const ipc = {
         {
           title: 'Welcome.md',
           file_extension: 'md',
-          content: '# Welcome to Valtera Note 📝\n\n- Ultra-lightweight Notepad alternative (< 40MB RAM)\n- Fast Markdown Preview & SQL scratchpad\n- 100% Local-First with Appwrite Cloud Sync\n\nStart typing your notes or SQL queries here!',
+          content: '# Welcome to Valtera Note 📝\n\n- Ultra-lightweight Notepad alternative (< 40MB RAM)\n- Fast Markdown Preview & SQL scratchpad\n- 100% Local-First with Supabase Cloud Sync\n\nStart typing your notes or SQL queries here!',
           is_active: true,
           is_dirty: false,
           is_scratchpad: true,
@@ -130,93 +130,92 @@ export const ipc = {
     return query.toUpperCase();
   },
 
-  async getAppwriteConfig(): Promise<AppwriteConfig> {
+  async getSupabaseConfig(): Promise<SupabaseConfig> {
     if (isTauri) {
       try {
-        return await invoke<AppwriteConfig>('get_appwrite_config');
+        return await invoke<SupabaseConfig>('get_supabase_config');
       } catch (err) {
-        console.warn('IPC getAppwriteConfig error:', err);
+        console.warn('IPC getSupabaseConfig error:', err);
       }
     }
-    const endpoint = localStorage.getItem('valtera_appwrite_endpoint') || '';
-    const projectId = localStorage.getItem('valtera_appwrite_project_id') || '';
-    const databaseId = localStorage.getItem('valtera_appwrite_database_id') || 'valtera_note_db';
+    const url = localStorage.getItem('valtera_supabase_url') || '';
+    const anonKey = localStorage.getItem('valtera_supabase_anon_key') || '';
+    const userEmail = localStorage.getItem('valtera_supabase_user_email') || null;
+    const accessToken = localStorage.getItem('valtera_supabase_access_token') || null;
     return {
-      endpoint,
-      project_id: projectId,
-      database_id: databaseId,
-      is_configured: Boolean(endpoint && projectId)
+      url,
+      anon_key: anonKey,
+      is_configured: Boolean(url && anonKey),
+      user_email: userEmail,
+      access_token: accessToken
     };
   },
 
-  async saveAppwriteConfig(endpoint: string, projectId: string, databaseId: string): Promise<void> {
+  async saveSupabaseConfig(url: string, anonKey: string): Promise<void> {
     if (isTauri) {
       try {
-        await invoke<void>('save_appwrite_config', {
-          endpoint,
-          projectId,
-          databaseId,
-          project_id: projectId,
-          database_id: databaseId
+        await invoke<void>('save_supabase_config', {
+          url: url.trim(),
+          anonKey: anonKey.trim(),
+          anon_key: anonKey.trim()
         });
       } catch (err) {
-        console.warn('IPC saveAppwriteConfig error:', err);
+        console.warn('IPC saveSupabaseConfig error:', err);
       }
     }
-    localStorage.setItem('valtera_appwrite_endpoint', endpoint);
-    localStorage.setItem('valtera_appwrite_project_id', projectId);
-    localStorage.setItem('valtera_appwrite_database_id', databaseId);
+    localStorage.setItem('valtera_supabase_url', url.trim());
+    localStorage.setItem('valtera_supabase_anon_key', anonKey.trim());
   },
 
-  async testAppwriteConnection(endpoint: string, projectId: string): Promise<string> {
-    const cleanEndpoint = endpoint.trim().replace(/\/+$/, '');
-    const cleanProjectId = projectId.trim();
+  async testSupabaseConnection(url: string, anonKey: string): Promise<string> {
+    const cleanUrl = url.trim().replace(/\/+$/, '');
+    const cleanKey = anonKey.trim();
 
     if (isTauri) {
       try {
-        return await invoke<string>('test_appwrite_connection', { 
-          endpoint: cleanEndpoint, 
-          projectId: cleanProjectId,
-          project_id: cleanProjectId 
+        return await invoke<string>('test_supabase_connection', { 
+          url: cleanUrl, 
+          anonKey: cleanKey,
+          anon_key: cleanKey 
         });
       } catch (err: any) {
-        console.warn('Native IPC test error, trying HTTP fallback:', err);
+        console.warn('Native IPC Supabase test error, trying HTTP fallback:', err);
       }
     }
 
     // Direct HTTP fetch (works in browser AND as desktop fallback)
     try {
-      const res = await fetch(`${cleanEndpoint}/locale`, {
+      const res = await fetch(`${cleanUrl}/rest/v1/`, {
         method: 'GET',
         headers: {
-          'X-Appwrite-Project': cleanProjectId
+          'apikey': cleanKey,
+          'Authorization': `Bearer ${cleanKey}`
         }
       });
 
       if (res.ok) {
-        return 'Connection to Appwrite server successful!';
+        return 'Connection to Supabase REST API successful!';
       } else {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || `Appwrite Error (HTTP ${res.status})`);
+        const text = await res.text().catch(() => '');
+        throw new Error(`Supabase Error (HTTP ${res.status}): ${text}`);
       }
     } catch (err: any) {
-      throw new Error(err.message || 'Cannot reach Appwrite server. Check Endpoint URL and internet connection.');
+      throw new Error(err.message || 'Cannot reach Supabase server. Check Project URL and API Key.');
     }
   },
 
-  async appwriteRegister(endpoint: string, projectId: string, email: string, password: string, name: string): Promise<string> {
-    const cleanEndpoint = endpoint.trim().replace(/\/+$/, '');
-    const cleanProjectId = projectId.trim();
+  async supabaseRegister(url: string, anonKey: string, email: string, password: string): Promise<string> {
+    const cleanUrl = url.trim().replace(/\/+$/, '');
+    const cleanKey = anonKey.trim();
 
     if (isTauri) {
       try {
-        return await invoke<string>('appwrite_register', {
-          endpoint: cleanEndpoint,
-          projectId: cleanProjectId,
-          project_id: cleanProjectId,
+        return await invoke<string>('supabase_register', {
+          url: cleanUrl,
+          anonKey: cleanKey,
+          anon_key: cleanKey,
           email: email.trim(),
-          password,
-          name: name.trim() || 'Valtera User'
+          password
         });
       } catch (err: any) {
         console.warn('Native register error, trying fallback:', err);
@@ -224,39 +223,45 @@ export const ipc = {
     }
 
     // Browser Direct Fetch
-    const res = await fetch(`${cleanEndpoint}/account`, {
+    const res = await fetch(`${cleanUrl}/auth/v1/signup`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Appwrite-Project': cleanProjectId
+        'apikey': cleanKey
       },
       body: JSON.stringify({
-        userId: 'unique()',
         email: email.trim(),
-        password,
-        name: name.trim() || 'Valtera User'
+        password
       })
     });
 
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.message || `Registration failed (HTTP ${res.status})`);
+      throw new Error(data.msg || data.error_description || data.message || `Registration failed (HTTP ${res.status})`);
     }
 
-    // Auto-login
-    return await this.appwriteLogin(cleanEndpoint, cleanProjectId, email, password);
+    localStorage.setItem('valtera_supabase_url', cleanUrl);
+    localStorage.setItem('valtera_supabase_anon_key', cleanKey);
+    localStorage.setItem('valtera_supabase_user_email', email.trim());
+
+    if (data.access_token) {
+      localStorage.setItem('valtera_supabase_access_token', data.access_token);
+      return 'Registration and login successful!';
+    }
+
+    return 'Registration successful. Please check your email if confirmation is required.';
   },
 
-  async appwriteLogin(endpoint: string, projectId: string, email: string, password: string): Promise<string> {
-    const cleanEndpoint = endpoint.trim().replace(/\/+$/, '');
-    const cleanProjectId = projectId.trim();
+  async supabaseLogin(url: string, anonKey: string, email: string, password: string): Promise<string> {
+    const cleanUrl = url.trim().replace(/\/+$/, '');
+    const cleanKey = anonKey.trim();
 
     if (isTauri) {
       try {
-        return await invoke<string>('appwrite_login', {
-          endpoint: cleanEndpoint,
-          projectId: cleanProjectId,
-          project_id: cleanProjectId,
+        return await invoke<string>('supabase_login', {
+          url: cleanUrl,
+          anonKey: cleanKey,
+          anon_key: cleanKey,
           email: email.trim(),
           password
         });
@@ -266,11 +271,11 @@ export const ipc = {
     }
 
     // Browser Direct Fetch
-    const res = await fetch(`${cleanEndpoint}/account/sessions/email`, {
+    const res = await fetch(`${cleanUrl}/auth/v1/token?grant_type=password`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Appwrite-Project': cleanProjectId
+        'apikey': cleanKey
       },
       body: JSON.stringify({
         email: email.trim(),
@@ -278,14 +283,17 @@ export const ipc = {
       })
     });
 
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.message || `Login failed (HTTP ${res.status})`);
+      throw new Error(data.msg || data.error_description || data.message || `Login failed (HTTP ${res.status})`);
     }
 
-    localStorage.setItem('valtera_appwrite_endpoint', cleanEndpoint);
-    localStorage.setItem('valtera_appwrite_project_id', cleanProjectId);
-    localStorage.setItem('valtera_appwrite_user_email', email);
+    localStorage.setItem('valtera_supabase_url', cleanUrl);
+    localStorage.setItem('valtera_supabase_anon_key', cleanKey);
+    localStorage.setItem('valtera_supabase_user_email', email.trim());
+    if (data.access_token) {
+      localStorage.setItem('valtera_supabase_access_token', data.access_token);
+    }
 
     return 'Login successful';
   },

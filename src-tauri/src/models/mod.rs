@@ -45,7 +45,7 @@ pub struct SessionStateDto {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SnippetDto {
     pub id: Option<i64>,
-    pub appwrite_id: Option<String>,
+    pub supabase_id: Option<String>,
     pub title: String,
     pub language: String,
     pub category: String,
@@ -65,11 +65,10 @@ pub struct SqlResultDto {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AppwriteConfigDto {
-    pub endpoint: String,
-    pub project_id: String,
-    pub database_id: String,
+pub struct SupabaseConfigDto {
+    pub url: String,
+    pub anon_key: String,
     pub is_configured: bool,
     pub user_email: Option<String>,
-    pub user_name: Option<String>,
+    pub access_token: Option<String>,
 }

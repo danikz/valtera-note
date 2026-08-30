@@ -40,7 +40,7 @@ export interface SessionState {
 
 export interface Snippet {
   id?: number;
-  appwrite_id?: string;
+  supabase_id?: string;
   title: string;
   language: string;
   category: string;
@@ -58,11 +58,10 @@ export interface SqlResult {
   error_message?: string | null;
 }
 
-export interface AppwriteConfig {
-  endpoint: string;
-  project_id: string;
-  database_id: string;
+export interface SupabaseConfig {
+  url: string;
+  anon_key: string;
   is_configured: boolean;
   user_email?: string | null;
-  user_name?: string | null;
+  access_token?: string | null;
 }

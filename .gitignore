@@ -11,6 +11,8 @@ src-tauri/target/
 src-tauri/gen/
 **/*.rs.bk
 Cargo.lock
+*.exe
+*.msi
 
 # Operating System files
 .DS_Store

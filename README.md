@@ -27,6 +27,12 @@
   <a href="#-building-from-source">Build</a>
 </p>
 
+<br />
+
+<p align="center">
+  <img src="docs/screenshots/preview-hero.png" width="95%" alt="Valtera Note Hero Preview - Live Markdown Split" />
+</p>
+
 </div>
 
 ---
@@ -76,11 +82,19 @@ Most modern text editors and note applications (VS Code, Obsidian, Notion) are b
 - Instant query beautification/formatting.
 - Built-in lightweight SQLite query runner to explore local `.sqlite` or `.db` files in a virtualized data grid.
 
+<p align="center">
+  <img src="docs/screenshots/preview-sql.png" width="90%" alt="Valtera Note SQL Scratchpad Preview" />
+</p>
+
 ### 3. 🌳 Collapsible JSON Tree Viewer
 - Switch from raw JSON text into an interactive, expandable tree node graph.
 - Type badges for `String`, `Number`, `Boolean`, `Array`, and `Object`.
 - Click-to-copy JSON paths (e.g. `data.users[0].email`).
 - Bulk Expand All / Collapse All actions.
+
+<p align="center">
+  <img src="docs/screenshots/preview-json.png" width="90%" alt="Valtera Note Collapsible JSON Tree Viewer" />
+</p>
 
 ### 4. 📝 Live Markdown Preview & Reader Mode
 - GitHub Flavored Markdown (GFM) with tables, task lists, code fences, and blockquotes.

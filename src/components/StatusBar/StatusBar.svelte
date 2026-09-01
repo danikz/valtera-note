@@ -1,6 +1,6 @@
 <script lang="ts">
   import { editorStore } from '../../stores/editorStore.svelte';
-  import { updaterService } from '../../services/updater';
+  import { updaterService } from '../../services/updater.svelte';
   import { Cloud, CheckCircle2, Check, Loader2, RefreshCw, AlertCircle, ArrowUpCircle, Sparkles } from 'lucide-svelte';
 
   const languages = [

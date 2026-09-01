@@ -27,13 +27,17 @@
   import CommandPalette from './components/CommandPalette/CommandPalette.svelte';
   import UpdateModal from './components/Update/UpdateModal.svelte';
   import { editorStore } from './stores/editorStore.svelte';
-  import { updaterService } from './services/updater';
+  import { updaterService } from './services/updater.svelte';
 
   let isSidebarOpen = $state(true);
   let isSyncModalOpen = $state(false);
   let isSnippetsOpen = $state(false);
   let isCommandPaletteOpen = $state(false);
   let sqlViewerRef = $state<any>(null);
+
+  if (typeof window !== 'undefined') {
+    (window as any).editorStore = editorStore;
+  }
 
   async function handleOpenFile() {
     try {

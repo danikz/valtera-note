@@ -32,6 +32,7 @@ Download the installer for your operating system directly from the **[GitHub Rel
 | :--- | :--- | :--- |
 | **Windows 10 / 11** | `.exe` (Setup) | [**Valtera Note_0.1.0_x64-setup.exe**](https://github.com/danikz/valtera-note/releases/latest) |
 | **Windows (Enterprise)** | `.msi` (WiX) | [**Valtera Note_0.1.0_x64_en-US.msi**](https://github.com/danikz/valtera-note/releases/latest) |
+| **macOS (Apple Silicon & Intel)** | `.dmg` | [**Valtera Note_0.1.0_universal.dmg**](https://github.com/danikz/valtera-note/releases/latest) |
 | **Linux (Ubuntu / Debian)** | `.deb` | [**valtera-note_0.1.0_amd64.deb**](https://github.com/danikz/valtera-note/releases/latest) |
 | **Linux (Universal)** | `.AppImage` | [**valtera-note_0.1.0_amd64.AppImage**](https://github.com/danikz/valtera-note/releases/latest) |
 

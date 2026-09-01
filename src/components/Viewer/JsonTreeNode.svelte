@@ -34,11 +34,11 @@
     onCopyValue?: (val: any) => void;
   } = $props();
 
-  let isOpen = $state(depth < 2);
+  let isOpen = $state(true);
   let isCopied = $state(false);
 
-  let lastExpand = $state(expandAllTrigger);
-  let lastCollapse = $state(collapseAllTrigger);
+  let lastExpand = expandAllTrigger;
+  let lastCollapse = collapseAllTrigger;
 
   $effect(() => {
     if (expandAllTrigger !== lastExpand) {
@@ -50,7 +50,7 @@
   $effect(() => {
     if (collapseAllTrigger !== lastCollapse) {
       lastCollapse = collapseAllTrigger;
-      isOpen = depth === 0;
+      isOpen = (depth ?? 0) === 0;
     }
   });
 

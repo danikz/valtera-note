@@ -232,7 +232,10 @@
     <div 
       class="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col text-slate-200"
       onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => { if (e.key === 'Escape') onClose(); }}
       role="dialog"
+      aria-modal="true"
+      tabindex="-1"
     >
       <!-- Search Input -->
       <div class="h-12 bg-slate-950 border-b border-slate-800 flex items-center px-4 space-x-3">

@@ -42,7 +42,8 @@
         "language": ["en-US"]
       },
       "nsis": {
-        "displayLanguageSelector": false
+        "displayLanguageSelector": false,
+        "installerIcon": "icons/icon.ico"
       }
     },
     "macOS": {

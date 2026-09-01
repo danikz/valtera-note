@@ -38,6 +38,8 @@ desktop.ini
 .env
 .env.local
 .env.*.local
+*.key
+*.key.pub
 
 # Logs
 npm-debug.log*

@@ -28,13 +28,17 @@ pub struct SupabaseUser {
     pub email: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RemoteNote {
     pub id: Option<String>,
     pub title: String,
     pub content: String,
     pub file_extension: String,
+    #[serde(default)]
+    pub folder: Option<String>,
+    #[serde(default)]
     pub is_pinned: bool,
+    #[serde(default)]
     pub is_deleted: bool,
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
@@ -194,4 +198,119 @@ impl SupabaseClient {
             .map_err(|e| format!("Failed to parse auth token: {}", e))?;
         Ok(auth_res)
     }
+
+    pub async fn fetch_notes(&self) -> Result<Vec<RemoteNote>, String> {
+        let url = format!("{}/rest/v1/notes?select=*&is_deleted=eq.false&order=updated_at.desc", self.url);
+        let mut req = self.client.get(&url).header("apikey", &self.anon_key);
+        if let Some(token) = &self.access_token {
+            req = req.header("Authorization", format!("Bearer {}", token));
+        } else {
+            req = req.header("Authorization", format!("Bearer {}", self.anon_key));
+        }
+
+        let res = req.send().await.map_err(|e| format!("Failed to fetch notes: {}", e))?;
+        let status = res.status();
+        let text = res.text().await.unwrap_or_default();
+
+        if !status.is_success() {
+            return Err(format!("Fetch notes failed (HTTP {}): {}", status.as_u16(), text));
+        }
+
+        let notes: Vec<RemoteNote> = serde_json::from_str(&text)
+            .map_err(|e| format!("Failed to parse notes list: {} (Response: {})", e, text))?;
+        Ok(notes)
+    }
+
+    pub async fn upsert_note(&self, note: &RemoteNote) -> Result<RemoteNote, String> {
+        let url = format!("{}/rest/v1/notes", self.url);
+        let mut req = self.client.post(&url)
+            .header("apikey", &self.anon_key)
+            .header("Prefer", "resolution=merge-duplicates,return=representation")
+            .header("Content-Type", "application/json");
+
+        if let Some(token) = &self.access_token {
+            req = req.header("Authorization", format!("Bearer {}", token));
+        } else {
+            req = req.header("Authorization", format!("Bearer {}", self.anon_key));
+        }
+
+        let mut note_val = serde_json::to_value(note)
+            .map_err(|e| format!("Serialization error: {}", e))?;
+        
+        // Remove empty id if null/None so database defaults gen_random_uuid()
+        if let Some(obj) = note_val.as_object_mut() {
+            if obj.get("id").map_or(true, |v| v.is_null()) {
+                obj.remove("id");
+            }
+            if obj.get("created_at").map_or(true, |v| v.is_null()) {
+                obj.remove("created_at");
+            }
+            // Always set updated_at to now on update
+            obj.insert("updated_at".to_string(), serde_json::Value::String(chrono_iso_now()));
+        }
+
+        let res = req.json(&note_val).send().await.map_err(|e| format!("Failed to upsert note: {}", e))?;
+        let status = res.status();
+        let text = res.text().await.unwrap_or_default();
+
+        if !status.is_success() {
+            return Err(format!("Upsert note failed (HTTP {}): {}", status.as_u16(), text));
+        }
+
+        // PostgREST return=representation returns an array of records
+        if let Ok(records) = serde_json::from_str::<Vec<RemoteNote>>(&text) {
+            if let Some(first) = records.into_iter().next() {
+                return Ok(first);
+            }
+        }
+
+        if let Ok(single) = serde_json::from_str::<RemoteNote>(&text) {
+            return Ok(single);
+        }
+
+        Ok(note.clone())
+    }
+
+    pub async fn delete_note(&self, id: &str) -> Result<(), String> {
+        let url = format!("{}/rest/v1/notes?id=eq.{}", self.url, id);
+        let mut req = self.client.delete(&url).header("apikey", &self.anon_key);
+        if let Some(token) = &self.access_token {
+            req = req.header("Authorization", format!("Bearer {}", token));
+        } else {
+            req = req.header("Authorization", format!("Bearer {}", self.anon_key));
+        }
+
+        let res = req.send().await;
+        if let Ok(response) = res {
+            if response.status().is_success() {
+                return Ok(());
+            }
+        }
+
+        // Fallback: Soft delete by setting is_deleted = true in case hard DELETE RLS policy is restricted
+        let patch_url = format!("{}/rest/v1/notes?id=eq.{}", self.url, id);
+        let mut patch_req = self.client.patch(&patch_url)
+            .header("apikey", &self.anon_key)
+            .header("Content-Type", "application/json");
+        
+        if let Some(token) = &self.access_token {
+            patch_req = patch_req.header("Authorization", format!("Bearer {}", token));
+        } else {
+            patch_req = patch_req.header("Authorization", format!("Bearer {}", self.anon_key));
+        }
+
+        let _ = patch_req.json(&serde_json::json!({
+            "is_deleted": true,
+            "updated_at": chrono_iso_now()
+        })).send().await;
+
+        Ok(())
+    }
+}
+
+fn chrono_iso_now() -> String {
+    // Generate ISO 8601 UTC timestamp
+    let now = std::time::SystemTime::now();
+    let datetime: chrono::DateTime<chrono::Utc> = now.into();
+    datetime.to_rfc3339()
 }

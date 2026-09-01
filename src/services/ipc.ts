@@ -6,12 +6,35 @@ import type {
   TabState, 
   SqlResult, 
   SupabaseConfig, 
-  Snippet 
+  Snippet,
+  RemoteNote 
 } from '../types';
 
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 export const ipc = {
+  async getCliOpenFile(): Promise<string | null> {
+    if (isTauri) {
+      try {
+        return await invoke<string | null>('get_cli_open_file');
+      } catch (err) {
+        console.warn('IPC getCliOpenFile error:', err);
+      }
+    }
+    return null;
+  },
+
+  async registerContextMenu(): Promise<string> {
+    if (isTauri) {
+      try {
+        return await invoke<string>('register_windows_context_menu');
+      } catch (err: any) {
+        throw new Error(typeof err === 'string' ? err : err?.message || 'Gagal mendaftarkan menu klik kanan');
+      }
+    }
+    return 'Menu context didaftarkan (Simulated)';
+  },
+
   async readFile(path: string): Promise<FilePayload> {
     if (isTauri) {
       try {
@@ -56,35 +79,25 @@ export const ipc = {
     if (isTauri) {
       try {
         const res = await invoke<SessionState>('load_session');
-        if (res && res.tabs && res.tabs.length > 0) return res;
+        if (res && Array.isArray(res.tabs)) return res;
       } catch (err) {
         console.warn('IPC loadSession error:', err);
       }
     }
     // Browser / localStorage fallback
     const saved = localStorage.getItem('valtera_tabs_state');
-    if (saved) {
+    if (saved !== null) {
       try {
         const tabs = JSON.parse(saved);
-        return { tabs, active_tab_index: 0 };
+        if (Array.isArray(tabs)) {
+          return { tabs, active_tab_index: 0 };
+        }
       } catch {
         // ignore
       }
     }
     return {
-      tabs: [
-        {
-          title: 'Welcome.md',
-          file_extension: 'md',
-          content: '# Welcome to Valtera Note 📝\n\n- Ultra-lightweight Notepad alternative (< 40MB RAM)\n- Fast Markdown Preview & SQL scratchpad\n- 100% Local-First with Supabase Cloud Sync\n\nStart typing your notes or SQL queries here!',
-          is_active: true,
-          is_dirty: false,
-          is_scratchpad: true,
-          cursor_line: 1,
-          cursor_col: 1,
-          split_mode: 'split-horizontal'
-        }
-      ],
+      tabs: [],
       active_tab_index: 0
     };
   },
@@ -408,5 +421,153 @@ export const ipc = {
       }
     }
     return [];
+  },
+
+  async fetchRemoteNotes(url: string, anonKey: string, accessToken?: string): Promise<RemoteNote[]> {
+    const cleanUrl = url.trim().replace(/\/+$/, '');
+    const cleanKey = anonKey.trim();
+
+    if (isTauri) {
+      try {
+        return await invoke<RemoteNote[]>('fetch_remote_notes', {
+          url: cleanUrl,
+          anonKey: cleanKey,
+          anon_key: cleanKey,
+          accessToken: accessToken || null,
+          access_token: accessToken || null
+        });
+      } catch (err) {
+        console.warn('Native fetchRemoteNotes error, fallback to fetch:', err);
+      }
+    }
+
+    try {
+      const res = await fetch(`${cleanUrl}/rest/v1/notes?select=*&is_deleted=eq.false&order=updated_at.desc`, {
+        method: 'GET',
+        headers: {
+          'apikey': cleanKey,
+          'Authorization': `Bearer ${accessToken || cleanKey}`
+        }
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      console.warn('fetchRemoteNotes failed:', e);
+      return [];
+    }
+  },
+
+  async upsertRemoteNote(url: string, anonKey: string, note: RemoteNote, accessToken?: string): Promise<RemoteNote> {
+    const cleanUrl = url.trim().replace(/\/+$/, '');
+    const cleanKey = anonKey.trim();
+
+    if (isTauri) {
+      try {
+        return await invoke<RemoteNote>('upsert_remote_note', {
+          url: cleanUrl,
+          anonKey: cleanKey,
+          anon_key: cleanKey,
+          note,
+          accessToken: accessToken || null,
+          access_token: accessToken || null
+        });
+      } catch (err) {
+        console.warn('Native upsertRemoteNote error, fallback to fetch:', err);
+      }
+    }
+
+    try {
+      const payload: any = { ...note };
+      if (!payload.id) delete payload.id;
+      if (!payload.created_at) delete payload.created_at;
+      payload.updated_at = new Date().toISOString();
+
+      const res = await fetch(`${cleanUrl}/rest/v1/notes`, {
+        method: 'POST',
+        headers: {
+          'apikey': cleanKey,
+          'Authorization': `Bearer ${accessToken || cleanKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates,return=representation'
+        },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        return data[0];
+      }
+      return data;
+    } catch (e) {
+      console.warn('upsertRemoteNote failed:', e);
+      return note;
+    }
+  },
+
+  async deleteRemoteNote(url: string, anonKey: string, id: string, accessToken?: string): Promise<void> {
+    const cleanUrl = url.trim().replace(/\/+$/, '');
+    const cleanKey = anonKey.trim();
+
+    if (isTauri) {
+      try {
+        await invoke<void>('delete_remote_note', {
+          url: cleanUrl,
+          anonKey: cleanKey,
+          anon_key: cleanKey,
+          id,
+          accessToken: accessToken || null,
+          access_token: accessToken || null
+        });
+        return;
+      } catch (err) {
+        console.warn('Native deleteRemoteNote error, fallback to fetch:', err);
+      }
+    }
+
+    try {
+      const res = await fetch(`${cleanUrl}/rest/v1/notes?id=eq.${id}`, {
+        method: 'DELETE',
+        headers: {
+          'apikey': cleanKey,
+          'Authorization': `Bearer ${accessToken || cleanKey}`
+        }
+      });
+      if (!res.ok) {
+        await fetch(`${cleanUrl}/rest/v1/notes?id=eq.${id}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': cleanKey,
+            'Authorization': `Bearer ${accessToken || cleanKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ is_deleted: true, updated_at: new Date().toISOString() })
+        });
+      }
+    } catch (e) {
+      console.warn('deleteRemoteNote failed:', e);
+    }
+  },
+
+  async getAppSetting(key: string): Promise<string | null> {
+    if (isTauri) {
+      try {
+        const val = await invoke<string | null>('get_app_setting', { key });
+        if (val !== null && val !== undefined) return val;
+      } catch (err) {
+        console.warn('IPC getAppSetting error:', err);
+      }
+    }
+    return localStorage.getItem(`valtera_setting_${key}`);
+  },
+
+  async setAppSetting(key: string, value: string): Promise<void> {
+    if (isTauri) {
+      try {
+        await invoke<void>('set_app_setting', { key, value });
+      } catch (err) {
+        console.warn('IPC setAppSetting error:', err);
+      }
+    }
+    localStorage.setItem(`valtera_setting_${key}`, value);
   }
 };

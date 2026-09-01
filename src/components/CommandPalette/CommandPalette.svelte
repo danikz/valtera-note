@@ -1,9 +1,11 @@
 <script lang="ts">
+  import { open } from '@tauri-apps/plugin-dialog';
   import { editorStore } from '../../stores/editorStore.svelte';
   import { 
     Search, 
     Plus, 
     FolderOpen, 
+    FolderPlus,
     Save, 
     Play, 
     Sparkles, 
@@ -11,7 +13,10 @@
     Eye, 
     Cloud, 
     Edit3, 
-    Database 
+    Database,
+    PanelLeft,
+    Trash2,
+    ArrowUpCircle 
   } from 'lucide-svelte';
 
   let { 
@@ -19,13 +24,15 @@
     onClose, 
     onOpenSync, 
     onOpenSnippets, 
-    onRunSql 
+    onRunSql,
+    onToggleSidebar 
   }: { 
     isOpen: boolean; 
     onClose: () => void; 
     onOpenSync: () => void; 
     onOpenSnippets: () => void; 
     onRunSql?: () => void; 
+    onToggleSidebar?: () => void;
   } = $props();
 
   let query = $state('');
@@ -34,24 +41,76 @@
   const commands = [
     {
       id: 'new-tab',
-      title: 'New Tab',
+      title: 'New Tab / Note',
       shortcut: 'Ctrl+N',
       icon: Plus,
       action: () => editorStore.addTab()
+    },
+    {
+      id: 'new-folder',
+      title: 'Create New Folder',
+      shortcut: '',
+      icon: FolderPlus,
+      action: () => {
+        const name = prompt('Masukkan nama folder baru:');
+        if (name && name.trim()) {
+          editorStore.createFolder(name.trim());
+        }
+      }
     },
     {
       id: 'open-file',
       title: 'Open File from Disk',
       shortcut: 'Ctrl+O',
       icon: FolderOpen,
-      action: () => editorStore.openFile('/mock/notes.md')
+      action: async () => {
+        try {
+          const selected = await open({
+            multiple: false,
+            filters: [
+              { name: 'All Supported', extensions: ['txt', 'md', 'sql', 'json', 'csv', 'rs', 'ts', 'js', 'py', 'log'] },
+              { name: 'Markdown', extensions: ['md', 'markdown'] },
+              { name: 'SQL Scripts', extensions: ['sql'] },
+              { name: 'All Files', extensions: ['*'] }
+            ]
+          });
+          if (selected && typeof selected === 'string') {
+            editorStore.openFile(selected);
+          }
+        } catch (e) {
+          console.warn('Open file error:', e);
+        }
+      }
     },
     {
       id: 'save-file',
-      title: 'Save Current File',
+      title: 'Save / Sync Note',
       shortcut: 'Ctrl+S',
       icon: Save,
       action: () => editorStore.saveCurrentTab()
+    },
+    {
+      id: 'delete-note',
+      title: 'Delete Current Note Permanently',
+      shortcut: '',
+      icon: Trash2,
+      action: () => {
+        if (!editorStore.activeTab) return;
+        if (confirm(`Hapus catatan "${editorStore.activeTab?.title}" secara permanen?`)) {
+          editorStore.deleteTab(editorStore.activeTabIndex, true);
+        }
+      }
+    },
+    {
+      id: 'clear-all-data',
+      title: 'Reset / Clear All Notes & Folders',
+      shortcut: '',
+      icon: Trash2,
+      action: () => {
+        if (confirm('PERINGATAN: Apakah Anda yakin ingin menghapus semua catatan dan struktur folder (Lokal & Supabase Cloud)?')) {
+          editorStore.clearAllData();
+        }
+      }
     },
     {
       id: 'snippets',
@@ -96,11 +155,43 @@
       action: () => editorStore.setFileExtension('sql')
     },
     {
+      id: 'toggle-sidebar',
+      title: 'Toggle Notes Sidebar',
+      shortcut: 'Ctrl+B',
+      icon: PanelLeft,
+      action: () => { if (onToggleSidebar) onToggleSidebar(); }
+    },
+    {
       id: 'cloud-sync',
       title: 'Supabase Cloud Sync Settings',
       shortcut: '',
       icon: Cloud,
       action: () => onOpenSync()
+    },
+    {
+      id: 'register-context-menu',
+      title: 'Daftarkan "Open with Valtera Note" ke Klik-Kanan Windows',
+      shortcut: '',
+      icon: Sparkles,
+      action: async () => {
+        try {
+          const { ipc } = await import('../../services/ipc');
+          const msg = await ipc.registerContextMenu();
+          alert(msg);
+        } catch (e: any) {
+          alert('Gagal mendaftarkan menu: ' + (e?.message || e));
+        }
+      }
+    },
+    {
+      id: 'check-updates',
+      title: 'Periksa Pembaruan Aplikasi (Check for Updates)',
+      shortcut: '',
+      icon: ArrowUpCircle,
+      action: async () => {
+        const { updaterService } = await import('../../services/updater');
+        await updaterService.checkForUpdates(true);
+      }
     }
   ];
 

@@ -57,10 +57,12 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         with:
-          tagName: valtera-note-v__VERSION__
+          tagName: v__VERSION__
           releaseName: 'Valtera Note v__VERSION__'
-          releaseBody: 'See the assets to download this version and install.'
-          releaseDraft: true
+          releaseBody: 'Pembaruan resmi Valtera Note v__VERSION__. Termasuk file installer dan signature pembaruan otomatis.'
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}

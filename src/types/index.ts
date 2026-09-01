@@ -21,7 +21,9 @@ export type SplitMode = 'none' | 'editor-only' | 'preview-only' | 'split-horizon
 export interface TabState {
   id?: number;
   document_id?: number;
+  supabase_id?: string | null;
   file_path?: string | null;
+  folder?: string;
   title: string;
   file_extension: string;
   content: string;
@@ -31,6 +33,22 @@ export interface TabState {
   cursor_line: number;
   cursor_col: number;
   split_mode: SplitMode;
+  synced_at?: string | null;
+  sync_status?: 'local' | 'synced' | 'syncing' | 'error';
+  is_custom_named?: boolean;
+  is_open?: boolean;
+}
+
+export interface RemoteNote {
+  id?: string;
+  title: string;
+  content: string;
+  file_extension: string;
+  folder?: string;
+  is_pinned?: boolean;
+  is_deleted?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface SessionState {

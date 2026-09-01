@@ -8,7 +8,8 @@
     X, 
     Columns, 
     Eye, 
-    Edit3 
+    Edit3,
+    Cloud
   } from 'lucide-svelte';
 
   function getFileIcon(ext: string) {
@@ -24,21 +25,34 @@
 <div class="h-9 bg-slate-950 border-b border-slate-800 flex items-center justify-between px-2 overflow-hidden select-none">
   <!-- Tabs list -->
   <div class="flex items-center space-x-1 overflow-x-auto h-full py-1 scrollbar-none flex-1">
-    {#each editorStore.tabs as tab, idx}
+    {#each editorStore.openTabs as { tab, originalIndex } (originalIndex + '_' + tab.title)}
       {@const IconComponent = getFileIcon(tab.file_extension)}
+      {@const isActive = originalIndex === editorStore.activeTabIndex}
       <div 
         class="group relative flex items-center space-x-1.5 px-3 py-1 rounded-t text-xs cursor-pointer border-t-2 transition-all max-w-[200px] h-full
-        {idx === editorStore.activeTabIndex 
+        {isActive 
           ? 'bg-slate-900 text-slate-100 border-blue-500 font-medium' 
           : 'bg-slate-950/60 text-slate-400 border-transparent hover:bg-slate-900/40 hover:text-slate-300'}"
-        onclick={() => editorStore.setActiveTab(idx)}
-        onauxclick={(e) => { if (e.button === 1) editorStore.closeTab(idx); }}
+        onclick={() => editorStore.selectTab(originalIndex)}
+        onauxclick={(e) => { if (e.button === 1) editorStore.closeTab(originalIndex); }}
         role="button"
         tabindex="0"
-        onkeydown={(e) => { if (e.key === 'Enter') editorStore.setActiveTab(idx); }}
+        onkeydown={(e) => { if (e.key === 'Enter') editorStore.selectTab(originalIndex); }}
       >
-        <IconComponent class="w-3.5 h-3.5 flex-shrink-0 {idx === editorStore.activeTabIndex ? 'text-blue-400' : 'text-slate-500'}" />
+        <IconComponent class="w-3.5 h-3.5 flex-shrink-0 {isActive ? 'text-blue-400' : 'text-slate-500'}" />
         
+        {#if tab.supabase_id}
+          <span title="Cloud Synced">
+            <Cloud class="w-3 h-3 text-emerald-400 flex-shrink-0" />
+          </span>
+        {/if}
+
+        {#if tab.folder}
+          <span class="px-1 py-0.2 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[9px] font-mono flex-shrink-0" title="Folder: {tab.folder}">
+            {tab.folder}
+          </span>
+        {/if}
+
         <span class="truncate">{tab.title}</span>
 
         <!-- Dirty Indicator or Close Button -->
@@ -47,9 +61,9 @@
             <span class="w-2 h-2 rounded-full bg-amber-400 group-hover:hidden"></span>
           {/if}
           <button 
-            onclick={(e) => { e.stopPropagation(); editorStore.closeTab(idx); }}
+            onclick={(e) => { e.stopPropagation(); editorStore.closeTab(originalIndex); }}
             class="p-0.5 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-200 {tab.is_dirty ? 'hidden group-hover:block' : 'opacity-0 group-hover:opacity-100'} transition-opacity"
-            title="Close Tab"
+            title="Tutup Tab"
           >
             <X class="w-3 h-3" />
           </button>
@@ -67,15 +81,15 @@
     </button>
   </div>
 
-  <!-- Right: View Mode Switches (For Markdown or SQL) -->
+  <!-- Right: View Mode Switches (For Markdown, SQL, or JSON) -->
   {#if editorStore.activeTab}
-    {@const ext = editorStore.activeTab.file_extension}
-    {#if ext === 'md' || ext === 'sql'}
+    {@const ext = editorStore.activeTab.file_extension?.toLowerCase()}
+    {#if ext === 'md' || ext === 'sql' || ext === 'json'}
       <div class="flex items-center space-x-1 pl-2 border-l border-slate-800">
         <button 
           onclick={() => editorStore.setSplitMode('editor-only')}
           class="p-1 rounded text-xs transition-colors {editorStore.activeTab.split_mode === 'editor-only' ? 'bg-blue-600/30 text-blue-400' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900'}"
-          title="Editor Only"
+          title="Editor Only (Raw Text/Code)"
         >
           <Edit3 class="w-3.5 h-3.5" />
         </button>
@@ -83,7 +97,7 @@
         <button 
           onclick={() => editorStore.setSplitMode('split-horizontal')}
           class="p-1 rounded text-xs transition-colors {editorStore.activeTab.split_mode === 'split-horizontal' ? 'bg-blue-600/30 text-blue-400' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900'}"
-          title="Split View (Editor + Live Preview/Runner)"
+          title="Split View (Editor + Live Preview/Runner/Tree)"
         >
           <Columns class="w-3.5 h-3.5" />
         </button>
@@ -91,7 +105,7 @@
         <button 
           onclick={() => editorStore.setSplitMode('preview-only')}
           class="p-1 rounded text-xs transition-colors {editorStore.activeTab.split_mode === 'preview-only' ? 'bg-blue-600/30 text-blue-400' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900'}"
-          title="Preview Only (Reader Mode)"
+          title="Tree / Preview Only Mode"
         >
           <Eye class="w-3.5 h-3.5" />
         </button>

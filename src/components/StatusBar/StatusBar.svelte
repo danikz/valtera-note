@@ -1,6 +1,7 @@
 <script lang="ts">
   import { editorStore } from '../../stores/editorStore.svelte';
-  import { Cloud, CheckCircle2, Check } from 'lucide-svelte';
+  import { updaterService } from '../../services/updater';
+  import { Cloud, CheckCircle2, Check, Loader2, RefreshCw, AlertCircle, ArrowUpCircle, Sparkles } from 'lucide-svelte';
 
   const languages = [
     { label: 'Plain Text', ext: 'txt' },
@@ -38,7 +39,13 @@
         <span>{contentLength} chars</span>
       </div>
 
-      {#if editorStore.lastSavedAt}
+      {#if editorStore.isSaving}
+        <div class="text-slate-600">|</div>
+        <div class="text-blue-400 flex items-center space-x-1">
+          <Loader2 class="w-3 h-3 animate-spin" />
+          <span>{activeTab?.file_path ? 'Saving to disk...' : (editorStore.supabaseConfig.is_configured ? 'Saving to Supabase...' : 'Saving note...')}</span>
+        </div>
+      {:else if editorStore.lastSavedAt}
         <div class="text-slate-600">|</div>
         <div class="text-emerald-500/80 flex items-center space-x-1">
           <Check class="w-3 h-3" />
@@ -48,8 +55,30 @@
     {/if}
   </div>
 
-  <!-- Right info: Language, Encoding, Sync Status -->
+  <!-- Right info: Language, Encoding, Sync Status, Updates -->
   <div class="flex items-center space-x-3">
+    <!-- Update Available Alert Badge -->
+    {#if updaterService.updateAvailable}
+      <button 
+        onclick={() => (updaterService.showUpdateModal = true)}
+        class="flex items-center space-x-1 px-2 py-0.5 rounded-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px] font-semibold animate-pulse transition-colors cursor-pointer"
+        title="Klik untuk memasang pembaruan baru"
+      >
+        <ArrowUpCircle class="w-3 h-3 text-amber-400" />
+        <span>Update v{updaterService.newVersion}!</span>
+      </button>
+      <div class="text-slate-600">|</div>
+    {:else}
+      <button 
+        onclick={() => updaterService.checkForUpdates(true)}
+        class="px-1.5 py-0.2 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-300 text-[10px] font-mono transition-colors"
+        title="Klik untuk periksa pembaruan versi baru"
+      >
+        v{updaterService.currentVersion}
+      </button>
+      <div class="text-slate-600">|</div>
+    {/if}
+
     <!-- RAM Footprint Tag -->
     <div class="px-1.5 py-0.2 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 text-[10px] font-mono">
       RAM: ~38MB
@@ -80,14 +109,24 @@
 
     <div class="text-slate-600">|</div>
 
-    <!-- Supabase Sync Status -->
-    <div class="flex items-center space-x-1 {editorStore.supabaseConfig.is_configured ? 'text-emerald-400' : 'text-slate-500'}">
-      {#if editorStore.supabaseConfig.is_configured}
-        <CheckCircle2 class="w-3 h-3 text-emerald-400" />
-        <span>Supabase Connected</span>
+    <!-- Supabase Cloud Sync Status -->
+    <div class="flex items-center space-x-1">
+      {#if editorStore.isSyncing}
+        <RefreshCw class="w-3 h-3 text-blue-400 animate-spin" />
+        <span class="text-blue-300">Auto-syncing...</span>
+      {:else if editorStore.supabaseConfig.is_configured}
+        {#if editorStore.syncStatus === 'error'}
+          <AlertCircle class="w-3 h-3 text-amber-400" />
+          <span class="text-amber-300">Sync Offline</span>
+        {:else}
+          <CheckCircle2 class="w-3 h-3 text-emerald-400" />
+          <span class="text-emerald-400">
+            {editorStore.lastSyncedAt ? `Cloud Synced (${editorStore.lastSyncedAt})` : 'Cloud Connected'}
+          </span>
+        {/if}
       {:else}
         <Cloud class="w-3 h-3 text-slate-600" />
-        <span>Offline</span>
+        <span class="text-slate-500">Offline / Local</span>
       {/if}
     </div>
   </div>

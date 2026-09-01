@@ -125,42 +125,42 @@ flowchart TB
 
 ### Pre-Built Binaries (Releases)
 
-Download the latest release for your operating system from the [Releases Page](https://github.com/valtera-teknologi/valtera-note/releases):
+Download the latest release for your operating system from the [Releases Page](https://github.com/danikz/valtera-note/releases):
 
-| OS | Package Format | Architecture |
+| OS | Format | Architecture |
 | :--- | :--- | :--- |
-| **Windows** | `.msi` (Installer) / `.exe` (NSIS) / Portable `.zip` | x64, ARM64 |
-| **Linux (Ubuntu / Debian)** | `.deb` | x86_64, aarch64 |
-| **Linux (Universal)** | `.AppImage` / `.tar.gz` | x86_64 |
-| **Linux (Fedora / RHEL)** | `.rpm` | x86_64 |
+| **Windows** | `.msi` (WiX) / `.exe` (NSIS) | x64 |
+| **macOS** | `.dmg` / `.app` | Universal (Apple Silicon & Intel) |
+| **Linux** | `.deb` / `.AppImage` | x64 |
 
 ---
 
-## 🛠️ Building from Source
+## 🛠️ Development & Building
 
 ### Prerequisites
-- **Node.js**: `v20+` & `pnpm` (or `npm`)
-- **Rust**: `v1.75+` (`rustup update stable`)
-- **Linux Build Dependencies** (Ubuntu/Debian):
-  ```bash
-  sudo apt update
-  sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
-  ```
+- [Node.js](https://nodejs.org/) (v18+)
+- [pnpm](https://pnpm.io/) (v8+)
+- [Rust](https://www.rust-lang.org/) & Cargo (v1.75+)
+- Visual Studio C++ Build Tools (Windows) / `build-essential` & `libwebkit2gtk-4.1-dev` (Linux)
 
-### Quick Start
+### Getting Started
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/valtera-teknologi/valtera-note.git
+# Clone the repository
+git clone https://github.com/danikz/valtera-note.git
 cd valtera-note
 
-# 2. Install frontend dependencies
+# Install frontend dependencies
 pnpm install
 
-# 3. Run in development mode (Live Reload)
+# Run in development mode (hot-reload frontend + native Rust backend)
 pnpm tauri dev
+```
 
-# 4. Build production package
+### Production Build
+
+```bash
+# Compile and package native installers into src-tauri/target/release/bundle/
 pnpm tauri build
 ```
 

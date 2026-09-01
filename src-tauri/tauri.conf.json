@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.valtera.note",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -33,12 +33,76 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "PT Valtera Teknologi Digital",
+    "copyright": "Copyright © 2026 PT Valtera Teknologi Digital. All rights reserved.",
+    "shortDescription": "Lightweight Smart Notepad with SQL, JSON Tree & Markdown",
+    "longDescription": "Valtera Note by PT Valtera Teknologi Digital - Modern, ultra-fast local-first note-taking app with SQL Query Runner, Collapsible JSON Tree Viewer, and Supabase Cloud Sync.",
+    "windows": {
+      "wix": {
+        "language": ["en-US"]
+      },
+      "nsis": {
+        "displayLanguageSelector": false
+      }
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
+    ],
+    "fileAssociations": [
+      {
+        "ext": ["txt", "text"],
+        "name": "Text Document",
+        "description": "Text Document",
+        "role": "Editor"
+      },
+      {
+        "ext": ["json"],
+        "name": "JSON File",
+        "description": "JSON Data File",
+        "role": "Editor"
+      },
+      {
+        "ext": ["md", "markdown"],
+        "name": "Markdown Document",
+        "description": "Markdown Document",
+        "role": "Editor"
+      },
+      {
+        "ext": ["sql"],
+        "name": "SQL Script",
+        "description": "SQL Script File",
+        "role": "Editor"
+      },
+      {
+        "ext": ["log"],
+        "name": "Log File",
+        "description": "Log File",
+        "role": "Editor"
+      },
+      {
+        "ext": ["csv"],
+        "name": "CSV Document",
+        "description": "CSV Document",
+        "role": "Editor"
+      },
+      {
+        "ext": ["env", "yml", "yaml", "xml", "toml", "ini", "conf", "sh", "bat", "ps1", "ts", "js", "rs"],
+        "name": "Code and Config File",
+        "description": "Code and Config File",
+        "role": "Editor"
+      }
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU0MTVDNDRBNzYzRTlGMkMKUldRc256NTJTc1FWVkJXd3pUK1VKaFJzU3BSa3p3NlQzR0djUWdCMHpPcGM0cUZmcFlXRnNzMEgK",
+      "endpoints": [
+        "https://github.com/danikz/valtera-note/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

@@ -92,6 +92,8 @@
       const current = tab.content;
       tab.content = current ? `${current}\n\n${code}` : code;
       editorStore.updateContent(tab.content);
+    } else {
+      editorStore.addTab(undefined, 'md', code);
     }
     onClose();
   }

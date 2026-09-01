@@ -12,17 +12,23 @@
     Cloud, 
     CheckCircle2, 
     Search, 
-    Sparkles 
+    Sparkles,
+    RefreshCw,
+    PanelLeft
   } from 'lucide-svelte';
 
   let { 
     onOpenSyncModal, 
     onOpenSnippetsModal, 
-    onOpenCommandPalette 
+    onOpenCommandPalette,
+    onToggleSidebar,
+    isSidebarOpen = true
   }: { 
     onOpenSyncModal: () => void; 
     onOpenSnippetsModal: () => void; 
     onOpenCommandPalette: () => void; 
+    onToggleSidebar?: () => void;
+    isSidebarOpen?: boolean;
   } = $props();
 
   function getWindow() {
@@ -81,29 +87,28 @@
   }
 
   async function handleSaveFile() {
+    await editorStore.saveCurrentTab();
+  }
+
+  async function handleExportFile() {
     const tab = editorStore.activeTab;
     if (!tab) return;
 
-    if (tab.file_path) {
-      await editorStore.saveCurrentTab();
-    } else {
-      try {
-        const selected = await save({
-          defaultPath: tab.title.includes('.') ? tab.title : `${tab.title}.${tab.file_extension}`,
-          filters: [
-            { name: 'Markdown', extensions: ['md'] },
-            { name: 'SQL', extensions: ['sql'] },
-            { name: 'Text File', extensions: ['txt'] },
-            { name: 'All Files', extensions: ['*'] }
-          ]
-        });
-        if (selected && typeof selected === 'string') {
-          await editorStore.saveCurrentTab(selected);
-        }
-      } catch (e) {
-        console.warn('Save dialog fallback:', e);
-        await editorStore.saveCurrentTab('/mock/saved-note.md');
+    try {
+      const selected = await save({
+        defaultPath: tab.title.includes('.') ? tab.title : `${tab.title}.${tab.file_extension}`,
+        filters: [
+          { name: 'Markdown', extensions: ['md'] },
+          { name: 'SQL', extensions: ['sql'] },
+          { name: 'Text File', extensions: ['txt'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      });
+      if (selected && typeof selected === 'string') {
+        await editorStore.saveCurrentTab(selected);
       }
+    } catch (e) {
+      console.warn('Export dialog fallback:', e);
     }
   }
 </script>
@@ -118,6 +123,16 @@
 
     <!-- Quick Tools -->
     <div class="flex items-center space-x-1 pl-2 border-l border-slate-800">
+      {#if onToggleSidebar}
+        <button 
+          onclick={onToggleSidebar}
+          class="p-1 rounded hover:bg-slate-800 {isSidebarOpen ? 'text-blue-400 bg-blue-600/10' : 'text-slate-400'} hover:text-slate-200 transition-colors"
+          title="Toggle Sidebar (Ctrl+B)"
+        >
+          <PanelLeft class="w-3.5 h-3.5" />
+        </button>
+      {/if}
+
       <button 
         onclick={() => editorStore.addTab()}
         class="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
@@ -137,7 +152,7 @@
       <button 
         onclick={handleSaveFile}
         class="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors relative"
-        title="Save File (Ctrl+S)"
+        title={editorStore.supabaseConfig.is_configured ? "Save & Sync to Supabase (Ctrl+S)" : "Save Note (Ctrl+S)"}
       >
         <Save class="w-3.5 h-3.5" />
         {#if editorStore.activeTab?.is_dirty}
@@ -173,10 +188,13 @@
     <!-- Supabase Sync Button -->
     <button 
       onclick={onOpenSyncModal}
-      class="flex items-center space-x-1 px-2 py-0.5 rounded text-xs hover:bg-slate-800 transition-colors {editorStore.supabaseConfig.is_configured ? 'text-emerald-400' : 'text-slate-400'}"
-      title="Supabase Cloud Sync Settings"
+      class="flex items-center space-x-1 px-2 py-0.5 rounded text-xs hover:bg-slate-800 transition-colors {editorStore.isSyncing ? 'text-blue-400' : editorStore.supabaseConfig.is_configured ? 'text-emerald-400' : 'text-slate-400'}"
+      title={editorStore.isSyncing ? 'Auto-syncing with cloud...' : editorStore.supabaseConfig.is_configured ? `Auto-sync active (Last synced: ${editorStore.lastSyncedAt || 'just now'})` : 'Supabase Cloud Sync Settings'}
     >
-      {#if editorStore.supabaseConfig.is_configured}
+      {#if editorStore.isSyncing}
+        <RefreshCw class="w-3.5 h-3.5 text-blue-400 animate-spin" />
+        <span class="hidden md:inline text-[11px] text-blue-300">Syncing...</span>
+      {:else if editorStore.supabaseConfig.is_configured}
         <CheckCircle2 class="w-3.5 h-3.5 text-emerald-400" />
         <span class="hidden md:inline text-[11px]">Synced</span>
       {:else}

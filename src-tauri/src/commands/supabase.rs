@@ -171,3 +171,44 @@ pub async fn supabase_login(
 
     Ok("Login successful".to_string())
 }
+
+#[tauri::command]
+pub async fn fetch_remote_notes(
+    url: String,
+    anon_key: String,
+    access_token: Option<String>,
+) -> Result<Vec<crate::supabase::RemoteNote>, String> {
+    let mut client = SupabaseClient::new(url, anon_key);
+    if let Some(token) = access_token {
+        client.set_access_token(token);
+    }
+    client.fetch_notes().await
+}
+
+#[tauri::command]
+pub async fn upsert_remote_note(
+    url: String,
+    anon_key: String,
+    note: crate::supabase::RemoteNote,
+    access_token: Option<String>,
+) -> Result<crate::supabase::RemoteNote, String> {
+    let mut client = SupabaseClient::new(url, anon_key);
+    if let Some(token) = access_token {
+        client.set_access_token(token);
+    }
+    client.upsert_note(&note).await
+}
+
+#[tauri::command]
+pub async fn delete_remote_note(
+    url: String,
+    anon_key: String,
+    id: String,
+    access_token: Option<String>,
+) -> Result<(), String> {
+    let mut client = SupabaseClient::new(url, anon_key);
+    if let Some(token) = access_token {
+        client.set_access_token(token);
+    }
+    client.delete_note(&id).await
+}

@@ -24,7 +24,9 @@ pub struct FileSaveResultDto {
 pub struct TabStateDto {
     pub id: Option<i64>,
     pub document_id: Option<i64>,
+    pub supabase_id: Option<String>,
     pub file_path: Option<String>,
+    pub folder: Option<String>,
     pub title: String,
     pub file_extension: String,
     pub content: String,
@@ -35,6 +37,8 @@ pub struct TabStateDto {
     pub cursor_col: usize,
     pub split_mode: String, // "none", "editor-only", "preview-only", "split-horizontal"
 }
+
+pub use crate::supabase::RemoteNote;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionStateDto {

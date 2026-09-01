@@ -189,7 +189,7 @@
       shortcut: '',
       icon: ArrowUpCircle,
       action: async () => {
-        const { updaterService } = await import('../../services/updater');
+        const { updaterService } = await import('../../services/updater.svelte');
         await updaterService.checkForUpdates(true);
       }
     }

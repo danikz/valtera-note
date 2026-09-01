@@ -835,3 +835,7 @@ class EditorStore {
 }
 
 export const editorStore = new EditorStore();
+
+if (typeof window !== 'undefined') {
+  (window as any).editorStore = editorStore;
+}

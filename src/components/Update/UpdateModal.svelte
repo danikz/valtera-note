@@ -10,7 +10,7 @@
     Flame,
     X
   } from 'lucide-svelte';
-  import { updaterService } from '../../services/updater';
+  import { updaterService } from '../../services/updater.svelte';
 
   function formatBytes(bytes: number): string {
     if (bytes === 0) return '0 B';

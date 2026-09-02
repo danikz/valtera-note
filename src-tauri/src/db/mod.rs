@@ -144,6 +144,7 @@ impl DatabaseManager {
         // Safely add supabase_id and folder columns if table was created previously without them
         let _ = conn.execute("ALTER TABLE tabs_state ADD COLUMN supabase_id TEXT", []);
         let _ = conn.execute("ALTER TABLE tabs_state ADD COLUMN folder TEXT", []);
+        let _ = conn.execute("ALTER TABLE app_settings ADD COLUMN value TEXT", []);
 
         Ok(())
     }

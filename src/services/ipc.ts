@@ -249,20 +249,18 @@ export const ipc = {
           title text not null default 'Untitled',
           content text not null default '',
           file_extension text not null default 'md',
+          folder text,
           is_pinned boolean not null default false,
           is_deleted boolean not null default false,
           created_at timestamp with time zone default timezone('utc'::text, now()) not null,
           updated_at timestamp with time zone default timezone('utc'::text, now()) not null
       );
+      alter table public.notes add column if not exists folder text;
       create index if not exists idx_notes_updated_at on public.notes(updated_at desc);
       alter table public.notes enable row level security;
-      do $$
-      begin
-          if not exists (select 1 from pg_policies where policyname = 'Allow API access' and tablename = 'notes') then
-              create policy "Allow API access" on public.notes for all using (true) with check (true);
-          end if;
-      end
-      $$;
+      drop policy if exists "Allow API access" on public.notes;
+      drop policy if exists "Allow all for anon and authenticated" on public.notes;
+      create policy "Allow all for anon and authenticated" on public.notes for all to anon, authenticated using (true) with check (true);
     `;
 
     const res = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {

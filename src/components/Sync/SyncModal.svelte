@@ -45,18 +45,31 @@ create table if not exists public.notes (
     title text not null default 'Untitled',
     content text not null default '',
     file_extension text not null default 'md',
+    folder text,
     is_pinned boolean not null default false,
     is_deleted boolean not null default false,
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
     updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- 2. Create indices
+-- 2. Add folder column if table was previously created without it
+alter table public.notes add column if not exists folder text;
+
+-- 3. Create indices
 create index if not exists idx_notes_updated_at on public.notes(updated_at desc);
 
--- 3. Enable RLS and allow full access with API Key
+-- 4. Enable RLS and allow full access for anon and authenticated API keys
 alter table public.notes enable row level security;
-create policy "Allow API access" on public.notes for all using (true) with check (true);`;
+
+drop policy if exists "Allow API access" on public.notes;
+drop policy if exists "Allow all for anon and authenticated" on public.notes;
+
+create policy "Allow all for anon and authenticated" 
+on public.notes 
+for all 
+to anon, authenticated 
+using (true) 
+with check (true);`;
 
   function getProjectRef(): string | null {
     try {

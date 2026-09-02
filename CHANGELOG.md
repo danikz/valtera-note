@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.1] - 2026-09-02
+
+### 🔄 Supabase Cloud Sync & Auto-Updater Enhancement
+- **Full Schema Sync**: Added `folder` column support in Supabase `notes` table and migration script.
+- **Enhanced RLS Security Policy**: Comprehensive CRUD permission configuration for seamless `anon_key` and authenticated sync.
+- **Auto-Updater Integration**: Configured dedicated Minisign cryptographic keys for in-app 1-click updates.
+
+---
+
 ## [0.1.0] - 2026-09-01
 
 ### 🚀 Initial Production Release

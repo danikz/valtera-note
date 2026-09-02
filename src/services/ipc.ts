@@ -297,7 +297,16 @@ export const ipc = {
 
     // Direct HTTP fetch (works in browser AND as desktop fallback)
     try {
-      const res = await fetch(`${cleanUrl}/rest/v1/`, {
+      const healthRes = await fetch(`${cleanUrl}/auth/v1/health`, {
+        method: 'GET',
+        headers: { 'apikey': cleanKey }
+      }).catch(() => null);
+
+      if (healthRes && healthRes.ok) {
+        return 'Koneksi ke Supabase REST API berhasil!';
+      }
+
+      const res = await fetch(`${cleanUrl}/rest/v1/notes?select=id&limit=1`, {
         method: 'GET',
         headers: {
           'apikey': cleanKey,
@@ -306,13 +315,16 @@ export const ipc = {
       });
 
       if (res.ok) {
-        return 'Connection to Supabase REST API successful!';
+        return 'Koneksi ke Supabase REST API berhasil!';
       } else {
         const text = await res.text().catch(() => '');
+        if (text.includes('42P01') || text.includes('does not exist') || text.includes('PGRST204') || text.includes('PGRST205')) {
+          return "Koneksi ke Supabase berhasil! (Tabel 'notes' belum dibuat)";
+        }
         throw new Error(`Supabase Error (HTTP ${res.status}): ${text}`);
       }
     } catch (err: any) {
-      throw new Error(err.message || 'Cannot reach Supabase server. Check Project URL and API Key.');
+      throw new Error(err.message || 'Tidak dapat menghubungi server Supabase. Periksa Project URL dan API Key.');
     }
   },
 

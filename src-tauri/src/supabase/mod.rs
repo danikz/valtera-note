@@ -65,20 +65,33 @@ impl SupabaseClient {
     }
 
     pub async fn test_connection(&self) -> Result<String, String> {
-        let url = format!("{}/rest/v1/", self.url);
+        // 1. Try Supabase Auth Health endpoint first (always permits anon key)
+        let health_url = format!("{}/auth/v1/health", self.url);
+        if let Ok(res) = self.client.get(&health_url).header("apikey", &self.anon_key).send().await {
+            if res.status().is_success() {
+                return Ok("Koneksi ke Supabase API berhasil terhubung!".to_string());
+            }
+        }
+
+        // 2. Query /rest/v1/notes to verify REST API & anon key
+        let url = format!("{}/rest/v1/notes?select=id&limit=1", self.url);
         let res = self.client.get(&url)
             .header("apikey", &self.anon_key)
             .header("Authorization", format!("Bearer {}", self.anon_key))
             .send()
             .await
-            .map_err(|e| format!("Cannot reach Supabase server at {}: {}", self.url, e))?;
+            .map_err(|e| format!("Tidak dapat menghubungi server Supabase di {}: {}", self.url, e))?;
 
         let status = res.status();
         if status.is_success() {
-            Ok("Connection to Supabase REST API successful!".to_string())
+            Ok("Koneksi ke Supabase REST API berhasil!".to_string())
         } else {
             let err_text = res.text().await.unwrap_or_default();
-            Err(format!("Supabase error (HTTP {}): {}", status.as_u16(), err_text))
+            if err_text.contains("42P01") || err_text.contains("does not exist") || err_text.contains("PGRST204") || err_text.contains("PGRST205") {
+                Ok("Koneksi ke Supabase berhasil! (Tabel 'notes' belum dibuat, silakan jalankan SQL migration)".to_string())
+            } else {
+                Err(format!("Supabase error (HTTP {}): {}", status.as_u16(), err_text))
+            }
         }
     }
 

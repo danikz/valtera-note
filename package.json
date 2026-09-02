@@ -1,7 +1,7 @@
 {
   "name": "valtera-note",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": "PT Valtera Teknologi Digital",
   "type": "module",
   "scripts": {

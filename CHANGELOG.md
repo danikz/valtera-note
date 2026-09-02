@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.2] - 2026-09-02
+
+### 🛠️ Fixes & Supabase Connection Test
+- **Supabase Connection Ping**: Updated test ping endpoint to use `/auth/v1/health` and `/rest/v1/notes` instead of root schema endpoint, resolving `HTTP 401 Only the service_role API key can be used for this endpoint`.
+- **Seamless Anon Key Authentication**: Enabled instant validation with standard Supabase `anon_key`.
+
+---
+
 ## [0.1.1] - 2026-09-02
 
 ### 🔄 Supabase Cloud Sync & Auto-Updater Enhancement

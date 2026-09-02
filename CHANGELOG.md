@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.3] - 2026-09-02
+
+### 🔄 In-App Auto-Updater Artifacts Fix
+- **Enabled Updater Bundles**: Configured `createUpdaterArtifacts: true` in Tauri v2 bundle configuration to automatically generate cryptographic signature `.sig` files and `latest.json` manifests during GitHub Actions builds.
+- **Direct 1-Click Update**: Enabled automatic update notifications and 1-click in-app update for all installed desktop clients.
+
+---
+
 ## [0.1.2] - 2026-09-02
 
 ### 🛠️ Fixes & Supabase Connection Test

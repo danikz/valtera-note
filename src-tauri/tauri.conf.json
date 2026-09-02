@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/v2/tooling/cli/schema.json",
   "productName": "Valtera Note",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "identifier": "com.valtera.note",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -33,6 +33,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "publisher": "PT Valtera Teknologi Digital",
     "copyright": "Copyright © 2026 PT Valtera Teknologi Digital. All rights reserved.",
     "shortDescription": "Lightweight Smart Notepad with SQL, JSON Tree & Markdown",

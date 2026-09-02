@@ -492,7 +492,7 @@ export const ipc = {
       if (!payload.created_at) delete payload.created_at;
       payload.updated_at = new Date().toISOString();
 
-      const res = await fetch(`${cleanUrl}/rest/v1/notes`, {
+      const res = await fetch(`${cleanUrl}/rest/v1/notes?on_conflict=id`, {
         method: 'POST',
         headers: {
           'apikey': cleanKey,

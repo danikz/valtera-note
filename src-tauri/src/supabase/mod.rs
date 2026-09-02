@@ -235,7 +235,7 @@ impl SupabaseClient {
     }
 
     pub async fn upsert_note(&self, note: &RemoteNote) -> Result<RemoteNote, String> {
-        let url = format!("{}/rest/v1/notes", self.url);
+        let url = format!("{}/rest/v1/notes?on_conflict=id", self.url);
         let mut req = self.client.post(&url)
             .header("apikey", &self.anon_key)
             .header("Prefer", "resolution=merge-duplicates,return=representation")

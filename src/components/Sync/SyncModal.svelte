@@ -16,12 +16,15 @@
     ExternalLink, 
     Check, 
     ShieldCheck, 
-    Zap,
-    Wrench,
-    RefreshCw,
-    Eye,
-    EyeOff,
-    CheckCheck
+    Zap, 
+    Wrench, 
+    RefreshCw, 
+    Eye, 
+    EyeOff, 
+    Code2, 
+    ChevronDown, 
+    ChevronUp, 
+    BookOpen 
   } from 'lucide-svelte';
 
   let { isOpen, onClose }: { isOpen: boolean; onClose: () => void } = $props();
@@ -33,6 +36,7 @@
   let isCheckingTable = $state(false);
   let isAutoCreating = $state(false);
   let showAutoCreateInput = $state(false);
+  let showSqlGuide = $state(false);
   let managementToken = $state('');
   let tableStatus = $state<'ready' | 'missing' | 'unknown'>('unknown');
   let isLoading = $state(false);
@@ -340,7 +344,7 @@ with check (true);`;
           <div class="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-700/60 flex items-center justify-between text-emerald-300">
             <div class="flex items-center space-x-2">
               <ShieldCheck class="w-4 h-4 text-emerald-400" />
-              <span class="font-medium">Tabel <code>notes</code> Siap di Database</span>
+              <span class="font-medium">Tabel <code>notes</code> Siap & Terhubung di Supabase</span>
             </div>
             <button 
               onclick={checkTable}
@@ -356,7 +360,7 @@ with check (true);`;
             <div class="flex items-center justify-between font-semibold text-amber-300">
               <div class="flex items-center space-x-1.5">
                 <AlertCircle class="w-4 h-4 text-amber-400" />
-                <span>Tabel <code>notes</code> Belum Ada di Supabase</span>
+                <span>Tabel <code>notes</code> Belum Dibuat di Supabase</span>
               </div>
               <button 
                 onclick={checkTable}
@@ -369,7 +373,7 @@ with check (true);`;
             </div>
             
             <p class="text-[11px] text-amber-200/80 leading-relaxed">
-              Anda bisa membuat tabel secara otomatis dalam 1-klik menggunakan Access Token, atau salin skrip SQL:
+              Jalankan skrip SQL di Supabase SQL Editor (atau gunakan Access Token untuk buat otomatis):
             </p>
 
             {#if showAutoCreateInput}
@@ -403,36 +407,98 @@ with check (true);`;
 
             <div class="flex items-center space-x-2 pt-1">
               <button 
-                onclick={() => (showAutoCreateInput = !showAutoCreateInput)}
-                class="flex items-center space-x-1 px-2.5 py-1 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold transition-colors"
-              >
-                <Wrench class="w-3.5 h-3.5" />
-                <span>{showAutoCreateInput ? 'Tutup Auto-Setup' : '⚡ Buat Otomatis (1-Klik)'}</span>
-              </button>
-
-              <button 
                 onclick={handleCopySql}
-                class="flex items-center space-x-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium transition-colors"
+                class="flex items-center space-x-1.5 px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors cursor-pointer"
               >
                 {#if copiedSql}
                   <Check class="w-3.5 h-3.5" />
-                  <span>Copied!</span>
+                  <span>Tersalin!</span>
                 {:else}
                   <Copy class="w-3.5 h-3.5" />
-                  <span>Copy SQL</span>
+                  <span>Copy SQL Script</span>
                 {/if}
               </button>
 
               <button 
                 onclick={handleOpenSqlEditor}
-                class="flex items-center space-x-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium transition-colors"
+                class="flex items-center space-x-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium transition-colors border border-slate-700"
               >
                 <ExternalLink class="w-3.5 h-3.5" />
                 <span>SQL Editor</span>
               </button>
+
+              <button 
+                onclick={() => (showAutoCreateInput = !showAutoCreateInput)}
+                class="flex items-center space-x-1 px-2 py-1 rounded bg-amber-600/60 hover:bg-amber-500/80 text-amber-200 font-medium text-[11px] transition-colors"
+              >
+                <Wrench class="w-3 h-3" />
+                <span>{showAutoCreateInput ? 'Tutup Auto' : 'Auto 1-Klik'}</span>
+              </button>
             </div>
           </div>
         {/if}
+
+        <!-- Panduan Setup SQL Lengkap (Siap Paste) -->
+        <div class="rounded-lg border border-slate-800 bg-slate-950/80 overflow-hidden">
+          <button
+            type="button"
+            onclick={() => (showSqlGuide = !showSqlGuide)}
+            class="w-full px-3.5 py-2.5 flex items-center justify-between text-left hover:bg-slate-900/60 transition-colors cursor-pointer"
+          >
+            <div class="flex items-center space-x-2 text-emerald-400 font-semibold text-xs">
+              <Code2 class="w-4 h-4 text-emerald-400" />
+              <span>Petunjuk Setup Database (Skrip SQL Siap Paste)</span>
+            </div>
+            <div class="flex items-center space-x-1.5 text-[11px] text-slate-400">
+              <span>{showSqlGuide ? 'Tutup' : 'Lihat Skrip'}</span>
+              {#if showSqlGuide}
+                <ChevronUp class="w-3.5 h-3.5 text-slate-400" />
+              {:else}
+                <ChevronDown class="w-3.5 h-3.5 text-slate-400" />
+              {/if}
+            </div>
+          </button>
+
+          {#if showSqlGuide}
+            <div class="p-3.5 pt-1 space-y-3 border-t border-slate-800/80 text-xs text-slate-300">
+              <div class="space-y-1 text-[11px] text-slate-300">
+                <p class="font-medium text-slate-200">Cara Setup Database (Cukup 1x Saja):</p>
+                <ol class="list-decimal list-inside space-y-1 text-slate-400 pl-1">
+                  <li>Buka <a href={getProjectRef() ? `https://supabase.com/dashboard/project/${getProjectRef()}/sql/new` : 'https://supabase.com/dashboard'} target="_blank" class="text-emerald-400 underline hover:text-emerald-300">SQL Editor di Supabase</a>.</li>
+                  <li>Klik tombol <strong>Copy Skrip SQL</strong> di bawah, paste ke SQL Editor, lalu klik <strong>Run</strong>.</li>
+                  <li>Masukkan <strong>Project URL</strong> & <strong>API Key (anon)</strong> di formulir bawah, lalu klik <strong>Connect & Sync</strong>.</li>
+                </ol>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="flex items-center space-x-2">
+                <button 
+                  onclick={handleCopySql}
+                  class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-colors shadow-sm cursor-pointer"
+                >
+                  {#if copiedSql}
+                    <Check class="w-3.5 h-3.5 text-white" />
+                    <span>Tersalin ke Clipboard!</span>
+                  {:else}
+                    <Copy class="w-3.5 h-3.5" />
+                    <span>Copy Skrip SQL Lengkap</span>
+                  {/if}
+                </button>
+
+                <button 
+                  onclick={handleOpenSqlEditor}
+                  class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs transition-colors border border-slate-700 cursor-pointer"
+                >
+                  <ExternalLink class="w-3.5 h-3.5 text-slate-400" />
+                  <span>Buka SQL Editor ↗</span>
+                </button>
+              </div>
+
+              <!-- SQL Code Box -->
+              <pre class="bg-slate-900 border border-slate-800 p-2.5 rounded-lg text-[10px] font-mono text-emerald-300/90 overflow-x-auto max-h-40 leading-relaxed select-all"><code>{SQL_MIGRATION}</code></pre>
+            </div>
+          {/if}
+        </div>
 
         <!-- Credentials Form -->
         <div class="space-y-3 bg-slate-950/60 p-3.5 rounded-lg border border-slate-800/70">

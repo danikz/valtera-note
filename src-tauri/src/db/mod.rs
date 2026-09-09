@@ -141,10 +141,41 @@ impl DatabaseManager {
             );
         ").map_err(|e| e.to_string())?;
 
-        // Safely add supabase_id and folder columns if table was created previously without them
+        // Safely add missing columns for backward compatibility
         let _ = conn.execute("ALTER TABLE tabs_state ADD COLUMN supabase_id TEXT", []);
         let _ = conn.execute("ALTER TABLE tabs_state ADD COLUMN folder TEXT", []);
+        let _ = conn.execute("ALTER TABLE workspaces ADD COLUMN supabase_id TEXT", []);
+        let _ = conn.execute("ALTER TABLE documents ADD COLUMN supabase_id TEXT", []);
+        let _ = conn.execute("ALTER TABLE snippets ADD COLUMN supabase_id TEXT", []);
+
+        // Ensure value column exists if legacy table exists
         let _ = conn.execute("ALTER TABLE app_settings ADD COLUMN value TEXT", []);
+
+        // Check if legacy value_json column exists (which has NOT NULL constraint without default)
+        let has_legacy_value_json: bool = {
+            if let Ok(mut stmt) = conn.prepare("PRAGMA table_info(app_settings)") {
+                let col_names = stmt.query_map([], |row| row.get::<_, String>(1))
+                    .map(|rows| rows.filter_map(Result::ok).collect::<Vec<_>>())
+                    .unwrap_or_default();
+                col_names.iter().any(|c| c == "value_json")
+            } else {
+                false
+            }
+        };
+
+        if has_legacy_value_json {
+            let _ = conn.execute_batch("
+                CREATE TABLE IF NOT EXISTS app_settings_temp (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL DEFAULT '',
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                INSERT OR REPLACE INTO app_settings_temp (key, value, updated_at)
+                SELECT key, COALESCE(value, value_json, ''), updated_at FROM app_settings;
+                DROP TABLE app_settings;
+                ALTER TABLE app_settings_temp RENAME TO app_settings;
+            ");
+        }
 
         Ok(())
     }

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.4] - 2026-09-09
+
+### 🛠️ SQLite Migration & Supabase Configuration Persistence Fix
+- **Automatic SQLite Migration**: Added automatic migration in Rust database engine to fix legacy `app_settings` table constraint (`NOT NULL constraint failed: app_settings.value_json`), resolving issue where Supabase URL and API Key were lost after restart.
+- **IPC Self-Healing**: Enhanced IPC Supabase configuration loader with automatic recovery from local storage cache to SQLite.
+- **Auto-Persist Sync Settings**: Supabase credentials are now automatically saved upon successful connection tests and on closing the sync configuration modal.
+
+---
+
 ## [0.1.3] - 2026-09-02
 
 ### 🔄 In-App Auto-Updater Artifacts Fix

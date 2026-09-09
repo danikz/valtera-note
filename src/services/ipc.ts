@@ -144,40 +144,58 @@ export const ipc = {
   },
 
   async getSupabaseConfig(): Promise<SupabaseConfig> {
+    let nativeConfig: SupabaseConfig | null = null;
     if (isTauri) {
       try {
-        return await invoke<SupabaseConfig>('get_supabase_config');
+        nativeConfig = await invoke<SupabaseConfig>('get_supabase_config');
+        if (nativeConfig && (nativeConfig.url || nativeConfig.anon_key)) {
+          return nativeConfig;
+        }
       } catch (err) {
         console.warn('IPC getSupabaseConfig error:', err);
       }
     }
+
     const url = localStorage.getItem('valtera_supabase_url') || '';
     const anonKey = localStorage.getItem('valtera_supabase_anon_key') || '';
     const userEmail = localStorage.getItem('valtera_supabase_user_email') || null;
     const accessToken = localStorage.getItem('valtera_supabase_access_token') || null;
+
+    // Self-healing: if localStorage had credentials but SQLite didn't, save back to SQLite
+    if (isTauri && (url || anonKey)) {
+      invoke<void>('save_supabase_config', {
+        url: url.trim(),
+        anonKey: anonKey.trim(),
+        anon_key: anonKey.trim()
+      }).catch(err => console.warn('IPC auto-heal SQLite config error:', err));
+    }
+
     return {
-      url,
-      anon_key: anonKey,
-      is_configured: Boolean(url && anonKey),
-      user_email: userEmail,
-      access_token: accessToken
+      url: nativeConfig?.url || url,
+      anon_key: nativeConfig?.anon_key || anonKey,
+      is_configured: Boolean((nativeConfig?.url || url) && (nativeConfig?.anon_key || anonKey)),
+      user_email: nativeConfig?.user_email || userEmail,
+      access_token: nativeConfig?.access_token || accessToken
     };
   },
 
   async saveSupabaseConfig(url: string, anonKey: string): Promise<void> {
+    const cleanUrl = url.trim();
+    const cleanKey = anonKey.trim();
     if (isTauri) {
       try {
         await invoke<void>('save_supabase_config', {
-          url: url.trim(),
-          anonKey: anonKey.trim(),
-          anon_key: anonKey.trim()
+          url: cleanUrl,
+          anonKey: cleanKey,
+          anon_key: cleanKey
         });
       } catch (err) {
-        console.warn('IPC saveSupabaseConfig error:', err);
+        console.error('IPC saveSupabaseConfig error:', err);
+        throw err;
       }
     }
-    localStorage.setItem('valtera_supabase_url', url.trim());
-    localStorage.setItem('valtera_supabase_anon_key', anonKey.trim());
+    localStorage.setItem('valtera_supabase_url', cleanUrl);
+    localStorage.setItem('valtera_supabase_anon_key', cleanKey);
   },
 
   async checkSupabaseTable(url: string, anonKey: string, accessToken?: string): Promise<boolean> {

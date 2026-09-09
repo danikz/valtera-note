@@ -489,46 +489,76 @@ export const ipc = {
     const cleanUrl = url.trim().replace(/\/+$/, '');
     const cleanKey = anonKey.trim();
 
+    // Ensure note has a valid ID assigned if missing
+    const noteId = (note.id && typeof note.id === 'string' && note.id.trim()) 
+      ? note.id.trim() 
+      : (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : undefined);
+
+    const noteToSync: RemoteNote = {
+      ...note,
+      id: noteId
+    };
+
     if (isTauri) {
       try {
-        return await invoke<RemoteNote>('upsert_remote_note', {
+        const nativeRes = await invoke<RemoteNote>('upsert_remote_note', {
           url: cleanUrl,
           anonKey: cleanKey,
           anon_key: cleanKey,
-          note,
+          note: noteToSync,
           accessToken: accessToken || null,
           access_token: accessToken || null
         });
+        if (nativeRes && nativeRes.id) {
+          return nativeRes;
+        }
       } catch (err) {
-        console.warn('Native upsertRemoteNote error, fallback to fetch:', err);
+        console.warn('Native upsertRemoteNote error, trying fetch fallback:', err);
       }
     }
 
     try {
-      const payload: any = { ...note };
-      if (!payload.id) delete payload.id;
+      const payload: any = { ...noteToSync };
+      const hasId = Boolean(payload.id && typeof payload.id === 'string' && payload.id.trim().length > 0);
+      if (!hasId) delete payload.id;
       if (!payload.created_at) delete payload.created_at;
       payload.updated_at = new Date().toISOString();
 
-      const res = await fetch(`${cleanUrl}/rest/v1/notes?on_conflict=id`, {
+      const requestUrl = hasId 
+        ? `${cleanUrl}/rest/v1/notes?on_conflict=id` 
+        : `${cleanUrl}/rest/v1/notes`;
+
+      const prefer = hasId
+        ? 'resolution=merge-duplicates,return=representation'
+        : 'return=representation';
+
+      const res = await fetch(requestUrl, {
         method: 'POST',
         headers: {
           'apikey': cleanKey,
           'Authorization': `Bearer ${accessToken || cleanKey}`,
           'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates,return=representation'
+          'Prefer': prefer
         },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(`HTTP ${res.status}: ${errText}`);
+      }
+
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
         return data[0];
       }
-      return data;
+      if (data && typeof data === 'object' && (data as any).id) {
+        return data;
+      }
+      return noteToSync;
     } catch (e) {
-      console.warn('upsertRemoteNote failed:', e);
-      return note;
+      console.error('upsertRemoteNote failed:', e);
+      throw e;
     }
   },
 

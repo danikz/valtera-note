@@ -668,6 +668,11 @@ class EditorStore {
       this.syncStatus = 'syncing';
       this.syncMessage = 'Syncing...';
 
+      // Ensure tab has a valid supabase_id before syncing
+      if (!tab.supabase_id && typeof crypto !== 'undefined' && crypto.randomUUID) {
+        tab.supabase_id = crypto.randomUUID();
+      }
+
       const remotePayload: RemoteNote = {
         id: tab.supabase_id || undefined,
         title: tab.title || 'Untitled',
@@ -690,15 +695,17 @@ class EditorStore {
         tab.synced_at = new Date().toISOString();
         tab.sync_status = 'synced';
         tab.is_dirty = false;
+        this.syncStatus = 'synced';
+        this.lastSyncedAt = new Date().toLocaleTimeString();
+        this.lastSavedAt = this.lastSyncedAt;
+        this.syncMessage = `Auto-synced at ${this.lastSyncedAt}`;
+        this.persistTabs();
+      } else {
+        throw new Error('Supabase response did not return a valid note id');
       }
-
-      this.syncStatus = 'synced';
-      this.lastSyncedAt = new Date().toLocaleTimeString();
-      this.lastSavedAt = this.lastSyncedAt;
-      this.syncMessage = `Auto-synced at ${this.lastSyncedAt}`;
-      this.persistTabs();
     } catch (e: any) {
       console.warn('Auto-sync single tab error:', e);
+      tab.sync_status = 'error';
       this.syncStatus = 'error';
       this.syncMessage = 'Sync failed';
     } finally {
@@ -752,6 +759,7 @@ class EditorStore {
 
           if (existingTab) {
             existingTab.supabase_id = remote.id;
+            existingTab.sync_status = 'synced';
             if (remote.folder && !existingTab.folder) {
               existingTab.folder = remote.folder;
             }
@@ -769,6 +777,7 @@ class EditorStore {
               content: remote.content || '',
               folder: remote.folder || undefined,
               supabase_id: remote.id,
+              sync_status: 'synced',
               is_active: false,
               is_open: true,
               is_dirty: false,
@@ -781,36 +790,63 @@ class EditorStore {
         }
       }
 
-      // 2. Push local tabs that have content and are not yet on Supabase (or dirty)
-      for (const tab of this.tabs) {
-        if (tab.content.trim().length > 0 && (!tab.supabase_id || tab.is_dirty)) {
-          const res = await ipc.upsertRemoteNote(
-            this.supabaseConfig.url,
-            this.supabaseConfig.anon_key,
-            {
-              id: tab.supabase_id || undefined,
-              title: tab.title,
-              content: tab.content,
-              file_extension: tab.file_extension,
-              folder: tab.folder || undefined,
-              is_pinned: false,
-              is_deleted: false
-            },
-            this.supabaseConfig.access_token || undefined
-          );
+      // 2. Push local tabs that have content or are filed/named and are not yet on Supabase (or dirty)
+      let pushSuccessCount = 0;
+      let pushFailCount = 0;
 
-          if (res && res.id) {
-            tab.supabase_id = res.id;
-            tab.synced_at = new Date().toISOString();
-            tab.sync_status = 'synced';
-            tab.is_dirty = false;
+      for (const tab of this.tabs) {
+        // Skip empty unsaved untitled scratchpad (no file path, no folder, no custom name, no content)
+        if (!tab.supabase_id && !tab.file_path && !tab.folder && !tab.is_custom_named && (!tab.content || !tab.content.trim())) {
+          continue;
+        }
+
+        if (!tab.supabase_id || tab.is_dirty) {
+          if (!tab.supabase_id && typeof crypto !== 'undefined' && crypto.randomUUID) {
+            tab.supabase_id = crypto.randomUUID();
+          }
+
+          try {
+            const res = await ipc.upsertRemoteNote(
+              this.supabaseConfig.url,
+              this.supabaseConfig.anon_key,
+              {
+                id: tab.supabase_id || undefined,
+                title: tab.title,
+                content: tab.content || '',
+                file_extension: tab.file_extension || 'txt',
+                folder: tab.folder || undefined,
+                is_pinned: false,
+                is_deleted: false
+              },
+              this.supabaseConfig.access_token || undefined
+            );
+
+            if (res && res.id) {
+              tab.supabase_id = res.id;
+              tab.synced_at = new Date().toISOString();
+              tab.sync_status = 'synced';
+              tab.is_dirty = false;
+              pushSuccessCount++;
+            } else {
+              tab.sync_status = 'error';
+              pushFailCount++;
+            }
+          } catch (err) {
+            console.warn(`Failed to push note "${tab.title}" to Supabase:`, err);
+            tab.sync_status = 'error';
+            pushFailCount++;
           }
         }
       }
 
-      this.syncStatus = 'synced';
-      this.lastSyncedAt = new Date().toLocaleTimeString();
-      this.syncMessage = `Auto-synced at ${this.lastSyncedAt}`;
+      if (pushFailCount > 0 && pushSuccessCount === 0) {
+        this.syncStatus = 'error';
+        this.syncMessage = 'Sync partially failed';
+      } else {
+        this.syncStatus = 'synced';
+        this.lastSyncedAt = new Date().toLocaleTimeString();
+        this.syncMessage = `Auto-synced at ${this.lastSyncedAt}`;
+      }
       this.persistTabs();
     } catch (e: any) {
       console.warn('Full sync error:', e);

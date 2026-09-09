@@ -42,9 +42,17 @@
         <IconComponent class="w-3.5 h-3.5 flex-shrink-0 {isActive ? 'text-blue-400' : 'text-slate-500'}" />
         
         {#if tab.supabase_id}
-          <span title="Cloud Synced">
+          <span title="Tersinkronisasi di Supabase Cloud">
             <Cloud class="w-3 h-3 text-emerald-400 flex-shrink-0" />
           </span>
+        {:else if editorStore.supabaseConfig.is_configured}
+          <button 
+            onclick={(e) => { e.stopPropagation(); editorStore.syncSingleTab(tab); }}
+            class="p-0.5 rounded hover:bg-slate-800 text-slate-600 hover:text-emerald-400 transition-colors"
+            title="Catatan belum di cloud. Klik untuk sinkronkan ke Supabase Cloud"
+          >
+            <Cloud class="w-3 h-3 text-slate-600 hover:text-emerald-400 flex-shrink-0" />
+          </button>
         {/if}
 
         {#if tab.folder}

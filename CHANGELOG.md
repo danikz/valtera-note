@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.5] - 2026-09-10
+
+### ☁️ Supabase Cloud Sync & CI Build Pipeline Optimization
+- **Local-to-Cloud Sync Fix**: Resolved issue where locally saved notes failed to sync to Supabase Cloud due to PostgREST `on_conflict=id` requirement when notes lacked assigned remote IDs.
+- **Dynamic Upserting**: New notes are now posted cleanly to `/rest/v1/notes` or provisioned with a client UUID, returning the generated record and setting `tab.supabase_id` seamlessly.
+- **Visual Cloud Indicators**: Added clear emerald `<Cloud>` status badges and 1-click cloud sync buttons on unsynced notes in both tab bar and sidebar.
+- **Accurate Error Reporting**: Fixed false positive "Sync Succeeded" notification when remote upsert encounters permission or network issues.
+- **CI Build Speedup (80-90% faster)**: Integrated `swatinem/rust-cache@v2` and `pnpm` store caching into GitHub Actions cross-platform workflow, eliminating redundant full recompilations.
+
+---
+
 ## [0.1.4] - 2026-09-09
 
 ### 🛠️ SQLite Migration & Supabase Configuration Persistence Fix

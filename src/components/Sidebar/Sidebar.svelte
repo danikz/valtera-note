@@ -541,11 +541,22 @@
                       </div>
 
                       <div class="flex items-center space-x-1 flex-shrink-0">
-                        <!-- Cloud Synced Badge -->
+                        <!-- Cloud Synced Badge / Manual Sync -->
                         {#if tab.supabase_id}
-                          <span title="Synced to Supabase">
+                          <span title="Tersinkronisasi di Supabase Cloud">
                             <Cloud class="w-3 h-3 text-emerald-400" />
                           </span>
+                        {:else if editorStore.supabaseConfig.is_configured}
+                          <button
+                            onclick={(e) => {
+                              e.stopPropagation();
+                              editorStore.syncSingleTab(tab);
+                            }}
+                            class="p-0.5 rounded hover:bg-slate-700 text-slate-500 hover:text-emerald-400 transition-colors"
+                            title="Catatan belum di cloud. Klik untuk sinkronkan ke Supabase Cloud"
+                          >
+                            <Cloud class="w-3 h-3 text-slate-500 hover:text-emerald-400" />
+                          </button>
                         {/if}
 
                         <!-- Dirty Indicator (Unsaved) -->
@@ -711,9 +722,20 @@
 
             <div class="flex items-center space-x-1 flex-shrink-0">
               {#if tab.supabase_id}
-                <span title="Synced to Supabase">
+                <span title="Tersinkronisasi di Supabase Cloud">
                   <Cloud class="w-3 h-3 text-emerald-400" />
                 </span>
+              {:else if editorStore.supabaseConfig.is_configured}
+                <button
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    editorStore.syncSingleTab(tab);
+                  }}
+                  class="p-0.5 rounded hover:bg-slate-700 text-slate-500 hover:text-emerald-400 transition-colors"
+                  title="Catatan belum di cloud. Klik untuk sinkronkan ke Supabase Cloud"
+                >
+                  <Cloud class="w-3 h-3 text-slate-500 hover:text-emerald-400" />
+                </button>
               {/if}
 
               {#if tab.is_dirty}

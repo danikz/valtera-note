@@ -211,7 +211,11 @@ with check (true);`;
 
       await checkTable();
       await editorStore.autoSyncAll();
-      statusMessage = { text: '✅ Tersimpan & Tersambung! Catatan Anda otomatis tersinkronisasi ke Supabase Cloud.', type: 'success' };
+      if (editorStore.syncStatus === 'error') {
+        statusMessage = { text: '⚠️ Tersambung, namun sinkronisasi catatan gagal. Pastikan tabel notes sudah dibuat dan RLS mengizinkan akses.', type: 'error' };
+      } else {
+        statusMessage = { text: '✅ Tersimpan & Tersambung! Catatan Anda otomatis tersinkronisasi ke Supabase Cloud.', type: 'success' };
+      }
     } catch (e: any) {
       statusMessage = { text: e?.toString() || 'Gagal menyimpan konfigurasi', type: 'error' };
     } finally {
@@ -223,7 +227,11 @@ with check (true);`;
     isLoading = true;
     try {
       await editorStore.autoSyncAll();
-      statusMessage = { text: `✅ Berhasil sinkronisasi otomatis! (${editorStore.lastSyncedAt})`, type: 'success' };
+      if (editorStore.syncStatus === 'error') {
+        statusMessage = { text: '⚠️ Sinkronisasi gagal atau ada catatan yang gagal diunggah.', type: 'error' };
+      } else {
+        statusMessage = { text: `✅ Berhasil sinkronisasi otomatis! (${editorStore.lastSyncedAt || 'Baru saja'})`, type: 'success' };
+      }
     } catch (e: any) {
       statusMessage = { text: 'Gagal sinkronisasi: ' + (e?.message || e), type: 'error' };
     } finally {

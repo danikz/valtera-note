@@ -20,21 +20,43 @@ pub struct FileSaveResultDto {
     pub saved_at: String,
 }
 
+fn default_one() -> usize {
+    1
+}
+
+fn default_split_mode() -> String {
+    "editor-only".to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TabStateDto {
+    #[serde(default)]
     pub id: Option<i64>,
+    #[serde(default)]
     pub document_id: Option<i64>,
+    #[serde(default)]
     pub supabase_id: Option<String>,
+    #[serde(default)]
     pub file_path: Option<String>,
+    #[serde(default)]
     pub folder: Option<String>,
+    #[serde(default)]
     pub title: String,
+    #[serde(default)]
     pub file_extension: String,
+    #[serde(default)]
     pub content: String,
+    #[serde(default)]
     pub is_active: bool,
+    #[serde(default)]
     pub is_dirty: bool,
+    #[serde(default)]
     pub is_scratchpad: bool,
+    #[serde(default = "default_one")]
     pub cursor_line: usize,
+    #[serde(default = "default_one")]
     pub cursor_col: usize,
+    #[serde(default = "default_split_mode")]
     pub split_mode: String, // "none", "editor-only", "preview-only", "split-horizontal"
 }
 

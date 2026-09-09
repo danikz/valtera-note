@@ -28,11 +28,23 @@ pub struct SupabaseUser {
     pub email: Option<String>,
 }
 
+fn default_untitled() -> String {
+    "Untitled".to_string()
+}
+
+fn default_ext() -> String {
+    "txt".to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RemoteNote {
+    #[serde(default)]
     pub id: Option<String>,
+    #[serde(default = "default_untitled")]
     pub title: String,
+    #[serde(default)]
     pub content: String,
+    #[serde(default = "default_ext")]
     pub file_extension: String,
     #[serde(default)]
     pub folder: Option<String>,
@@ -40,7 +52,9 @@ pub struct RemoteNote {
     pub is_pinned: bool,
     #[serde(default)]
     pub is_deleted: bool,
+    #[serde(default)]
     pub created_at: Option<String>,
+    #[serde(default)]
     pub updated_at: Option<String>,
 }
 
@@ -235,11 +249,23 @@ impl SupabaseClient {
     }
 
     pub async fn upsert_note(&self, note: &RemoteNote) -> Result<RemoteNote, String> {
-        let url = format!("{}/rest/v1/notes?on_conflict=id", self.url);
+        let has_id = note.id.as_ref().map_or(false, |s| !s.trim().is_empty());
+
+        let url = if has_id {
+            format!("{}/rest/v1/notes?on_conflict=id", self.url)
+        } else {
+            format!("{}/rest/v1/notes", self.url)
+        };
+
         let mut req = self.client.post(&url)
             .header("apikey", &self.anon_key)
-            .header("Prefer", "resolution=merge-duplicates,return=representation")
             .header("Content-Type", "application/json");
+
+        if has_id {
+            req = req.header("Prefer", "resolution=merge-duplicates,return=representation");
+        } else {
+            req = req.header("Prefer", "return=representation");
+        }
 
         if let Some(token) = &self.access_token {
             req = req.header("Authorization", format!("Bearer {}", token));
@@ -250,9 +276,8 @@ impl SupabaseClient {
         let mut note_val = serde_json::to_value(note)
             .map_err(|e| format!("Serialization error: {}", e))?;
         
-        // Remove empty id if null/None so database defaults gen_random_uuid()
         if let Some(obj) = note_val.as_object_mut() {
-            if obj.get("id").map_or(true, |v| v.is_null()) {
+            if !has_id {
                 obj.remove("id");
             }
             if obj.get("created_at").map_or(true, |v| v.is_null()) {
@@ -279,6 +304,37 @@ impl SupabaseClient {
 
         if let Ok(single) = serde_json::from_str::<RemoteNote>(&text) {
             return Ok(single);
+        }
+
+        // Fallback: parse as generic JSON array / object in case schema has minor deviations
+        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&text) {
+            if let Some(arr) = val.as_array() {
+                if let Some(first_obj) = arr.first().and_then(|v| v.as_object()) {
+                    let mut updated_note = note.clone();
+                    if let Some(id_val) = first_obj.get("id").and_then(|v| v.as_str()) {
+                        updated_note.id = Some(id_val.to_string());
+                    }
+                    if let Some(t_val) = first_obj.get("title").and_then(|v| v.as_str()) {
+                        updated_note.title = t_val.to_string();
+                    }
+                    if let Some(c_val) = first_obj.get("content").and_then(|v| v.as_str()) {
+                        updated_note.content = c_val.to_string();
+                    }
+                    if let Some(ext_val) = first_obj.get("file_extension").and_then(|v| v.as_str()) {
+                        updated_note.file_extension = ext_val.to_string();
+                    }
+                    if let Some(f_val) = first_obj.get("folder").and_then(|v| v.as_str()) {
+                        updated_note.folder = Some(f_val.to_string());
+                    }
+                    return Ok(updated_note);
+                }
+            } else if let Some(first_obj) = val.as_object() {
+                let mut updated_note = note.clone();
+                if let Some(id_val) = first_obj.get("id").and_then(|v| v.as_str()) {
+                    updated_note.id = Some(id_val.to_string());
+                }
+                return Ok(updated_note);
+            }
         }
 
         Ok(note.clone())

@@ -123,6 +123,13 @@ with check (true);`;
     try {
       const msg = await ipc.testSupabaseConnection(cleanUrl, cleanKey);
       statusMessage = { text: `✅ ${msg}`, type: 'success' };
+      // Save valid tested credentials to database and store
+      await ipc.saveSupabaseConfig(cleanUrl, cleanKey);
+      editorStore.setSupabaseConfig({
+        url: cleanUrl,
+        anon_key: cleanKey,
+        is_configured: true
+      });
       await checkTable();
     } catch (e: any) {
       statusMessage = { 
@@ -279,6 +286,26 @@ with check (true);`;
       }
     });
   });
+
+  async function handleCloseModal() {
+    const cleanUrl = url.trim().replace(/\/+$/, '');
+    const cleanKey = anonKey.trim();
+    if (cleanUrl || cleanKey) {
+      try {
+        await ipc.saveSupabaseConfig(cleanUrl, cleanKey);
+        if (cleanUrl && cleanKey && !editorStore.supabaseConfig.is_configured) {
+          editorStore.setSupabaseConfig({
+            url: cleanUrl,
+            anon_key: cleanKey,
+            is_configured: true
+          });
+        }
+      } catch (e) {
+        console.warn('Auto-save Supabase config on close failed:', e);
+      }
+    }
+    onClose();
+  }
 </script>
 
 {#if isOpen}
@@ -292,7 +319,7 @@ with check (true);`;
           <span>Supabase API Sync Settings</span>
         </div>
         <button 
-          onclick={onClose}
+          onclick={handleCloseModal}
           class="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-100 transition-colors"
         >
           <X class="w-4 h-4" />
@@ -603,7 +630,7 @@ with check (true);`;
 
         <div class="flex items-center space-x-2">
           <button 
-            onclick={onClose}
+            onclick={handleCloseModal}
             class="px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-colors"
           >
             Tutup

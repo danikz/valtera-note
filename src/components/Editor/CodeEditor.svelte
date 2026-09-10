@@ -5,10 +5,12 @@
   import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
   import { bracketMatching, syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
   import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
+  import { autocompletion, completionKeymap } from '@codemirror/autocomplete';
   import { oneDark } from '@codemirror/theme-one-dark';
   import { markdown } from '@codemirror/lang-markdown';
   import { sql } from '@codemirror/lang-sql';
   import { editorStore } from '../../stores/editorStore.svelte';
+  import { emojiCompletionSource } from '../../utils/emojis';
 
   let editorContainer = $state<HTMLDivElement | null>(null);
   let view: EditorView | null = null;
@@ -29,6 +31,20 @@
       default:
         return [];
     }
+  }
+
+  function handleInsertText(e: Event) {
+    const customEvent = e as CustomEvent<string>;
+    const text = customEvent.detail;
+    if (!view || !text) return;
+
+    const { from, to } = view.state.selection.main;
+    view.dispatch({
+      changes: { from, to, insert: text },
+      selection: { anchor: from + text.length },
+      scrollIntoView: true
+    });
+    view.focus();
   }
 
   function initEditor() {
@@ -56,10 +72,33 @@
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
         oneDark,
         languageCompartment.of(getLanguageExtension(initialExt)),
+        autocompletion({
+          override: [
+            (context) => {
+              // 1. Emoji autocompletion when typing :
+              const emojiMatch = context.matchBefore(/:[a-zA-Z0-9_\-+]{1,}/);
+              if (emojiMatch || (context.explicit && context.matchBefore(/:/))) {
+                return emojiCompletionSource(context);
+              }
+              // 2. Default language completions (SQL, etc.)
+              const sources = context.state.languageDataAt<any>('autocomplete', context.pos);
+              for (const source of sources) {
+                if (typeof source === 'function') {
+                  const res = source(context);
+                  if (res) return res;
+                }
+              }
+              return null;
+            }
+          ],
+          defaultKeymap: true,
+          icons: false
+        }),
         keymap.of([
           ...defaultKeymap,
           ...historyKeymap,
           ...searchKeymap,
+          ...completionKeymap,
           indentWithTab,
           {
             key: 'Mod-s',
@@ -111,6 +150,39 @@
             backgroundColor: '#0b0f19',
             color: '#475569',
             borderRight: '1px solid #1e293b'
+          },
+          '.cm-tooltip.cm-tooltip-autocomplete': {
+            backgroundColor: '#0f172a',
+            border: '1px solid #334155',
+            borderRadius: '8px',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
+            padding: '4px'
+          },
+          '.cm-tooltip-autocomplete ul': {
+            maxHeight: '220px',
+            fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace'
+          },
+          '.cm-tooltip-autocomplete ul li': {
+            padding: '4px 8px',
+            borderRadius: '6px',
+            fontSize: '12px',
+            color: '#cbd5e1'
+          },
+          '.cm-tooltip-autocomplete ul li[aria-selected]': {
+            backgroundColor: '#1d4ed8',
+            color: '#ffffff'
+          },
+          '.cm-completionLabel': {
+            fontWeight: '600'
+          },
+          '.cm-completionDetail': {
+            marginLeft: '8px',
+            fontStyle: 'normal',
+            color: '#94a3b8',
+            fontSize: '11px'
+          },
+          '.cm-tooltip-autocomplete ul li[aria-selected] .cm-completionDetail': {
+            color: '#bfdbfe'
           }
         })
       ]
@@ -149,9 +221,15 @@
 
   onMount(() => {
     initEditor();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('valtera:insert-text', handleInsertText);
+    }
   });
 
   onDestroy(() => {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('valtera:insert-text', handleInsertText);
+    }
     if (view) {
       view.destroy();
       view = null;
@@ -162,3 +240,4 @@
 <div class="h-full w-full relative overflow-hidden bg-slate-950 flex flex-col">
   <div bind:this={editorContainer} class="h-full w-full overflow-hidden"></div>
 </div>
+

@@ -14,19 +14,22 @@
     Search, 
     Sparkles,
     RefreshCw,
-    PanelLeft
+    PanelLeft,
+    Smile
   } from 'lucide-svelte';
 
   let { 
     onOpenSyncModal, 
     onOpenSnippetsModal, 
     onOpenCommandPalette,
+    onOpenEmojiPicker,
     onToggleSidebar,
     isSidebarOpen = true
   }: { 
     onOpenSyncModal: () => void; 
     onOpenSnippetsModal: () => void; 
     onOpenCommandPalette: () => void; 
+    onOpenEmojiPicker?: () => void;
     onToggleSidebar?: () => void;
     isSidebarOpen?: boolean;
   } = $props();
@@ -167,6 +170,16 @@
       >
         <Sparkles class="w-3.5 h-3.5" />
       </button>
+
+      {#if onOpenEmojiPicker}
+        <button 
+          onclick={onOpenEmojiPicker}
+          class="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-blue-300 transition-colors"
+          title="Sisipkan Emoji & Icon (Ctrl+Shift+E)"
+        >
+          <Smile class="w-3.5 h-3.5" />
+        </button>
+      {/if}
     </div>
   </div>
 

@@ -16,7 +16,10 @@
     Database,
     PanelLeft,
     Trash2,
-    ArrowUpCircle 
+    ArrowUpCircle,
+    Smile,
+    XCircle,
+    X
   } from 'lucide-svelte';
 
   let { 
@@ -24,6 +27,7 @@
     onClose, 
     onOpenSync, 
     onOpenSnippets, 
+    onOpenEmojiPicker,
     onRunSql,
     onToggleSidebar 
   }: { 
@@ -31,6 +35,7 @@
     onClose: () => void; 
     onOpenSync: () => void; 
     onOpenSnippets: () => void; 
+    onOpenEmojiPicker?: () => void;
     onRunSql?: () => void; 
     onToggleSidebar?: () => void;
   } = $props();
@@ -88,6 +93,33 @@
       shortcut: 'Ctrl+S',
       icon: Save,
       action: () => editorStore.saveCurrentTab()
+    },
+    {
+      id: 'close-tab',
+      title: 'Tutup Tab Aktif (Close Active Tab)',
+      shortcut: 'Ctrl+W',
+      icon: X,
+      action: () => {
+        if (editorStore.activeTab) {
+          editorStore.closeTab(editorStore.activeTabIndex);
+        }
+      }
+    },
+    {
+      id: 'close-all-tabs',
+      title: 'Tutup Semua Tab (Close All Tabs)',
+      shortcut: 'Ctrl+Shift+W',
+      icon: XCircle,
+      action: () => editorStore.closeAllTabs()
+    },
+    {
+      id: 'insert-emoji',
+      title: 'Sisipkan Emoji & Icon (Insert Emoji)',
+      shortcut: 'Ctrl+Shift+E',
+      icon: Smile,
+      action: () => {
+        if (onOpenEmojiPicker) onOpenEmojiPicker();
+      }
     },
     {
       id: 'delete-note',

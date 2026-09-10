@@ -26,6 +26,7 @@
   import SnippetDrawer from './components/Snippets/SnippetDrawer.svelte';
   import CommandPalette from './components/CommandPalette/CommandPalette.svelte';
   import UpdateModal from './components/Update/UpdateModal.svelte';
+  import EmojiPickerModal from './components/Emoji/EmojiPickerModal.svelte';
   import { editorStore } from './stores/editorStore.svelte';
   import { updaterService } from './services/updater.svelte';
 
@@ -33,6 +34,7 @@
   let isSyncModalOpen = $state(false);
   let isSnippetsOpen = $state(false);
   let isCommandPaletteOpen = $state(false);
+  let isEmojiPickerOpen = $state(false);
   let sqlViewerRef = $state<any>(null);
 
   if (typeof window !== 'undefined') {
@@ -97,6 +99,23 @@
       e.preventDefault();
       editorStore.saveCurrentTab();
     }
+    // Ctrl+Shift+W -> Close All Tabs
+    else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'w') {
+      e.preventDefault();
+      editorStore.closeAllTabs();
+    }
+    // Ctrl+W -> Close Active Tab
+    else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'w') {
+      e.preventDefault();
+      if (editorStore.activeTab) {
+        editorStore.closeTab(editorStore.activeTabIndex);
+      }
+    }
+    // Ctrl+Shift+E -> Emoji & Icon Picker
+    else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'e') {
+      e.preventDefault();
+      isEmojiPickerOpen = !isEmojiPickerOpen;
+    }
     // Ctrl+\ -> Toggle Split Mode
     else if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
       e.preventDefault();
@@ -153,6 +172,7 @@
     onOpenSyncModal={() => (isSyncModalOpen = true)}
     onOpenSnippetsModal={() => (isSnippetsOpen = true)}
     onOpenCommandPalette={() => (isCommandPaletteOpen = true)}
+    onOpenEmojiPicker={() => (isEmojiPickerOpen = true)}
     onToggleSidebar={() => (isSidebarOpen = !isSidebarOpen)}
     isSidebarOpen={isSidebarOpen}
   />
@@ -357,8 +377,15 @@
     onClose={() => (isCommandPaletteOpen = false)}
     onOpenSync={() => (isSyncModalOpen = true)}
     onOpenSnippets={() => (isSnippetsOpen = true)}
+    onOpenEmojiPicker={() => (isEmojiPickerOpen = true)}
     onRunSql={handleRunSqlFromShortcut}
     onToggleSidebar={() => (isSidebarOpen = !isSidebarOpen)}
+  />
+
+  <!-- Emoji & Icon Picker Modal (Ctrl+Shift+E) -->
+  <EmojiPickerModal 
+    isOpen={isEmojiPickerOpen}
+    onClose={() => (isEmojiPickerOpen = false)}
   />
 
   <!-- Mandatory / Automated Update Modal -->

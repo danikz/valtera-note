@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount, onDestroy } from 'svelte';
   import { editorStore } from '../../stores/editorStore.svelte';
   import { 
     FileText, 
@@ -9,7 +10,10 @@
     Columns, 
     Eye, 
     Edit3,
-    Cloud
+    Cloud,
+    XCircle,
+    Save,
+    Layers
   } from 'lucide-svelte';
 
   function getFileIcon(ext: string) {
@@ -20,9 +24,53 @@
       default: return FileText;
     }
   }
+
+  let contextMenu = $state<{
+    isOpen: boolean;
+    x: number;
+    y: number;
+    originalIndex: number;
+    tabTitle: string;
+  }>({
+    isOpen: false,
+    x: 0,
+    y: 0,
+    originalIndex: -1,
+    tabTitle: ''
+  });
+
+  function handleTabContextMenu(e: MouseEvent, originalIndex: number, title: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    contextMenu = {
+      isOpen: true,
+      x: Math.min(e.clientX, window.innerWidth - 180),
+      y: e.clientY + 4,
+      originalIndex,
+      tabTitle: title
+    };
+  }
+
+  function closeContextMenu() {
+    if (contextMenu.isOpen) {
+      contextMenu.isOpen = false;
+    }
+  }
+
+  onMount(() => {
+    window.addEventListener('click', closeContextMenu);
+    window.addEventListener('contextmenu', closeContextMenu);
+  });
+
+  onDestroy(() => {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('click', closeContextMenu);
+      window.removeEventListener('contextmenu', closeContextMenu);
+    }
+  });
 </script>
 
-<div class="h-9 bg-slate-950 border-b border-slate-800 flex items-center justify-between px-2 overflow-hidden select-none">
+<div class="h-9 bg-slate-950 border-b border-slate-800 flex items-center justify-between px-2 overflow-hidden select-none relative">
   <!-- Tabs list -->
   <div class="flex items-center space-x-1 overflow-x-auto h-full py-1 scrollbar-none flex-1">
     {#each editorStore.openTabs as { tab, originalIndex } (originalIndex + '_' + tab.title)}
@@ -35,6 +83,7 @@
           : 'bg-slate-950/60 text-slate-400 border-transparent hover:bg-slate-900/40 hover:text-slate-300'}"
         onclick={() => editorStore.selectTab(originalIndex)}
         onauxclick={(e) => { if (e.button === 1) editorStore.closeTab(originalIndex); }}
+        oncontextmenu={(e) => handleTabContextMenu(e, originalIndex, tab.title)}
         role="button"
         tabindex="0"
         onkeydown={(e) => { if (e.key === 'Enter') editorStore.selectTab(originalIndex); }}
@@ -71,7 +120,7 @@
           <button 
             onclick={(e) => { e.stopPropagation(); editorStore.closeTab(originalIndex); }}
             class="p-0.5 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-200 {tab.is_dirty ? 'hidden group-hover:block' : 'opacity-0 group-hover:opacity-100'} transition-opacity"
-            title="Tutup Tab"
+            title="Tutup Tab (Ctrl+W)"
           >
             <X class="w-3 h-3" />
           </button>
@@ -83,10 +132,22 @@
     <button 
       onclick={() => editorStore.addTab()}
       class="p-1 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-300 transition-colors"
-      title="New Tab"
+      title="New Tab (Ctrl+N)"
     >
       <Plus class="w-3.5 h-3.5" />
     </button>
+
+    <!-- Close All Tabs Button (Visible if more than 1 tab open) -->
+    {#if editorStore.openTabs.length > 1}
+      <button 
+        onclick={() => editorStore.closeAllTabs()}
+        class="flex items-center space-x-1 px-2 py-0.5 rounded hover:bg-red-500/10 text-slate-500 hover:text-red-400 border border-transparent hover:border-red-500/20 transition-all text-xs cursor-pointer ml-0.5"
+        title="Tutup Semua Tab (Ctrl+Shift+W)"
+      >
+        <XCircle class="w-3.5 h-3.5 flex-shrink-0" />
+        <span class="text-[11px] hidden sm:inline">Tutup Semua</span>
+      </button>
+    {/if}
   </div>
 
   <!-- Right: View Mode Switches (For Markdown, SQL, or JSON) -->
@@ -121,3 +182,66 @@
     {/if}
   {/if}
 </div>
+
+<!-- Tab Right-Click Context Menu -->
+{#if contextMenu.isOpen}
+  <div 
+    class="fixed z-50 bg-slate-900 border border-slate-800 rounded-lg shadow-2xl py-1 text-xs text-slate-200 min-w-[170px] animate-in fade-in zoom-in-95 duration-100"
+    style="left: {contextMenu.x}px; top: {contextMenu.y}px;"
+    onclick={(e) => e.stopPropagation()}
+    role="menu"
+    tabindex="-1"
+  >
+    <div class="px-2.5 py-1 text-[10px] text-slate-500 font-mono border-b border-slate-800/80 truncate max-w-[200px]">
+      {contextMenu.tabTitle}
+    </div>
+
+    <!-- Close This Tab -->
+    <button 
+      onclick={() => { editorStore.closeTab(contextMenu.originalIndex); closeContextMenu(); }}
+      class="w-full px-2.5 py-1.5 flex items-center justify-between hover:bg-slate-800 text-left cursor-pointer transition-colors"
+    >
+      <span class="flex items-center space-x-2">
+        <X class="w-3.5 h-3.5 text-slate-400" />
+        <span>Tutup Tab Ini</span>
+      </span>
+      <kbd class="text-[10px] text-slate-500 font-mono">Ctrl+W</kbd>
+    </button>
+
+    <!-- Close Other Tabs -->
+    <button 
+      onclick={() => { editorStore.closeOtherTabs(contextMenu.originalIndex); closeContextMenu(); }}
+      class="w-full px-2.5 py-1.5 flex items-center space-x-2 hover:bg-slate-800 text-left cursor-pointer transition-colors"
+    >
+      <Layers class="w-3.5 h-3.5 text-slate-400" />
+      <span>Tutup Tab Lainnya</span>
+    </button>
+
+    <!-- Close All Tabs -->
+    <button 
+      onclick={() => { editorStore.closeAllTabs(); closeContextMenu(); }}
+      class="w-full px-2.5 py-1.5 flex items-center justify-between hover:bg-red-500/10 hover:text-red-400 text-left cursor-pointer transition-colors"
+    >
+      <span class="flex items-center space-x-2">
+        <XCircle class="w-3.5 h-3.5" />
+        <span>Tutup Semua Tab</span>
+      </span>
+      <kbd class="text-[10px] text-slate-500 font-mono">Ctrl+Shift+W</kbd>
+    </button>
+
+    <div class="my-1 border-t border-slate-800"></div>
+
+    <!-- Save Tab -->
+    <button 
+      onclick={() => { editorStore.saveCurrentTab(); closeContextMenu(); }}
+      class="w-full px-2.5 py-1.5 flex items-center justify-between hover:bg-slate-800 text-left cursor-pointer transition-colors"
+    >
+      <span class="flex items-center space-x-2">
+        <Save class="w-3.5 h-3.5 text-slate-400" />
+        <span>Simpan Catatan</span>
+      </span>
+      <kbd class="text-[10px] text-slate-500 font-mono">Ctrl+S</kbd>
+    </button>
+  </div>
+{/if}
+

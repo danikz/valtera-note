@@ -335,6 +335,56 @@ class EditorStore {
   }
 
   /**
+   * Close all open tabs at once.
+   * Keeps existing notes saved in the sidebar and discards empty unsaved scratchpads.
+   */
+  async closeAllTabs() {
+    for (let i = this.tabs.length - 1; i >= 0; i--) {
+      const tab = this.tabs[i];
+      if (!tab) continue;
+
+      if (!tab.file_path && !tab.supabase_id && !tab.folder && (!tab.content || !tab.content.trim())) {
+        this.tabs.splice(i, 1);
+      } else {
+        tab.is_open = false;
+      }
+    }
+
+    this.activeTabIndex = 0;
+    this.persistTabs();
+  }
+
+  /**
+   * Close all tabs except the specified tab.
+   */
+  async closeOtherTabs(keepIndex: number) {
+    if (keepIndex < 0 || keepIndex >= this.tabs.length) return;
+    const targetTab = this.tabs[keepIndex];
+
+    for (let i = this.tabs.length - 1; i >= 0; i--) {
+      if (i === keepIndex) continue;
+      const tab = this.tabs[i];
+      if (!tab) continue;
+
+      if (!tab.file_path && !tab.supabase_id && !tab.folder && (!tab.content || !tab.content.trim())) {
+        this.tabs.splice(i, 1);
+      } else {
+        tab.is_open = false;
+      }
+    }
+
+    const newIdx = this.tabs.indexOf(targetTab);
+    if (newIdx !== -1) {
+      targetTab.is_open = true;
+      this.activeTabIndex = newIdx;
+    } else {
+      this.activeTabIndex = 0;
+    }
+
+    this.persistTabs();
+  }
+
+  /**
    * Delete a note permanently (from memory, SQLite local DB, and Supabase Cloud)
    */
   async deleteTab(index: number, deleteFromCloud = true) {

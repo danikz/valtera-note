@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.6] - 2026-09-10
+
+### ✨ Fitur Baru: Dukungan Icon & Emoji Saat Menulis & Manajemen Multi-Tab
+- **Inline Emoji & Icon Autocomplete**: Mengetik `:` langsung di editor CodeMirror memicu autocomplete cerdas (cth: `:rocket:`, `:fire:`, `:star:`, `:check:`, `:warn:`, `:db:`, `:sql:`, `:koding:`, dll) dengan dukungan alias bahasa Indonesia dan Inggris. Menekan `Enter` atau `Tab` langsung mengganti tag menjadi karakter emoji asli.
+- **Visual Emoji & Icon Picker Modal**: Popup visual pencarian icon lengkap dengan filter kategori (*Dev & DB*, *Status & Task*, *Dokumen*, *Simbol & Panah*, *Ekspresi*), preview hover, salin karakter, serta tombol sisipkan langsung ke kursor aktif. Dapat dibuka via tombol Titlebar, Command Palette, atau shortcut `Ctrl+Shift+E`.
+- **Fitur Tutup Semua Tab (Close All Tabs)**:
+  - Menutup seluruh tab terbuka sekaligus tanpa perlu mengklik silang satu per satu via shortcut `Ctrl+Shift+W` atau tombol dedicated **Tutup Semua** di TabBar saat tab > 1.
+  - Aman dan non-destruktif: catatan yang telah tersimpan tetap utuh di Sidebar dan Supabase Cloud, hanya tab scratchpad kosong yang dibersihkan.
+- **Tab Right-Click Context Menu**: Klik kanan pada sembarang tab kini menampilkan menu konteks profesional:
+  - 📌 **Tutup Tab Ini** (`Ctrl+W`)
+  - 🗂️ **Tutup Tab Lainnya**
+  - ❌ **Tutup Semua Tab** (`Ctrl+Shift+W`)
+  - 💾 **Simpan Catatan** (`Ctrl+S`)
+- **Pintasan Keyboard & Command Palette**: Menambahkan perintah dan shortcut `Ctrl+W` (tutup tab aktif), `Ctrl+Shift+W` (tutup semua tab), dan `Ctrl+Shift+E` (picker emoji).
+
+---
+
 ## [0.1.5] - 2026-09-10
 
 ### ☁️ Supabase Cloud Sync & CI Build Pipeline Optimization

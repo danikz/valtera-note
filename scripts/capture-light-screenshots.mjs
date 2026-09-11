@@ -425,9 +425,19 @@ LIMIT 25;
     console.log('Capturing preview-favicon-light.png ...');
     await page.screenshot({ path: path.join(outDir, 'preview-favicon-light.png') });
 
+    // 4b. Open Unified Settings Workspace (Ctrl+,)
+    console.log('Opening Unified Settings Workspace...');
+    await page.keyboard.press('Control+,');
+    await page.waitForTimeout(1200);
+    await page.addStyleTag({ content: lightThemeCss });
+    await page.waitForTimeout(600);
+
+    console.log('Capturing preview-settings-light.png ...');
+    await page.screenshot({ path: path.join(outDir, 'preview-settings-light.png') });
+
     // 5. Capture the new Showcase / Documentation Page (docs/index.html)
     console.log('Navigating to docs/index.html showcase page...');
-    const docsPath = 'file:///' + path.resolve(__dirname, '../docs/index.html').replace(/\\\\/g, '/');
+    const docsPath = 'file:///' + path.resolve(__dirname, '../docs/index.html').replace(/\\/g, '/');
     await page.goto(docsPath, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1000);
 

@@ -188,6 +188,9 @@
             <button onclick="switchHeroTab('sql')" id="tab-btn-sql" class="px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 transition-colors flex items-center space-x-1.5 cursor-pointer">
               <span>🗄️ SQL Scratchpad</span>
             </button>
+            <button onclick="switchHeroTab('settings')" id="tab-btn-settings" class="px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 transition-colors flex items-center space-x-1.5 cursor-pointer">
+              <span>⚙️ Pengaturan & Tema</span>
+            </button>
           </div>
 
           <!-- Hero Image Preview Container -->
@@ -203,6 +206,9 @@
             </div>
             <div id="view-sql" class="hidden">
               <img src="screenshots/preview-sql-light.png" onerror="this.src='screenshots/preview-sql.png'" alt="Valtera Note SQL Scratchpad" class="w-full rounded-xl border border-slate-200 shadow-sm">
+            </div>
+            <div id="view-settings" class="hidden">
+              <img src="screenshots/preview-settings-light.png" alt="Valtera Note Unified Settings Workspace" class="w-full rounded-xl border border-slate-200 shadow-sm">
             </div>
           </div>
         </div>
@@ -424,6 +430,11 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100 font-mono text-xs">
+            <tr class="hover:bg-slate-50/80 transition-colors bg-indigo-50/30">
+              <td class="py-3 px-5 font-sans font-medium text-indigo-950">Buka Pengaturan Terpadu (Settings: Supabase & Tema)</td>
+              <td class="py-3 px-5"><kbd class="px-2 py-1 rounded bg-indigo-100 border border-indigo-300 font-semibold text-indigo-900">Ctrl + ,</kbd></td>
+              <td class="py-3 px-5 hidden sm:table-cell text-indigo-700 font-sans font-medium">Global (Baru)</td>
+            </tr>
             <tr class="hover:bg-slate-50/80 transition-colors">
               <td class="py-3 px-5 font-sans font-medium text-slate-900">Command Palette & Quick Search</td>
               <td class="py-3 px-5"><kbd class="px-2 py-1 rounded bg-slate-100 border border-slate-300 font-semibold text-slate-800">Ctrl + K</kbd></td>
@@ -563,7 +574,7 @@
   <!-- Simple script for interactive hero tabs -->
   <script>
     function switchHeroTab(tab) {
-      const views = ['md', 'tools', 'favicon', 'sql'];
+      const views = ['md', 'tools', 'favicon', 'sql', 'settings'];
       views.forEach(v => {
         const el = document.getElementById('view-' + v);
         const btn = document.getElementById('tab-btn-' + v);

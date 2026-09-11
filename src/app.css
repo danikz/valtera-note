@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+:root {
+  --editor-font-size: 13.5px;
+  --editor-font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
 @layer base {
   /* Scrollbar custom styling */
   ::-webkit-scrollbar {
@@ -18,11 +23,11 @@
   }
 }
 
-/* CodeMirror 6 custom styling for minimal RAM & dark aesthetic */
+/* CodeMirror 6 custom styling for minimal RAM */
 .cm-editor {
   height: 100% !important;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace !important;
-  font-size: 13.5px !important;
+  font-family: var(--editor-font-family) !important;
+  font-size: var(--editor-font-size) !important;
 }
 
 .cm-scroller {
@@ -33,4 +38,343 @@
   background-color: #0b0f19 !important;
   color: #475569 !important;
   border-right: 1px solid #1e293b !important;
+}
+
+/* ========================================================
+   THEME PRESETS (DARK MODES)
+   ======================================================== */
+
+/* 1. Tokyo Night */
+html.preset-tokyo body,
+html.preset-tokyo main,
+html.preset-tokyo .bg-slate-950 {
+  background-color: #16161e !important;
+}
+html.preset-tokyo aside,
+html.preset-tokyo .bg-slate-900,
+html.preset-tokyo .bg-slate-900\/95,
+html.preset-tokyo .bg-slate-900\/90,
+html.preset-tokyo .bg-slate-900\/80,
+html.preset-tokyo .bg-slate-900\/60,
+html.preset-tokyo .bg-slate-900\/50,
+html.preset-tokyo .bg-slate-900\/40 {
+  background-color: #1a1b26 !important;
+}
+html.preset-tokyo .bg-slate-800,
+html.preset-tokyo .bg-slate-800\/80 {
+  background-color: #24283b !important;
+}
+html.preset-tokyo .border-slate-800,
+html.preset-tokyo .border-slate-800\/80,
+html.preset-tokyo .border-slate-800\/60,
+html.preset-tokyo .border-slate-700 {
+  border-color: #292e42 !important;
+}
+html.preset-tokyo .cm-editor {
+  background-color: #1a1b26 !important;
+}
+html.preset-tokyo .cm-gutters {
+  background-color: #16161e !important;
+  border-right-color: #292e42 !important;
+}
+
+/* 2. Dracula */
+html.preset-dracula body,
+html.preset-dracula main,
+html.preset-dracula .bg-slate-950 {
+  background-color: #1e1f29 !important;
+}
+html.preset-dracula aside,
+html.preset-dracula .bg-slate-900,
+html.preset-dracula .bg-slate-900\/95,
+html.preset-dracula .bg-slate-900\/90,
+html.preset-dracula .bg-slate-900\/80,
+html.preset-dracula .bg-slate-900\/60,
+html.preset-dracula .bg-slate-900\/50,
+html.preset-dracula .bg-slate-900\/40 {
+  background-color: #282a36 !important;
+}
+html.preset-dracula .bg-slate-800,
+html.preset-dracula .bg-slate-800\/80 {
+  background-color: #343746 !important;
+}
+html.preset-dracula .border-slate-800,
+html.preset-dracula .border-slate-800\/80,
+html.preset-dracula .border-slate-800\/60,
+html.preset-dracula .border-slate-700 {
+  border-color: #44475a !important;
+}
+html.preset-dracula .cm-editor {
+  background-color: #282a36 !important;
+}
+html.preset-dracula .cm-gutters {
+  background-color: #1e1f29 !important;
+  border-right-color: #44475a !important;
+}
+
+/* 3. Forest Emerald */
+html.preset-emerald body,
+html.preset-emerald main,
+html.preset-emerald .bg-slate-950 {
+  background-color: #061712 !important;
+}
+html.preset-emerald aside,
+html.preset-emerald .bg-slate-900,
+html.preset-emerald .bg-slate-900\/95,
+html.preset-emerald .bg-slate-900\/90,
+html.preset-emerald .bg-slate-900\/80,
+html.preset-emerald .bg-slate-900\/60,
+html.preset-emerald .bg-slate-900\/50,
+html.preset-emerald .bg-slate-900\/40 {
+  background-color: #0c241c !important;
+}
+html.preset-emerald .bg-slate-800,
+html.preset-emerald .bg-slate-800\/80 {
+  background-color: #133429 !important;
+}
+html.preset-emerald .border-slate-800,
+html.preset-emerald .border-slate-800\/80,
+html.preset-emerald .border-slate-800\/60,
+html.preset-emerald .border-slate-700 {
+  border-color: #1c4839 !important;
+}
+html.preset-emerald .cm-editor {
+  background-color: #0c241c !important;
+}
+html.preset-emerald .cm-gutters {
+  background-color: #061712 !important;
+  border-right-color: #1c4839 !important;
+}
+
+/* 4. Nordic Frost */
+html.preset-nord body,
+html.preset-nord main,
+html.preset-nord .bg-slate-950 {
+  background-color: #242933 !important;
+}
+html.preset-nord aside,
+html.preset-nord .bg-slate-900,
+html.preset-nord .bg-slate-900\/95,
+html.preset-nord .bg-slate-900\/90,
+html.preset-nord .bg-slate-900\/80,
+html.preset-nord .bg-slate-900\/60,
+html.preset-nord .bg-slate-900\/50,
+html.preset-nord .bg-slate-900\/40 {
+  background-color: #2e3440 !important;
+}
+html.preset-nord .bg-slate-800,
+html.preset-nord .bg-slate-800\/80 {
+  background-color: #3b4252 !important;
+}
+html.preset-nord .border-slate-800,
+html.preset-nord .border-slate-800\/80,
+html.preset-nord .border-slate-800\/60,
+html.preset-nord .border-slate-700 {
+  border-color: #434c5e !important;
+}
+html.preset-nord .cm-editor {
+  background-color: #2e3440 !important;
+}
+html.preset-nord .cm-gutters {
+  background-color: #242933 !important;
+  border-right-color: #434c5e !important;
+}
+
+/* ========================================================
+   LIGHT MODE & GITHUB LIGHT THEME
+   ======================================================== */
+html.theme-light, 
+html.theme-light body, 
+html.theme-light #app, 
+html.theme-light main {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+/* Light Scrollbars */
+html.theme-light ::-webkit-scrollbar-track {
+  background: #f1f5f9 !important;
+}
+html.theme-light ::-webkit-scrollbar-thumb {
+  background: #cbd5e1 !important;
+}
+html.theme-light ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8 !important;
+}
+
+/* Light Structural Containers */
+html.theme-light .bg-slate-950,
+html.theme-light .bg-slate-950\/90,
+html.theme-light .bg-slate-950\/80,
+html.theme-light .bg-slate-950\/70,
+html.theme-light .bg-slate-950\/60,
+html.theme-light .bg-slate-950\/50,
+html.theme-light .bg-slate-950\/40,
+html.theme-light .bg-slate-950\/30 {
+  background-color: #ffffff !important;
+}
+
+html.theme-light aside,
+html.theme-light .bg-slate-900,
+html.theme-light .bg-slate-900\/95,
+html.theme-light .bg-slate-900\/90,
+html.theme-light .bg-slate-900\/80,
+html.theme-light .bg-slate-900\/70,
+html.theme-light .bg-slate-900\/60,
+html.theme-light .bg-slate-900\/50,
+html.theme-light .bg-slate-900\/40 {
+  background-color: #f8fafc !important;
+}
+
+html.theme-light .bg-slate-800,
+html.theme-light .bg-slate-800\/80,
+html.theme-light .bg-slate-800\/60,
+html.theme-light .bg-slate-800\/40,
+html.theme-light .hover\:bg-slate-800:hover {
+  background-color: #f1f5f9 !important;
+}
+
+/* Light Borders */
+html.theme-light .border-slate-800,
+html.theme-light .border-slate-800\/80,
+html.theme-light .border-slate-800\/60,
+html.theme-light .border-slate-800\/40,
+html.theme-light .border-slate-700,
+html.theme-light .border-slate-700\/80,
+html.theme-light .border-slate-900 {
+  border-color: #e2e8f0 !important;
+}
+
+/* Light Typography */
+html.theme-light .text-slate-100,
+html.theme-light .text-slate-200 {
+  color: #0f172a !important;
+}
+
+html.theme-light aside .text-slate-200,
+html.theme-light aside .text-slate-300,
+html.theme-light aside .text-slate-400 {
+  color: #334155 !important;
+}
+
+html.theme-light .text-slate-300 {
+  color: #334155 !important;
+}
+
+html.theme-light .text-slate-400 {
+  color: #475569 !important;
+}
+
+html.theme-light .text-slate-500 {
+  color: #64748b !important;
+}
+
+/* CodeMirror 6 in Light Mode */
+html.theme-light .cm-editor {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+html.theme-light .cm-scroller {
+  background-color: #ffffff !important;
+}
+
+html.theme-light .cm-gutters {
+  background-color: #f8fafc !important;
+  color: #94a3b8 !important;
+  border-right: 1px solid #e2e8f0 !important;
+}
+
+html.theme-light .cm-activeLineGutter {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+html.theme-light .cm-activeLine {
+  background-color: #f8fafc !important;
+}
+
+html.theme-light .cm-cursor {
+  border-left: 2px solid #0284c7 !important;
+}
+
+html.theme-light .cm-line {
+  color: #1e293b !important;
+}
+
+/* Markdown Preview in Light Mode */
+html.theme-light .markdown-body {
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+}
+
+html.theme-light .markdown-body h1,
+html.theme-light .markdown-body h2,
+html.theme-light .markdown-body h3,
+html.theme-light .markdown-body h4,
+html.theme-light .markdown-body h5 {
+  color: #0f172a !important;
+  border-bottom-color: #e2e8f0 !important;
+}
+
+html.theme-light .markdown-body p,
+html.theme-light .markdown-body li {
+  color: #334155 !important;
+}
+
+html.theme-light .markdown-body strong {
+  color: #0f172a !important;
+}
+
+html.theme-light .markdown-body code {
+  background-color: #f1f5f9 !important;
+  color: #0369a1 !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+html.theme-light .markdown-body pre {
+  background-color: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+html.theme-light .markdown-body pre code {
+  color: #0f172a !important;
+}
+
+html.theme-light .markdown-body blockquote {
+  border-left-color: #cbd5e1 !important;
+  color: #475569 !important;
+}
+
+/* Inputs & Form Controls in Light Mode */
+html.theme-light input[type="text"], 
+html.theme-light input[type="search"], 
+html.theme-light input[type="password"], 
+html.theme-light textarea, 
+html.theme-light select {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html.theme-light input::placeholder, 
+html.theme-light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Frameless Window Control Buttons in Light Mode */
+html.theme-light .window-ctrl-btn {
+  color: #475569 !important;
+}
+html.theme-light .window-ctrl-btn:hover {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+html.theme-light .window-close-btn {
+  color: #475569 !important;
+}
+html.theme-light .window-close-btn:hover {
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
 }

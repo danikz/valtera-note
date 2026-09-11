@@ -14,10 +14,12 @@
     CheckCircle2, 
     Search, 
     Sparkles,
+    BookOpen,
     RefreshCw,
     PanelLeft,
     Smile,
-    Wrench,
+    Settings,
+    Palette,
     FileCode,
     Binary,
     Globe,
@@ -40,6 +42,7 @@
     onOpenEmojiPicker,
     onOpenTool,
     onOpenAbout,
+    onOpenSettings,
     onSwitchToNotes,
     onToggleSidebar,
     isSidebarOpen = true,
@@ -52,10 +55,11 @@
     onOpenEmojiPicker?: () => void;
     onOpenTool?: (tool: ToolType) => void;
     onOpenAbout?: () => void;
+    onOpenSettings?: (tab?: 'supabase' | 'appearance' | 'editor' | 'about') => void;
     onSwitchToNotes?: () => void;
     onToggleSidebar?: () => void;
     isSidebarOpen?: boolean;
-    activeView?: 'notes' | 'tools';
+    activeView?: 'notes' | 'tools' | 'settings';
     activeTool?: ToolType;
   } = $props();
 
@@ -75,14 +79,47 @@
     openMenu = null;
   }
 
+  let isMaximized = $state(false);
+  let unlistenResize: (() => void) | undefined;
+
+  async function updateMaximizedState() {
+    try {
+      const win = getWindow();
+      if (win) {
+        isMaximized = await win.isMaximized();
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   onMount(() => {
     window.addEventListener('click', closeMenu);
+    updateMaximizedState();
+
+    (async () => {
+      try {
+        const win = getWindow();
+        if (win && typeof win.onResized === 'function') {
+          unlistenResize = await win.onResized(() => {
+            updateMaximizedState();
+          });
+        }
+      } catch {
+        // ignore in non-tauri environment
+      }
+    })();
+
+    return () => {
+      if (unlistenResize) unlistenResize();
+    };
   });
 
   onDestroy(() => {
     if (typeof window !== 'undefined') {
       window.removeEventListener('click', closeMenu);
     }
+    if (unlistenResize) unlistenResize();
   });
 
   function getWindow() {
@@ -105,7 +142,10 @@
   async function handleToggleMaximize() {
     try {
       const win = getWindow();
-      if (win) await win.toggleMaximize();
+      if (win) {
+        await win.toggleMaximize();
+        setTimeout(updateMaximizedState, 60);
+      }
     } catch (e) {
       console.warn('Maximize not available:', e);
     }
@@ -167,7 +207,11 @@
   }
 </script>
 
-<div class="h-9 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-2 select-none z-40" data-tauri-drag-region>
+<div 
+  class="h-9 bg-slate-900 border-b border-slate-800 flex items-center justify-between pl-2 pr-0 select-none z-40" 
+  data-tauri-drag-region 
+  ondblclick={handleToggleMaximize}
+>
   <!-- Left: App Icon, Brand, Sidebar Toggle & Desktop Menu Bar -->
   <div class="flex items-center space-x-2 pointer-events-auto flex-shrink-0">
     <div class="flex items-center space-x-2 px-2 py-0.5 rounded bg-blue-600/10 text-blue-300 border border-blue-500/20 text-xs font-semibold flex-shrink-0">
@@ -232,6 +276,11 @@
               <kbd class="text-[10px] text-slate-500 font-mono ml-4 flex-shrink-0">Ctrl+Shift+W</kbd>
             </button>
             <div class="my-1 border-t border-slate-800"></div>
+            <button onclick={() => { if (onOpenSettings) onOpenSettings('appearance'); closeMenu(); }} class="w-full px-3 py-1.5 flex items-center justify-between hover:bg-slate-800 text-left cursor-pointer transition-colors whitespace-nowrap">
+              <span class="flex items-center space-x-2 whitespace-nowrap"><Settings class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" /><span>Pengaturan...</span></span>
+              <kbd class="text-[10px] text-slate-500 font-mono ml-4 flex-shrink-0">Ctrl+,</kbd>
+            </button>
+            <div class="my-1 border-t border-slate-800"></div>
             <button onclick={() => { handleClose(); closeMenu(); }} class="w-full px-3 py-1.5 flex items-center space-x-2 hover:bg-red-500/10 hover:text-red-400 text-left cursor-pointer transition-colors whitespace-nowrap">
               <LogOut class="w-3.5 h-3.5 flex-shrink-0" /><span>Keluar</span>
             </button>
@@ -263,7 +312,7 @@
               </button>
             {/if}
             <button onclick={() => { onOpenSnippetsModal(); closeMenu(); }} class="w-full px-3 py-1.5 flex items-center justify-between hover:bg-slate-800 text-left cursor-pointer transition-colors whitespace-nowrap">
-              <span class="flex items-center space-x-2 whitespace-nowrap"><Sparkles class="w-3.5 h-3.5 text-amber-400 flex-shrink-0" /><span>Template & Snippet</span></span>
+              <span class="flex items-center space-x-2 whitespace-nowrap"><BookOpen class="w-3.5 h-3.5 text-amber-400 flex-shrink-0" /><span>Kamus Sintaks & Perintah</span></span>
               <kbd class="text-[10px] text-slate-500 font-mono ml-4 flex-shrink-0">Ctrl+Shift+T</kbd>
             </button>
             <button onclick={() => { onOpenCommandPalette(); closeMenu(); }} class="w-full px-3 py-1.5 flex items-center justify-between hover:bg-slate-800 text-left cursor-pointer transition-colors whitespace-nowrap">
@@ -375,23 +424,6 @@
                 <span class="whitespace-nowrap">UUID Generator (Batch)</span>
               </span>
             </button>
-
-            <div class="my-1 border-t border-slate-800"></div>
-
-            <div class="px-3.5 py-1 text-[10px] font-mono text-slate-500 uppercase tracking-wider whitespace-nowrap">
-              Pengaturan & Cloud
-            </div>
-
-            <!-- Supabase Sync -->
-            <button 
-              onclick={() => { onOpenSyncModal(); closeMenu(); }} 
-              class="w-full px-3.5 py-1.5 flex items-center justify-between hover:bg-slate-800 text-left cursor-pointer transition-colors whitespace-nowrap"
-            >
-              <span class="flex items-center space-x-2.5 whitespace-nowrap shrink-0">
-                <Cloud class="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span class="whitespace-nowrap">Supabase Cloud Sync</span>
-              </span>
-            </button>
           </div>
         {/if}
       </div>
@@ -414,14 +446,14 @@
             tabindex="-1"
           >
             <button 
-              onclick={() => { if (onOpenAbout) onOpenAbout(); closeMenu(); }} 
+              onclick={() => { if (onOpenSettings) onOpenSettings('about'); else if (onOpenAbout) onOpenAbout(); closeMenu(); }} 
               class="w-full px-3 py-1.5 flex items-center justify-between hover:bg-slate-800 text-left cursor-pointer transition-colors whitespace-nowrap"
             >
               <span class="flex items-center space-x-2 whitespace-nowrap">
                 <Info class="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
                 <span>Tentang Valtera Note</span>
               </span>
-              <span class="text-[10px] text-blue-300 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20 font-mono ml-4 flex-shrink-0">v0.1.6</span>
+              <span class="text-[10px] text-blue-300 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20 font-mono ml-4 flex-shrink-0">v0.1.7</span>
             </button>
             <button onclick={async () => { const { updaterService } = await import('../../services/updater.svelte'); await updaterService.checkForUpdates(true); closeMenu(); }} class="w-full px-3 py-1.5 flex items-center space-x-2 hover:bg-slate-800 text-left cursor-pointer transition-colors whitespace-nowrap">
               <RefreshCw class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
@@ -503,33 +535,37 @@
       <button 
         onclick={onOpenSnippetsModal}
         class="h-5.5 w-5.5 flex items-center justify-center rounded hover:bg-slate-800 text-slate-400 hover:text-amber-300 transition-colors cursor-pointer"
-        title="Template & Snippet (Ctrl+Shift+T)"
+        title="Kamus Sintaks & Perintah (Markdown, SQL, JSON) (Ctrl+Shift+T)"
       >
-        <Sparkles class="w-3.5 h-3.5" />
+        <BookOpen class="w-3.5 h-3.5" />
       </button>
     </div>
 
-    <!-- Group: Developer Tools Switcher -->
-    {#if onOpenTool}
+
+    <!-- Group: Unified Settings Switcher -->
+    {#if onOpenSettings}
       <button 
         onclick={() => {
-          if (activeView === 'tools') {
+          if (activeView === 'settings') {
             if (onSwitchToNotes) onSwitchToNotes();
           } else {
-            onOpenTool(activeTool || 'json');
+            onOpenSettings('appearance');
           }
         }}
-        class="h-6 px-2 flex items-center space-x-1.5 rounded-md border text-xs font-medium transition-all cursor-pointer {activeView === 'tools' ? 'bg-blue-600/20 text-blue-400 border-blue-500/40 shadow-xs' : 'bg-slate-950/60 border-slate-800/80 hover:border-slate-700 hover:bg-slate-800/60 text-slate-400 hover:text-blue-300'}"
-        title={activeView === 'tools' ? 'Kembali ke Catatan (Esc)' : 'Buka Developer Tools (JSON, Password, Base64...) (Ctrl+Shift+J)'}
+        class="h-6 px-2 flex items-center space-x-1.5 rounded-md border text-xs font-medium transition-all cursor-pointer {activeView === 'settings' ? 'bg-indigo-600/25 text-indigo-300 border-indigo-500/40 shadow-xs' : 'bg-slate-950/60 border-slate-800/80 hover:border-slate-700 hover:bg-slate-800/60 text-slate-400 hover:text-indigo-300'}"
+        title={activeView === 'settings' ? 'Kembali ke Catatan (Esc)' : 'Pengaturan Aplikasi, Supabase & Tema (Ctrl+,)'}
       >
-        <Wrench class="w-3 h-3" />
-        <span class="text-[11px]">Tools</span>
+        <Settings class="w-3 h-3" />
+        <span class="text-[11px]">Settings</span>
       </button>
     {/if}
 
     <!-- Supabase Sync Button -->
     <button 
-      onclick={onOpenSyncModal}
+      onclick={() => {
+        if (onOpenSettings) onOpenSettings('supabase');
+        else onOpenSyncModal();
+      }}
       class="flex items-center space-x-1 px-2 py-0.5 rounded text-xs hover:bg-slate-800 transition-colors {editorStore.isSyncing ? 'text-blue-400' : editorStore.supabaseConfig.is_configured ? 'text-emerald-400' : 'text-slate-400'}"
       title={editorStore.isSyncing ? 'Auto-syncing with cloud...' : editorStore.supabaseConfig.is_configured ? `Auto-sync active (Last synced: ${editorStore.lastSyncedAt || 'just now'})` : 'Supabase Cloud Sync Settings'}
     >
@@ -545,28 +581,40 @@
       {/if}
     </button>
 
-    <!-- Window Management Buttons -->
-    <div class="flex items-center ml-1 border-l border-slate-800 pl-1">
+    <!-- Window Management Buttons (Windows 11 / Modern Desktop Frameless Controls) -->
+    <div class="flex items-center h-full ml-1 border-l border-slate-800/80">
       <button 
         onclick={handleMinimize}
-        class="w-7 h-7 flex items-center justify-center hover:bg-slate-800 text-slate-400 hover:text-slate-200 rounded transition-colors"
+        class="h-full w-11 flex items-center justify-center text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 transition-colors cursor-pointer window-ctrl-btn"
         title="Minimize"
+        aria-label="Minimize"
       >
         <Minus class="w-3.5 h-3.5" />
       </button>
 
       <button 
         onclick={handleToggleMaximize}
-        class="w-7 h-7 flex items-center justify-center hover:bg-slate-800 text-slate-400 hover:text-slate-200 rounded transition-colors"
-        title="Maximize"
+        class="h-full w-11 flex items-center justify-center text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 transition-colors cursor-pointer window-ctrl-btn"
+        title={isMaximized ? "Restore Down" : "Maximize"}
+        aria-label={isMaximized ? "Restore Down" : "Maximize"}
       >
-        <Square class="w-3 h-3" />
+        {#if isMaximized}
+          <!-- Restore Icon (Two overlapping squares) -->
+          <svg class="w-3.5 h-3.5 stroke-current" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="7" y="3" width="14" height="14" rx="1" />
+            <path d="M3 7v14h14" />
+          </svg>
+        {:else}
+          <!-- Maximize Icon (Single square) -->
+          <Square class="w-3 h-3" />
+        {/if}
       </button>
 
       <button 
         onclick={handleClose}
-        class="w-7 h-7 flex items-center justify-center hover:bg-red-600/80 text-slate-400 hover:text-white rounded transition-colors"
+        class="h-full w-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-600 transition-colors cursor-pointer window-close-btn"
         title="Close"
+        aria-label="Close"
       >
         <X class="w-3.5 h-3.5" />
       </button>

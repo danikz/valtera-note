@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.7] - 2026-09-11
+
+### 🛠️ Fitur Baru: Dedicated Developer Tools Suite & About Modal
+- **Full-Page Developer Tools Workspace**: Suite perkakas pengembang lengkap dan terintegrasi yang dapat dibuka via tombol **Tools** di Titlebar, Command Palette (`Ctrl+K`), atau shortcut keyboard langsung:
+  - **JSON Formatter, Validator & Tree Inspector** (`Ctrl+Shift+J`):
+    - Format (Indented) & Minify JSON instan.
+    - Interactive Tree Viewer dengan toggle expand/collapse dan live key-path copying.
+    - Ekspor data JSON ke tabel **CSV (RFC 4180)** dan tabel **Markdown (GitHub Flavored)** otomatis.
+    - Visual Table Grid dengan pencarian real-time dan pemilihan sumber array objek.
+  - **Favicon & Web Icon Package Generator** (`Ctrl+Shift+F`):
+    - Generator paket favicon lengkap standar web dari berkas gambar/SVG (drag-and-drop).
+    - Menghasilkan `favicon.ico` (multi-resolusi 16x16, 32x32, 48x48), `apple-touch-icon.png`, `android-chrome-192/512`, `manifest.json`, dan `browserconfig.xml`.
+    - Unduh seluruh aset terkompresi dalam berkas ZIP sekali klik serta salin snippet tag `<head>` HTML.
+  - **MySQL Password Hash Generator** (`Ctrl+Shift+P`):
+    - Komputasi hash otentikasi MySQL Native Password (`mysql_native_password` SHA1 double-hash) dan format legacy password untuk administrasi basis data.
+  - **Base64 Encoder / Decoder**: Konversi teks dan data biner secara dua arah dengan live character counting dan validasi.
+  - **URL Encoder / Decoder & Query Inspector**: URL encoding/decoding instan dengan antarmuka builder query params.
+  - **UUID Generator (v4)**: Pembuatan bulk UUID v4 dengan opsi format huruf kapital, tanpa strip (-), dan output format Plain, SQL, JSON, atau CSV.
+- **About Modal**:
+  - Modal informasi aplikasi resmi Valtera Note lengkap dengan nomor versi, lisensi, informasi pengembang, dan tombol periksa pembaruan manual.
+- **Peningkatan Titlebar & Navigasi**:
+  - Tombol akses cepat Developer Tools pada Titlebar dengan penanda status aktif.
+  - Integrasi perintah developer tools langsung ke dalam Command Palette.
+
+---
+
 ## [0.1.6] - 2026-09-10
 
 ### ✨ Fitur Baru: Dukungan Icon & Emoji Saat Menulis & Manajemen Multi-Tab

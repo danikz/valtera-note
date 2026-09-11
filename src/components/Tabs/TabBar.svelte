@@ -186,47 +186,47 @@
 <!-- Tab Right-Click Context Menu -->
 {#if contextMenu.isOpen}
   <div 
-    class="fixed z-50 bg-slate-900 border border-slate-800 rounded-lg shadow-2xl py-1 text-xs text-slate-200 min-w-[170px] animate-in fade-in zoom-in-95 duration-100"
+    class="fixed z-50 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl py-1 text-xs text-slate-200 min-w-[210px] animate-in fade-in zoom-in-95 duration-100 whitespace-nowrap"
     style="left: {contextMenu.x}px; top: {contextMenu.y}px;"
     onclick={(e) => e.stopPropagation()}
     role="menu"
     tabindex="-1"
   >
-    <div class="px-2.5 py-1 text-[10px] text-slate-500 font-mono border-b border-slate-800/80 truncate max-w-[200px]">
+    <div class="px-2.5 py-1 text-[10px] text-slate-500 font-mono border-b border-slate-800/80 truncate max-w-[220px]">
       {contextMenu.tabTitle}
     </div>
 
     <!-- Close This Tab -->
     <button 
       onclick={() => { editorStore.closeTab(contextMenu.originalIndex); closeContextMenu(); }}
-      class="w-full px-2.5 py-1.5 flex items-center justify-between hover:bg-slate-800 text-left cursor-pointer transition-colors"
+      class="w-full px-2.5 py-1.5 flex items-center justify-between hover:bg-slate-800 text-left cursor-pointer transition-colors whitespace-nowrap"
     >
-      <span class="flex items-center space-x-2">
-        <X class="w-3.5 h-3.5 text-slate-400" />
+      <span class="flex items-center space-x-2 whitespace-nowrap">
+        <X class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
         <span>Tutup Tab Ini</span>
       </span>
-      <kbd class="text-[10px] text-slate-500 font-mono">Ctrl+W</kbd>
+      <kbd class="text-[10px] text-slate-500 font-mono ml-4 flex-shrink-0">Ctrl+W</kbd>
     </button>
 
     <!-- Close Other Tabs -->
     <button 
       onclick={() => { editorStore.closeOtherTabs(contextMenu.originalIndex); closeContextMenu(); }}
-      class="w-full px-2.5 py-1.5 flex items-center space-x-2 hover:bg-slate-800 text-left cursor-pointer transition-colors"
+      class="w-full px-2.5 py-1.5 flex items-center space-x-2 hover:bg-slate-800 text-left cursor-pointer transition-colors whitespace-nowrap"
     >
-      <Layers class="w-3.5 h-3.5 text-slate-400" />
+      <Layers class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
       <span>Tutup Tab Lainnya</span>
     </button>
 
     <!-- Close All Tabs -->
     <button 
       onclick={() => { editorStore.closeAllTabs(); closeContextMenu(); }}
-      class="w-full px-2.5 py-1.5 flex items-center justify-between hover:bg-red-500/10 hover:text-red-400 text-left cursor-pointer transition-colors"
+      class="w-full px-2.5 py-1.5 flex items-center justify-between hover:bg-red-500/10 hover:text-red-400 text-left cursor-pointer transition-colors whitespace-nowrap"
     >
-      <span class="flex items-center space-x-2">
-        <XCircle class="w-3.5 h-3.5" />
+      <span class="flex items-center space-x-2 whitespace-nowrap">
+        <XCircle class="w-3.5 h-3.5 flex-shrink-0" />
         <span>Tutup Semua Tab</span>
       </span>
-      <kbd class="text-[10px] text-slate-500 font-mono">Ctrl+Shift+W</kbd>
+      <kbd class="text-[10px] text-slate-500 font-mono ml-4 flex-shrink-0">Ctrl+Shift+W</kbd>
     </button>
 
     <div class="my-1 border-t border-slate-800"></div>
@@ -234,13 +234,13 @@
     <!-- Save Tab -->
     <button 
       onclick={() => { editorStore.saveCurrentTab(); closeContextMenu(); }}
-      class="w-full px-2.5 py-1.5 flex items-center justify-between hover:bg-slate-800 text-left cursor-pointer transition-colors"
+      class="w-full px-2.5 py-1.5 flex items-center justify-between hover:bg-slate-800 text-left cursor-pointer transition-colors whitespace-nowrap"
     >
-      <span class="flex items-center space-x-2">
-        <Save class="w-3.5 h-3.5 text-slate-400" />
+      <span class="flex items-center space-x-2 whitespace-nowrap">
+        <Save class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
         <span>Simpan Catatan</span>
       </span>
-      <kbd class="text-[10px] text-slate-500 font-mono">Ctrl+S</kbd>
+      <kbd class="text-[10px] text-slate-500 font-mono ml-4 flex-shrink-0">Ctrl+S</kbd>
     </button>
   </div>
 {/if}

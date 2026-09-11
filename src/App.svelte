@@ -26,7 +26,9 @@
   import SnippetDrawer from './components/Snippets/SnippetDrawer.svelte';
   import CommandPalette from './components/CommandPalette/CommandPalette.svelte';
   import UpdateModal from './components/Update/UpdateModal.svelte';
+  import AboutModal from './components/About/AboutModal.svelte';
   import EmojiPickerModal from './components/Emoji/EmojiPickerModal.svelte';
+  import ToolsWorkspace, { type ToolType } from './components/Tools/ToolsWorkspace.svelte';
   import { editorStore } from './stores/editorStore.svelte';
   import { updaterService } from './services/updater.svelte';
 
@@ -35,7 +37,15 @@
   let isSnippetsOpen = $state(false);
   let isCommandPaletteOpen = $state(false);
   let isEmojiPickerOpen = $state(false);
+  let isAboutModalOpen = $state(false);
+  let currentView = $state<'notes' | 'tools'>('notes');
+  let activeTool = $state<ToolType>('json');
   let sqlViewerRef = $state<any>(null);
+
+  function handleOpenTool(tool: ToolType = 'json') {
+    activeTool = tool;
+    currentView = 'tools';
+  }
 
   if (typeof window !== 'undefined') {
     (window as any).editorStore = editorStore;
@@ -87,11 +97,13 @@
     // Ctrl+N -> New Tab
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n' && !e.shiftKey) {
       e.preventDefault();
+      currentView = 'notes';
       editorStore.addTab();
     }
     // Ctrl+O -> Open File
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o' && !e.shiftKey) {
       e.preventDefault();
+      currentView = 'notes';
       handleOpenFile();
     }
     // Ctrl+S -> Save / Cloud Sync
@@ -115,6 +127,33 @@
     else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'e') {
       e.preventDefault();
       isEmojiPickerOpen = !isEmojiPickerOpen;
+    }
+    // Ctrl+Shift+J -> Toggle JSON Formatter & Viewer Full Page
+    else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'j') {
+      e.preventDefault();
+      if (currentView === 'tools' && activeTool === 'json') {
+        currentView = 'notes';
+      } else {
+        handleOpenTool('json');
+      }
+    }
+    // Ctrl+Shift+F -> Favicon Generator Full Page
+    else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
+      e.preventDefault();
+      if (currentView === 'tools' && activeTool === 'favicon') {
+        currentView = 'notes';
+      } else {
+        handleOpenTool('favicon');
+      }
+    }
+    // Ctrl+Shift+P -> MySQL Password Generator Full Page
+    else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'p') {
+      e.preventDefault();
+      if (currentView === 'tools' && activeTool === 'mysql-password') {
+        currentView = 'notes';
+      } else {
+        handleOpenTool('mysql-password');
+      }
     }
     // Ctrl+\ -> Toggle Split Mode
     else if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
@@ -173,12 +212,27 @@
     onOpenSnippetsModal={() => (isSnippetsOpen = true)}
     onOpenCommandPalette={() => (isCommandPaletteOpen = true)}
     onOpenEmojiPicker={() => (isEmojiPickerOpen = true)}
+    onOpenTool={handleOpenTool}
+    onOpenAbout={() => (isAboutModalOpen = true)}
+    onSwitchToNotes={() => (currentView = 'notes')}
     onToggleSidebar={() => (isSidebarOpen = !isSidebarOpen)}
     isSidebarOpen={isSidebarOpen}
+    activeView={currentView}
+    activeTool={activeTool}
   />
 
-  <!-- Main Work Area (Sidebar + Tabs Workspace) -->
-  <div class="flex-1 flex overflow-hidden relative">
+  {#if currentView === 'tools'}
+    <!-- Dedicated Full Page Developer Tools Workspace -->
+    <div class="flex-1 flex overflow-hidden relative">
+      <ToolsWorkspace 
+        activeTool={activeTool}
+        onSelectTool={(t) => (activeTool = t)}
+        onBack={() => (currentView = 'notes')}
+      />
+    </div>
+  {:else}
+    <!-- Main Work Area (Sidebar + Tabs Workspace) -->
+    <div class="flex-1 flex overflow-hidden relative">
     <!-- Left Navigation & Tab Search Sidebar -->
     <Sidebar 
       isOpen={isSidebarOpen} 
@@ -358,6 +412,7 @@
 
   <!-- Bottom Status Bar -->
   <StatusBar />
+  {/if}
 
   <!-- Supabase Cloud Sync Modal -->
   <SyncModal 
@@ -378,6 +433,8 @@
     onOpenSync={() => (isSyncModalOpen = true)}
     onOpenSnippets={() => (isSnippetsOpen = true)}
     onOpenEmojiPicker={() => (isEmojiPickerOpen = true)}
+    onOpenTool={handleOpenTool}
+    onOpenAbout={() => (isAboutModalOpen = true)}
     onRunSql={handleRunSqlFromShortcut}
     onToggleSidebar={() => (isSidebarOpen = !isSidebarOpen)}
   />
@@ -390,4 +447,14 @@
 
   <!-- Mandatory / Automated Update Modal -->
   <UpdateModal />
+
+  <!-- Premium About Modal -->
+  <AboutModal 
+    isOpen={isAboutModalOpen}
+    onClose={() => (isAboutModalOpen = false)}
+    onCheckUpdates={() => {
+      isAboutModalOpen = false;
+      updaterService.checkForUpdates(true);
+    }}
+  />
 </main>

@@ -1,6 +1,6 @@
 [package]
 name = "valtera-note"
-version = "0.1.6"
+version = "0.1.7"
 description = "Ultra-lightweight Notepad alternative with SQL & Markdown support"
 authors = ["PT Valtera Teknologi Digital"]
 edition = "2021"

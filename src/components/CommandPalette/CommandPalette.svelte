@@ -19,8 +19,17 @@
     ArrowUpCircle,
     Smile,
     XCircle,
-    X
+    X,
+    Wrench,
+    FileCode,
+    Binary,
+    Globe,
+    Key,
+    Info,
+    Image as ImageIcon
   } from 'lucide-svelte';
+
+  export type ToolType = 'json' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid';
 
   let { 
     isOpen, 
@@ -28,6 +37,8 @@
     onOpenSync, 
     onOpenSnippets, 
     onOpenEmojiPicker,
+    onOpenTool,
+    onOpenAbout,
     onRunSql,
     onToggleSidebar 
   }: { 
@@ -36,6 +47,8 @@
     onOpenSync: () => void; 
     onOpenSnippets: () => void; 
     onOpenEmojiPicker?: () => void;
+    onOpenTool?: (tool: ToolType) => void;
+    onOpenAbout?: () => void;
     onRunSql?: () => void; 
     onToggleSidebar?: () => void;
   } = $props();
@@ -119,6 +132,60 @@
       icon: Smile,
       action: () => {
         if (onOpenEmojiPicker) onOpenEmojiPicker();
+      }
+    },
+    {
+      id: 'devtools-json',
+      title: 'Tools: JSON, Tabel & CSV (Format, Parse, Tabel Dinamis & Ekspor CSV)',
+      shortcut: 'Ctrl+Shift+J',
+      icon: FileCode,
+      action: () => {
+        if (onOpenTool) onOpenTool('json');
+      }
+    },
+    {
+      id: 'devtools-favicon',
+      title: 'Tools: Favicon Generator (Web, Mobile, Android, Apple & PWA Icons 27 Berkas)',
+      shortcut: 'Ctrl+Shift+F',
+      icon: ImageIcon,
+      action: () => {
+        if (onOpenTool) onOpenTool('favicon');
+      }
+    },
+    {
+      id: 'devtools-mysql-password',
+      title: 'Tools: MySQL Password Generator (Safe Charsets, SQL & .env Snippets)',
+      shortcut: 'Ctrl+Shift+P',
+      icon: Database,
+      action: () => {
+        if (onOpenTool) onOpenTool('mysql-password');
+      }
+    },
+    {
+      id: 'devtools-base64',
+      title: 'Tools: Base64 Encoder / Decoder (UTF-8 & URL-Safe)',
+      shortcut: '',
+      icon: Binary,
+      action: () => {
+        if (onOpenTool) onOpenTool('base64');
+      }
+    },
+    {
+      id: 'devtools-url',
+      title: 'Tools: URL Encoder / Decoder (Query Parameter Breakdown)',
+      shortcut: '',
+      icon: Globe,
+      action: () => {
+        if (onOpenTool) onOpenTool('url');
+      }
+    },
+    {
+      id: 'devtools-uuid',
+      title: 'Tools: UUID Generator (Batch RFC 4122 v4)',
+      shortcut: '',
+      icon: Key,
+      action: () => {
+        if (onOpenTool) onOpenTool('uuid');
       }
     },
     {
@@ -223,6 +290,15 @@
       action: async () => {
         const { updaterService } = await import('../../services/updater.svelte');
         await updaterService.checkForUpdates(true);
+      }
+    },
+    {
+      id: 'about-valtera',
+      title: 'Tentang Valtera Note (About & System Info)',
+      shortcut: '',
+      icon: Info,
+      action: () => {
+        if (onOpenAbout) onOpenAbout();
       }
     }
   ];

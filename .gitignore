@@ -48,3 +48,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Agent / AI local workspace dirs
+.agents/
+.claude/
+.cursor/

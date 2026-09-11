@@ -7,6 +7,7 @@
     Plus, 
     FolderOpen, 
     Sparkles, 
+    BookOpen,
     Search, 
     FileText, 
     Database, 
@@ -29,8 +30,10 @@
   import AboutModal from './components/About/AboutModal.svelte';
   import EmojiPickerModal from './components/Emoji/EmojiPickerModal.svelte';
   import ToolsWorkspace, { type ToolType } from './components/Tools/ToolsWorkspace.svelte';
+  import SettingsWorkspace, { type SettingsTab } from './components/Settings/SettingsWorkspace.svelte';
   import { editorStore } from './stores/editorStore.svelte';
   import { updaterService } from './services/updater.svelte';
+  import { themeStore } from './stores/themeStore.svelte';
 
   let isSidebarOpen = $state(true);
   let isSyncModalOpen = $state(false);
@@ -38,13 +41,19 @@
   let isCommandPaletteOpen = $state(false);
   let isEmojiPickerOpen = $state(false);
   let isAboutModalOpen = $state(false);
-  let currentView = $state<'notes' | 'tools'>('notes');
+  let currentView = $state<'notes' | 'tools' | 'settings'>('notes');
   let activeTool = $state<ToolType>('json');
+  let activeSettingsTab = $state<SettingsTab>('supabase');
   let sqlViewerRef = $state<any>(null);
 
   function handleOpenTool(tool: ToolType = 'json') {
     activeTool = tool;
     currentView = 'tools';
+  }
+
+  function handleOpenSettings(tab: SettingsTab = 'supabase') {
+    activeSettingsTab = tab;
+    currentView = 'settings';
   }
 
   if (typeof window !== 'undefined') {
@@ -161,6 +170,20 @@
       const current = editorStore.activeTab?.split_mode;
       editorStore.setSplitMode(current === 'split-horizontal' ? 'editor-only' : 'split-horizontal');
     }
+    // Ctrl+, or Cmd+, -> Settings Workspace (Supabase, Themes, Dark/Light)
+    else if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+      e.preventDefault();
+      if (currentView === 'settings') {
+        currentView = 'notes';
+      } else {
+        handleOpenSettings('appearance');
+      }
+    }
+    // Escape -> Return to notes view if in tools or settings
+    else if (e.key === 'Escape' && (currentView === 'tools' || currentView === 'settings')) {
+      e.preventDefault();
+      currentView = 'notes';
+    }
   }
 
   onMount(() => {
@@ -208,12 +231,13 @@
 <main class="h-screen w-screen flex flex-col bg-slate-950 text-slate-100 overflow-hidden font-sans select-none">
   <!-- Frameless Custom Titlebar -->
   <Titlebar 
-    onOpenSyncModal={() => (isSyncModalOpen = true)}
+    onOpenSyncModal={() => handleOpenSettings('supabase')}
     onOpenSnippetsModal={() => (isSnippetsOpen = true)}
     onOpenCommandPalette={() => (isCommandPaletteOpen = true)}
     onOpenEmojiPicker={() => (isEmojiPickerOpen = true)}
     onOpenTool={handleOpenTool}
-    onOpenAbout={() => (isAboutModalOpen = true)}
+    onOpenAbout={() => handleOpenSettings('about')}
+    onOpenSettings={handleOpenSettings}
     onSwitchToNotes={() => (currentView = 'notes')}
     onToggleSidebar={() => (isSidebarOpen = !isSidebarOpen)}
     isSidebarOpen={isSidebarOpen}
@@ -228,6 +252,15 @@
         activeTool={activeTool}
         onSelectTool={(t) => (activeTool = t)}
         onBack={() => (currentView = 'notes')}
+      />
+    </div>
+  {:else if currentView === 'settings'}
+    <!-- Dedicated Unified Settings Workspace -->
+    <div class="flex-1 flex overflow-hidden relative">
+      <SettingsWorkspace 
+        activeTab={activeSettingsTab}
+        onSelectTab={(tab) => (activeSettingsTab = tab)}
+        onClose={() => (currentView = 'notes')}
       />
     </div>
   {:else}
@@ -354,19 +387,19 @@
                   <span class="text-[10.5px] text-slate-500 mt-0.5">Buka file dari komputer</span>
                 </button>
 
-                <!-- Action 3: Browse Templates -->
+                <!-- Action 3: Kamus Sintaks & Perintah -->
                 <button
                   onclick={() => (isSnippetsOpen = true)}
                   class="flex flex-col items-start p-3 rounded-xl bg-slate-900/80 hover:bg-slate-850 border border-slate-800/90 hover:border-emerald-500/50 text-left transition-all group cursor-pointer shadow-lg hover:shadow-emerald-500/5"
                 >
                   <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-2 group-hover:scale-105 transition-transform">
-                    <Sparkles class="w-4 h-4" />
+                    <BookOpen class="w-4 h-4" />
                   </div>
                   <div class="font-semibold text-xs text-slate-200 group-hover:text-emerald-300 flex items-center justify-between w-full">
-                    <span>Template</span>
+                    <span>Kamus Sintaks</span>
                     <kbd class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-400">Ctrl+⇧+T</kbd>
                   </div>
-                  <span class="text-[10.5px] text-slate-500 mt-0.5">Snippet SQL & Markdown</span>
+                  <span class="text-[10.5px] text-slate-500 mt-0.5">Panduan Markdown, SQL, JSON</span>
                 </button>
 
                 <!-- Action 4: Command Palette -->
@@ -386,7 +419,7 @@
               </div>
 
               <!-- Shortcut hints footer -->
-              <div class="pt-2 border-t border-slate-800/70 w-full flex items-center justify-center space-x-4 text-[11px] text-slate-500 font-mono">
+              <div class="pt-2 border-t border-slate-800/70 w-full flex items-center justify-center space-x-3 text-[11px] text-slate-500 font-mono flex-wrap gap-y-1">
                 <span class="flex items-center space-x-1">
                   <kbd class="px-1 py-0.2 rounded bg-slate-900 border border-slate-800 text-slate-400">Ctrl+B</kbd>
                   <span>Sidebar</span>
@@ -394,12 +427,17 @@
                 <span>•</span>
                 <span class="flex items-center space-x-1">
                   <kbd class="px-1 py-0.2 rounded bg-slate-900 border border-slate-800 text-slate-400">Ctrl+N</kbd>
-                  <span>Catatan Baru</span>
+                  <span>Baru</span>
                 </span>
                 <span>•</span>
                 <span class="flex items-center space-x-1">
                   <kbd class="px-1 py-0.2 rounded bg-slate-900 border border-slate-800 text-slate-400">Ctrl+K</kbd>
                   <span>Cari</span>
+                </span>
+                <span>•</span>
+                <span class="flex items-center space-x-1">
+                  <kbd class="px-1 py-0.2 rounded bg-slate-900 border border-slate-800 text-slate-400">Ctrl+,</kbd>
+                  <span>Pengaturan</span>
                 </span>
               </div>
 
@@ -430,11 +468,12 @@
   <CommandPalette 
     isOpen={isCommandPaletteOpen}
     onClose={() => (isCommandPaletteOpen = false)}
-    onOpenSync={() => (isSyncModalOpen = true)}
+    onOpenSync={() => handleOpenSettings('supabase')}
     onOpenSnippets={() => (isSnippetsOpen = true)}
     onOpenEmojiPicker={() => (isEmojiPickerOpen = true)}
     onOpenTool={handleOpenTool}
-    onOpenAbout={() => (isAboutModalOpen = true)}
+    onOpenAbout={() => handleOpenSettings('about')}
+    onOpenSettings={handleOpenSettings}
     onRunSql={handleRunSqlFromShortcut}
     onToggleSidebar={() => (isSidebarOpen = !isSidebarOpen)}
   />

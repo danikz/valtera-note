@@ -9,6 +9,7 @@
     Save, 
     Play, 
     Sparkles, 
+    BookOpen,
     Columns, 
     Eye, 
     Cloud, 
@@ -26,8 +27,13 @@
     Globe,
     Key,
     Info,
+    Settings,
+    Palette,
+    Sun,
+    Moon,
     Image as ImageIcon
   } from 'lucide-svelte';
+  import { themeStore } from '../../stores/themeStore.svelte';
 
   export type ToolType = 'json' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid';
 
@@ -39,6 +45,7 @@
     onOpenEmojiPicker,
     onOpenTool,
     onOpenAbout,
+    onOpenSettings,
     onRunSql,
     onToggleSidebar 
   }: { 
@@ -49,6 +56,7 @@
     onOpenEmojiPicker?: () => void;
     onOpenTool?: (tool: ToolType) => void;
     onOpenAbout?: () => void;
+    onOpenSettings?: (tab?: 'supabase' | 'appearance' | 'editor' | 'about') => void;
     onRunSql?: () => void; 
     onToggleSidebar?: () => void;
   } = $props();
@@ -213,9 +221,9 @@
     },
     {
       id: 'snippets',
-      title: 'Browse Snippets & Templates',
+      title: 'Buka Kamus Sintaks & Perintah (Markdown, SQL, JSON, Regex)',
       shortcut: 'Ctrl+Shift+T',
-      icon: Sparkles,
+      icon: BookOpen,
       action: () => onOpenSnippets()
     },
     {
@@ -261,11 +269,62 @@
       action: () => { if (onToggleSidebar) onToggleSidebar(); }
     },
     {
+      id: 'open-settings',
+      title: 'Buka Pengaturan (Settings: Supabase, Tema, Editor)',
+      shortcut: 'Ctrl+,',
+      icon: Settings,
+      action: () => {
+        if (onOpenSettings) onOpenSettings('appearance');
+        else onOpenSync();
+      }
+    },
+    {
+      id: 'settings-supabase',
+      title: 'Pengaturan Supabase Cloud Sync & Kredensial (URL & API Key)',
+      shortcut: '',
+      icon: Cloud,
+      action: () => {
+        if (onOpenSettings) onOpenSettings('supabase');
+        else onOpenSync();
+      }
+    },
+    {
+      id: 'settings-theme',
+      title: 'Pengaturan Tema & Tampilan (Dark, Light, Slate, Tokyo, Dracula, Nord...)',
+      shortcut: '',
+      icon: Palette,
+      action: () => {
+        if (onOpenSettings) onOpenSettings('appearance');
+      }
+    },
+    {
+      id: 'toggle-dark-light',
+      title: 'Beralih Mode Gelap / Terang (Toggle Dark & Light Mode)',
+      shortcut: '',
+      icon: Sun,
+      action: () => {
+        const next = themeStore.isDarkEffective() ? 'light' : 'dark';
+        themeStore.setMode(next);
+      }
+    },
+    {
+      id: 'settings-editor',
+      title: 'Pengaturan Tipografi Editor (Font Size, Font Family & Indentasi)',
+      shortcut: '',
+      icon: Settings,
+      action: () => {
+        if (onOpenSettings) onOpenSettings('editor');
+      }
+    },
+    {
       id: 'cloud-sync',
       title: 'Supabase Cloud Sync Settings',
       shortcut: '',
       icon: Cloud,
-      action: () => onOpenSync()
+      action: () => {
+        if (onOpenSettings) onOpenSettings('supabase');
+        else onOpenSync();
+      }
     },
     {
       id: 'register-context-menu',
@@ -298,7 +357,8 @@
       shortcut: '',
       icon: Info,
       action: () => {
-        if (onOpenAbout) onOpenAbout();
+        if (onOpenSettings) onOpenSettings('about');
+        else if (onOpenAbout) onOpenAbout();
       }
     }
   ];

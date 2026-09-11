@@ -102,7 +102,20 @@ Write documentation with dual-pane real-time rendering. Type `:` to trigger inli
 
 ---
 
-### 5. 🌐 Interactive Feature Documentation & Showcase Page
+### 5. ⚙️ Unified Settings Workspace & Multi-Theme (`Ctrl+,`)
+Pusat konfigurasi terpadu dengan sidebar navigasi yang rapi dan elegan:
+- **Supabase Cloud Sync & Kredensial**: Masukkan Project URL & Anon Key, uji koneksi secara real-time, buat skema tabel otomatis dengan DDL migrasi, dan sinkronisasi manual/otomatis.
+- **Tampilan & Tema (Dark / Light / System)**: Beralih mulus antara Mode Gelap, Mode Terang profesional, dan Ikuti Tema Sistem OS. Dilengkapi 6 palet tema koding: *Valtera Slate*, *Tokyo Night*, *Dracula*, *Forest Emerald*, *Nordic Frost*, dan *GitHub Light* dengan pratinjau langsung CodeMirror.
+- **Preferensi Tipografi Editor**: Ubah ukuran font secara dinamis, pilih jenis font koding (*JetBrains Mono, Fira Code, Cascadia Code, Menlo*), ukuran indentasi tab (2 / 4 spasi), dan jeda auto-save.
+- **Tentang & Pembaruan**: Informasi sistem dan pemeriksa pembaruan rilis 1-klik.
+
+<p align="center">
+  <img src="docs/screenshots/preview-settings-light.png" width="92%" alt="Valtera Note Unified Settings Workspace - Supabase Credentials, Multi-Theme, and Dark/Light Mode" />
+</p>
+
+---
+
+### 6. 🌐 Interactive Feature Documentation & Showcase Page
 Valtera Note includes a dedicated, responsive feature showcase page located at [`docs/index.html`](docs/index.html):
 
 <p align="center">
@@ -115,6 +128,7 @@ Valtera Note includes a dedicated, responsive feature showcase page located at [
 
 | Action / Feature | Shortcut | Category |
 | :--- | :--- | :--- |
+| **Buka Pengaturan (Settings: Supabase, Tema & Editor)** | `Ctrl + ,` | Global *(v0.1.7)* |
 | **Command Palette & Search** | `Ctrl + K` / `Ctrl + P` | Global |
 | **Developer Tools (JSON Formatter & Table)** | `Ctrl + Shift + J` | Tools *(v0.1.7)* |
 | **Favicon & Web Icon Package Generator** | `Ctrl + Shift + F` | Tools *(v0.1.7)* |
@@ -129,7 +143,7 @@ Valtera Note includes a dedicated, responsive feature showcase page located at [
 | **Toggle Markdown Split View** | `Ctrl + \` | View |
 | **Execute SQL Query** | `Ctrl + Enter` / `F5` | Database |
 | **Format SQL / JSON** | `Ctrl + Shift + F` | Editor |
-| **Supabase Cloud Sync Modal** | `Ctrl + Shift + U` | Cloud |
+| **Supabase Cloud Sync Settings** | `Ctrl + ,` | Cloud / Settings |
 
 ---
 

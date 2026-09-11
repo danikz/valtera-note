@@ -98,3 +98,21 @@ pub struct SupabaseConfigDto {
     pub user_email: Option<String>,
     pub access_token: Option<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TableColumnDto {
+    pub cid: i64,
+    pub name: String,
+    pub col_type: String,
+    pub notnull: bool,
+    pub dflt_value: Option<String>,
+    pub pk: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TableSummaryDto {
+    pub name: String,
+    pub table_type: String,
+    pub total_rows: usize,
+    pub columns: Vec<TableColumnDto>,
+}

@@ -84,3 +84,66 @@ pub async fn format_sql_query(query: String) -> Result<String, String> {
 
     Ok(formatted)
 }
+
+#[tauri::command]
+pub async fn inspect_sqlite_tables(db_path: String) -> Result<Vec<crate::models::TableSummaryDto>, String> {
+    tokio::task::spawn_blocking(move || {
+        let conn = Connection::open_with_flags(
+            &db_path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_URI,
+        ).map_err(|e| e.to_string())?;
+
+        let mut stmt = conn.prepare(
+            "SELECT name, type FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' ORDER BY name"
+        ).map_err(|e| e.to_string())?;
+
+        let table_rows = stmt.query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        }).map_err(|e| e.to_string())?;
+
+        let mut summaries = Vec::new();
+        for item in table_rows {
+            let (name, table_type) = item.map_err(|e| e.to_string())?;
+
+            // Fetch columns via PRAGMA table_info
+            let pragma_sql = format!("PRAGMA table_info(\"{}\")", name.replace('"', "\"\""));
+            let mut pragma_stmt = conn.prepare(&pragma_sql).map_err(|e| e.to_string())?;
+            let columns = pragma_stmt.query_map([], |r| {
+                Ok(crate::models::TableColumnDto {
+                    cid: r.get(0)?,
+                    name: r.get(1)?,
+                    col_type: r.get(2)?,
+                    notnull: r.get::<_, i64>(3)? != 0,
+                    dflt_value: r.get(4)?,
+                    pk: r.get::<_, i64>(5)? != 0,
+                })
+            }).map_err(|e| e.to_string())?
+            .filter_map(Result::ok)
+            .collect();
+
+            // Count rows
+            let count_sql = format!("SELECT COUNT(*) FROM \"{}\"", name.replace('"', "\"\""));
+            let total_rows: usize = conn.query_row(&count_sql, [], |r| r.get(0)).unwrap_or(0);
+
+            summaries.push(crate::models::TableSummaryDto {
+                name,
+                table_type,
+                total_rows,
+                columns,
+            });
+        }
+
+        Ok(summaries)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn get_internal_db_path() -> Result<String, String> {
+    let config_dir = dirs::config_dir()
+        .or_else(|| dirs::data_local_dir())
+        .unwrap_or_else(|| std::env::temp_dir());
+    let path = config_dir.join("valtera-note").join("valtera_note.db");
+    Ok(path.to_string_lossy().into_owned())
+}

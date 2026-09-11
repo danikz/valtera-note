@@ -33,7 +33,7 @@
     Image as ImageIcon
   } from 'lucide-svelte';
 
-  export type ToolType = 'json' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid';
+  export type ToolType = 'json' | 'sqlite' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid';
 
   let { 
     onOpenSyncModal, 
@@ -366,6 +366,18 @@
                 <span class="font-medium whitespace-nowrap">JSON, Tabel & CSV</span>
               </span>
               <kbd class="text-[10px] text-slate-500 font-mono ml-6 shrink-0 whitespace-nowrap">Ctrl+Shift+J</kbd>
+            </button>
+
+            <!-- Pembaca SQLite (Studio) -->
+            <button 
+              onclick={() => { if (onOpenTool) onOpenTool('sqlite'); closeMenu(); }} 
+              class="w-full px-3.5 py-1.5 flex items-center justify-between hover:bg-indigo-600/20 hover:text-indigo-300 text-left cursor-pointer transition-colors whitespace-nowrap {activeView === 'tools' && activeTool === 'sqlite' ? 'text-indigo-400 bg-indigo-600/10 font-medium' : ''}"
+            >
+              <span class="flex items-center space-x-2.5 whitespace-nowrap shrink-0">
+                <Database class="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                <span class="font-medium whitespace-nowrap">Pembaca SQLite (Studio)</span>
+              </span>
+              <kbd class="text-[10px] text-slate-500 font-mono ml-6 shrink-0 whitespace-nowrap">Ctrl+Shift+D</kbd>
             </button>
 
             <!-- Favicon Generator -->

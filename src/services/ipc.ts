@@ -7,7 +7,8 @@ import type {
   SqlResult, 
   SupabaseConfig, 
   Snippet,
-  RemoteNote 
+  RemoteNote,
+  TableSummary 
 } from '../types';
 
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -141,6 +142,42 @@ export const ipc = {
       }
     }
     return query.toUpperCase();
+  },
+
+  async inspectSqliteTables(dbPath: string): Promise<TableSummary[]> {
+    if (isTauri) {
+      try {
+        return await invoke<TableSummary[]>('inspect_sqlite_tables', { dbPath });
+      } catch (err) {
+        console.warn('IPC inspectSqliteTables error:', err);
+        throw err;
+      }
+    }
+    return [
+      {
+        name: 'notes',
+        table_type: 'table',
+        total_rows: 3,
+        columns: [
+          { cid: 0, name: 'id', col_type: 'INTEGER', notnull: true, dflt_value: null, pk: true },
+          { cid: 1, name: 'title', col_type: 'TEXT', notnull: true, dflt_value: "'Untitled'", pk: false },
+          { cid: 2, name: 'content', col_type: 'TEXT', notnull: false, dflt_value: null, pk: false },
+          { cid: 3, name: 'updated_at', col_type: 'DATETIME', notnull: true, dflt_value: 'CURRENT_TIMESTAMP', pk: false }
+        ]
+      }
+    ];
+  },
+
+  async getInternalDbPath(): Promise<string> {
+    if (isTauri) {
+      try {
+        return await invoke<string>('get_internal_db_path');
+      } catch (err) {
+        console.warn('IPC getInternalDbPath error:', err);
+        return '';
+      }
+    }
+    return '';
   },
 
   async getSupabaseConfig(): Promise<SupabaseConfig> {

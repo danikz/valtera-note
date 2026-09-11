@@ -18,8 +18,9 @@
   import Base64ToolPage from './Base64ToolPage.svelte';
   import UrlToolPage from './UrlToolPage.svelte';
   import UuidToolPage from './UuidToolPage.svelte';
+  import SqliteToolPage from './SqliteToolPage.svelte';
 
-  export type ToolType = 'json' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid';
+  export type ToolType = 'json' | 'sqlite' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid';
 
   let { 
     activeTool = 'json',
@@ -38,6 +39,13 @@
       icon: FileCode, 
       iconColor: 'text-blue-400',
       shortcut: 'Ctrl+Shift+J'
+    },
+    { 
+      id: 'sqlite', 
+      label: 'Pembaca SQLite', 
+      icon: Database, 
+      iconColor: 'text-indigo-400',
+      shortcut: 'Ctrl+Shift+D'
     },
     { 
       id: 'favicon', 
@@ -80,6 +88,9 @@
     } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'j') {
       e.preventDefault();
       onSelectTool('json');
+    } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'd') {
+      e.preventDefault();
+      onSelectTool('sqlite');
     } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
       e.preventDefault();
       onSelectTool('favicon');
@@ -148,6 +159,8 @@
   <main class="flex-1 overflow-hidden relative">
     {#if activeTool === 'json'}
       <JsonToolPage onBack={onBack} showBackButton={false} />
+    {:else if activeTool === 'sqlite'}
+      <SqliteToolPage onBack={onBack} showBackButton={false} />
     {:else if activeTool === 'favicon'}
       <FaviconToolPage onBack={onBack} />
     {:else if activeTool === 'mysql-password'}

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { editorStore } from '../../stores/editorStore.svelte';
   import { updaterService } from '../../services/updater.svelte';
+  import { APP_VERSION } from '../../constants/app';
   import { Cloud, CheckCircle2, Check, Loader2, RefreshCw, AlertCircle, ArrowUpCircle, Sparkles } from 'lucide-svelte';
 
   const languages = [
@@ -74,7 +75,7 @@
         class="px-1.5 py-0.2 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-300 text-[10px] font-mono transition-colors"
         title="Klik untuk periksa pembaruan versi baru"
       >
-        v{updaterService.currentVersion}
+        v{APP_VERSION}
       </button>
       <div class="text-slate-600">|</div>
     {/if}

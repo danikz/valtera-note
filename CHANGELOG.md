@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.9] - 2026-09-11
+
+### 🗄️ Fitur Baru: Pembaca SQLite & Studio Explorer (`Ctrl+Shift+D`)
+- **Pembaca Database SQLite Dedicated**:
+  - Dukungan membuka berkas database SQLite lokal (`.db`, `.sqlite`, `.sqlite3`, `.db3`) dengan drag-and-drop atau dialog berkas.
+  - 1-Klik membuka database SQLite internal Valtera Note (`valtera_note.db`).
+  - Read-only safety murni (`rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY`) mencegah penguncian berkas atau korupsi database.
+  - Sidebar tabel & view dengan hitungan total baris (*live row count*) dan filter pencarian real-time.
+  - **Jelajahi Data**: Grid data tabel interaktif dengan sorting kolom, pencarian baris real-time, paginasi, dan 1-click copy value.
+  - **SQL Query Console**: Konsol kueri SQL dengan template cepat, statistik eksekusi milidetik, dan pesan diagnostik kesalahan.
+  - **Inspektor Skema & DDL**: Menampilkan struktur kolom (tipe data, Primary Key, nullability, default value) dan generator DDL `CREATE TABLE`.
+  - **Ekspor Data**: CSV (RFC 4180), JSON, Markdown Table, dan ekspor langsung ke tab editor baru.
+
+### 🔄 Sentralisasi Versi & Metadata Aplikasi
+- **Single Source of Truth (`src/constants/app.ts`)**: Seluruh tampilan versi aplikasi (Settings Workspace, StatusBar footer, About Modal, dan Titlebar) kini terhubung langsung secara dinamis ke satu sumber data pusat sehingga versi selalu konsisten.
+
+---
+
 ## [0.1.8] - 2026-09-11
 
 ### 📖 Fitur Baru: Kamus Sintaks & Perintah (Cheatsheet & Knowledge Base)

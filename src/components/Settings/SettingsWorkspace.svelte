@@ -39,6 +39,7 @@
   import { themeStore, type ThemeMode, type ThemePreset } from '../../stores/themeStore.svelte';
   import { updaterService } from '../../services/updater.svelte';
   import { ipc } from '../../services/ipc';
+  import { APP_VERSION, APP_NAME, APP_DESCRIPTION, APP_COPYRIGHT } from '../../constants/app';
 
   export type SettingsTab = 'supabase' | 'appearance' | 'editor' | 'about';
 
@@ -431,7 +432,7 @@ with check (true);`;
           <Info class="w-4 h-4 {currentTab === 'about' ? 'text-white' : 'text-amber-400'}" />
           <span>Tentang & Pembaruan</span>
         </div>
-        <span class="text-[10px] font-mono text-slate-500">v0.1.8</span>
+        <span class="text-[10px] font-mono text-slate-500">v{APP_VERSION}</span>
       </button>
     </aside>
 
@@ -888,14 +889,14 @@ with check (true);`;
               <img src="/logo.png" alt="Valtera Note" class="w-16 h-16 rounded-2xl shadow-lg border border-slate-800 flex-shrink-0" />
               <div class="space-y-1 flex-1">
                 <div class="flex items-center space-x-2.5">
-                  <h3 class="text-base font-bold text-slate-100">Valtera Note</h3>
-                  <span class="px-2 py-0.5 text-[10.5px] font-bold rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">v0.1.8</span>
+                  <h3 class="text-base font-bold text-slate-100">{APP_NAME}</h3>
+                  <span class="px-2 py-0.5 text-[10.5px] font-bold rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">v{APP_VERSION}</span>
                 </div>
                 <p class="text-xs text-slate-400">
-                  Ultra-lightweight Notepad, SQL scratchpad, Markdown workspace & Developer Tools.
+                  {APP_DESCRIPTION}
                 </p>
                 <p class="text-[11px] text-slate-500">
-                  Hak Cipta © 2026 PT Valtera Teknologi Digital. Lisensi MIT.
+                  {APP_COPYRIGHT}
                 </p>
               </div>
             </div>

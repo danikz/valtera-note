@@ -61,6 +61,8 @@ pub fn run() {
             // SQL runner operations
             commands::sql::execute_sqlite_query,
             commands::sql::format_sql_query,
+            commands::sql::inspect_sqlite_tables,
+            commands::sql::get_internal_db_path,
             // Supabase operations
             commands::supabase::get_supabase_config,
             commands::supabase::save_supabase_config,

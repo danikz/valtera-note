@@ -28,17 +28,17 @@
 
 ---
 
-## 📥 Download & Installation (v0.1.8)
+## 📥 Download & Installation (v0.1.9)
 
 Download the official installers directly from the **[GitHub Releases Page](https://github.com/danikz/valtera-note/releases/latest)**:
 
 | Platform | Architecture / Format | Installer File |
 | :--- | :--- | :--- |
-| **Windows 10 / 11** | `.exe` (Standard Setup) | [**Valtera Note_0.1.8_x64-setup.exe**](https://github.com/danikz/valtera-note/releases/latest) |
-| **Windows (Enterprise)** | `.msi` (WiX Installer) | [**Valtera Note_0.1.8_x64_en-US.msi**](https://github.com/danikz/valtera-note/releases/latest) |
-| **macOS (Apple Silicon & Intel)** | `.dmg` (Universal Binary) | [**Valtera Note_0.1.8_universal.dmg**](https://github.com/danikz/valtera-note/releases/latest) |
-| **Linux (Ubuntu / Debian)** | `.deb` (amd64) | [**valtera-note_0.1.8_amd64.deb**](https://github.com/danikz/valtera-note/releases/latest) |
-| **Linux (Universal)** | `.AppImage` (x86_64) | [**valtera-note_0.1.8_amd64.AppImage**](https://github.com/danikz/valtera-note/releases/latest) |
+| **Windows 10 / 11** | `.exe` (Standard Setup) | [**Valtera Note_0.1.9_x64-setup.exe**](https://github.com/danikz/valtera-note/releases/latest) |
+| **Windows (Enterprise)** | `.msi` (WiX Installer) | [**Valtera Note_0.1.9_x64_en-US.msi**](https://github.com/danikz/valtera-note/releases/latest) |
+| **macOS (Apple Silicon & Intel)** | `.dmg` (Universal Binary) | [**Valtera Note_0.1.9_universal.dmg**](https://github.com/danikz/valtera-note/releases/latest) |
+| **Linux (Ubuntu / Debian)** | `.deb` (amd64) | [**valtera-note_0.1.9_amd64.deb**](https://github.com/danikz/valtera-note/releases/latest) |
+| **Linux (Universal)** | `.AppImage` (x86_64) | [**valtera-note_0.1.9_amd64.AppImage**](https://github.com/danikz/valtera-note/releases/latest) |
 
 > 🔄 **Automatic In-App Updates**: Valtera Note comes with a built-in cryptographic auto-updater. When a new version is released, you will receive an instant notification with 1-click upgrade.
 
@@ -61,9 +61,10 @@ Most modern editors (VS Code, Obsidian, Notion) are built on **Electron**, consu
 
 ## ✨ Features & Previews (Light Mode)
 
-### 1. 🛠️ Dedicated Developer Tools Suite (New in v0.1.7)
+### 1. 🛠️ Dedicated Developer Tools Suite & SQLite Studio (v0.1.9)
 Access full-page developer utilities directly via the Titlebar button, Command Palette (`Ctrl+K`), or keyboard shortcuts:
 - **JSON Formatter & Tree Inspector** (`Ctrl+Shift+J`): Beautify, minify, and inspect JSON payloads with interactive tree navigation or dynamic table grids. Export to **CSV (RFC 4180)** and **Markdown Tables** with 1-click.
+- **Pembaca SQLite & Database Explorer (SQLite Studio)** (`Ctrl+Shift+D`): Buka dan jelajahi berkas database SQLite (`.db`, `.sqlite`, `.sqlite3`) dari komputer atau database internal Valtera Note dengan 1-klik. Tampilkan daftar tabel & views, hitung baris, sortir kolom, filter pencarian baris real-time, eksekusi query SQL custom, dan ekspor ke CSV, JSON, atau Markdown Table.
 - **Favicon & Web Icon Package Generator** (`Ctrl+Shift+F`): Drag and drop any image or SVG to generate `favicon.ico` (multi-res 16/32/48), `apple-touch-icon.png`, `android-chrome-192/512`, `manifest.json`, `browserconfig.xml`, and a ready-to-download ZIP archive.
 - **MySQL Password Hash Generator** (`Ctrl+Shift+P`): Compute MySQL Native Password (`mysql_native_password` double-SHA1) and legacy hashes for quick database administration.
 - **Base64 & URL Tools**: Bilateral Base64 encoding/decoding and URL query parameter inspector.
@@ -130,6 +131,7 @@ Valtera Note includes a dedicated, responsive feature showcase page located at [
 | :--- | :--- | :--- |
 | **Buka Pengaturan (Settings: Supabase, Tema & Editor)** | `Ctrl + ,` | Global *(v0.1.7)* |
 | **Command Palette & Search** | `Ctrl + K` / `Ctrl + P` | Global |
+| **Pembaca SQLite (SQLite Studio & Explorer)** | `Ctrl + Shift + D` | Tools *(v0.1.9)* |
 | **Developer Tools (JSON Formatter & Table)** | `Ctrl + Shift + J` | Tools *(v0.1.7)* |
 | **Favicon & Web Icon Package Generator** | `Ctrl + Shift + F` | Tools *(v0.1.7)* |
 | **MySQL Password Hash Generator** | `Ctrl + Shift + P` | Tools *(v0.1.7)* |

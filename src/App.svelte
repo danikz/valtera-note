@@ -146,6 +146,15 @@
         handleOpenTool('json');
       }
     }
+    // Ctrl+Shift+D -> SQLite Studio / Explorer Full Page
+    else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'd') {
+      e.preventDefault();
+      if (currentView === 'tools' && activeTool === 'sqlite') {
+        currentView = 'notes';
+      } else {
+        handleOpenTool('sqlite');
+      }
+    }
     // Ctrl+Shift+F -> Favicon Generator Full Page
     else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
       e.preventDefault();

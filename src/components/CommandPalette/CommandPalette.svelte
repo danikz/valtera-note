@@ -35,7 +35,7 @@
   } from 'lucide-svelte';
   import { themeStore } from '../../stores/themeStore.svelte';
 
-  export type ToolType = 'json' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid';
+  export type ToolType = 'json' | 'sqlite' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid';
 
   let { 
     isOpen, 
@@ -267,6 +267,34 @@
       shortcut: 'Ctrl+B',
       icon: PanelLeft,
       action: () => { if (onToggleSidebar) onToggleSidebar(); }
+    },
+    {
+      id: 'tool-sqlite',
+      title: 'Buka Developer Tools: Pembaca SQLite & Database (Studio)',
+      shortcut: 'Ctrl+Shift+D',
+      icon: Database,
+      action: () => { if (onOpenTool) onOpenTool('sqlite'); }
+    },
+    {
+      id: 'tool-json',
+      title: 'Buka Developer Tools: JSON, Tabel & CSV Studio',
+      shortcut: 'Ctrl+Shift+J',
+      icon: FileCode,
+      action: () => { if (onOpenTool) onOpenTool('json'); }
+    },
+    {
+      id: 'tool-favicon',
+      title: 'Buka Developer Tools: Favicon Generator',
+      shortcut: 'Ctrl+Shift+F',
+      icon: ImageIcon,
+      action: () => { if (onOpenTool) onOpenTool('favicon'); }
+    },
+    {
+      id: 'tool-mysql-password',
+      title: 'Buka Developer Tools: MySQL Password Generator',
+      shortcut: 'Ctrl+Shift+P',
+      icon: Database,
+      action: () => { if (onOpenTool) onOpenTool('mysql-password'); }
     },
     {
       id: 'open-settings',

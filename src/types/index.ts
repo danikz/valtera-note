@@ -83,3 +83,19 @@ export interface SupabaseConfig {
   user_email?: string | null;
   access_token?: string | null;
 }
+
+export interface TableColumn {
+  cid: number;
+  name: string;
+  col_type: string;
+  notnull: boolean;
+  dflt_value: string | null;
+  pk: boolean;
+}
+
+export interface TableSummary {
+  name: string;
+  table_type: string;
+  total_rows: number;
+  columns: TableColumn[];
+}

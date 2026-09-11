@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.10] - 2026-09-11
+
+### 🔄 Pembaruan Otomatis & Konsistensi Tampilan Versi
+- **Aktivasi Pembaruan Otomatis ke v0.1.10**: Rilis pembaruan untuk memicu auto-updater Tauri bagi pengguna yang sudah terpasang versi `0.1.9`.
+- **Integrasi Tampilan Dinamis**: Pengaturan (`SettingsWorkspace`), Status Bar footer, Titlebar, dan About Modal kini 100% membaca versi terbaru secara dinamis.
+- **CodeGraph Knowledge Base**: Repositori resmi terindeks CodeGraph untuk pemetaan dependensi kode.
+
+---
+
 ## [0.1.9] - 2026-09-11
 
 ### 🗄️ Fitur Baru: Pembaca SQLite & Studio Explorer (`Ctrl+Shift+D`)

@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.8] - 2026-09-11
+
+### 📖 Fitur Baru: Kamus Sintaks & Perintah (Cheatsheet & Knowledge Base)
+- **Kamus Sintaks Lengkap (`Ctrl+Shift+T`)**: Menggantikan drawer template standar dengan 27 referensi sintaks siap pakai yang interaktif:
+  - **Markdown & GFM**: GitHub Alerts (`> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`, `> [!WARNING]`, `> [!CAUTION]`), tabel dengan alignment (`:---`, `:---:`), task checklist, blok kode, diagram alur Mermaid (`flowchart TD`), rumus matematika LaTeX/KaTeX, accordion `<details>`, format teks stabilo & `<kbd>`, footnotes, dan template notulensi rapat.
+  - **SQL & Database**: Query `SELECT` dengan filter & paginasi, `CREATE TABLE` SQLite, `UPSERT` on conflict, aggregasi `GROUP BY` & `HAVING`, `JOIN`, inspeksi `PRAGMA` SQLite, transaksi ACID, dan CTE (`WITH`).
+  - **JSON**: Amplop respons RESTful, aturan wajib JSON murni, konfigurasi `package.json`, dan skema `GeoJSON`.
+  - **Regex**: Pola validasi umum (Email, URL, UUID, Slug), kamus arti simbol karakter, dan kuantifier pengulangan.
+  - **Git & CLI**: Alur kerja harian Git dan perintah undo/stash.
+- **Fitur Interaktif**: Pencarian real-time, filter pill kategori, tombol salin ke clipboard instan, dan tombol sisipkan langsung ke catatan.
+
+### ⚙️ Pengaturan Terpusat (Unified Settings Workspace)
+- **Dedicated Settings Page (`Ctrl+,`)**: Halaman pengaturan terpadu dengan sidebar navigasi:
+  - **Kredensial Supabase**: URL & Anon Key dengan pengujian koneksi live dan status auto-sync.
+  - **Tampilan & Tema**: Preset tema Slate Modern, Obsidian Dark, Dracula, Cyberpunk Neon, GitHub Light, dan Nord Frost, dilengkapi switch Dark / Light mode.
+  - **Preferensi Editor**: Ukuran font, tab size, line wrap, dan opsi konfigurasi CodeMirror.
+  - **Tentang & Pembaruan**: Informasi versi, spesifikasi teknis (Tauri v2 + Rust), dan tombol cek pembaruan aplikasi.
+- **Pembersihan Menu Tools**: Menghilangkan opsi pengaturan dari menu dropdown Tools agar menu Tools 100% fokus untuk developer tools.
+
+### 🪟 Peningkatan Antarmuka & Kontrol Jendela
+- **Frameless Windows 11 Controls**: Menonaktifkan titlebar ganda native OS (`decorations: false`) dengan kontrol jendela modern (Minimize, Maximize/Restore dinamis, dan Close).
+- **Pembersihan Bar Kanan**: Menghilangkan tombol Tools di sebelah tombol Settings agar quick action bar lebih bersih dan rapi.
+
+---
+
 ## [0.1.7] - 2026-09-11
 
 ### 🛠️ Fitur Baru: Dedicated Developer Tools Suite & About Modal

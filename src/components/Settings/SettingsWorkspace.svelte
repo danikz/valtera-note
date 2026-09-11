@@ -431,7 +431,7 @@ with check (true);`;
           <Info class="w-4 h-4 {currentTab === 'about' ? 'text-white' : 'text-amber-400'}" />
           <span>Tentang & Pembaruan</span>
         </div>
-        <span class="text-[10px] font-mono text-slate-500">v0.1.7</span>
+        <span class="text-[10px] font-mono text-slate-500">v0.1.8</span>
       </button>
     </aside>
 
@@ -889,7 +889,7 @@ with check (true);`;
               <div class="space-y-1 flex-1">
                 <div class="flex items-center space-x-2.5">
                   <h3 class="text-base font-bold text-slate-100">Valtera Note</h3>
-                  <span class="px-2 py-0.5 text-[10.5px] font-bold rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">v0.1.7</span>
+                  <span class="px-2 py-0.5 text-[10.5px] font-bold rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">v0.1.8</span>
                 </div>
                 <p class="text-xs text-slate-400">
                   Ultra-lightweight Notepad, SQL scratchpad, Markdown workspace & Developer Tools.

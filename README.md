@@ -28,17 +28,17 @@
 
 ---
 
-## 📥 Download & Installation (v0.1.9)
+## 📥 Download & Installation (v0.1.10)
 
 Download the official installers directly from the **[GitHub Releases Page](https://github.com/danikz/valtera-note/releases/latest)**:
 
 | Platform | Architecture / Format | Installer File |
 | :--- | :--- | :--- |
-| **Windows 10 / 11** | `.exe` (Standard Setup) | [**Valtera Note_0.1.9_x64-setup.exe**](https://github.com/danikz/valtera-note/releases/latest) |
-| **Windows (Enterprise)** | `.msi` (WiX Installer) | [**Valtera Note_0.1.9_x64_en-US.msi**](https://github.com/danikz/valtera-note/releases/latest) |
-| **macOS (Apple Silicon & Intel)** | `.dmg` (Universal Binary) | [**Valtera Note_0.1.9_universal.dmg**](https://github.com/danikz/valtera-note/releases/latest) |
-| **Linux (Ubuntu / Debian)** | `.deb` (amd64) | [**valtera-note_0.1.9_amd64.deb**](https://github.com/danikz/valtera-note/releases/latest) |
-| **Linux (Universal)** | `.AppImage` (x86_64) | [**valtera-note_0.1.9_amd64.AppImage**](https://github.com/danikz/valtera-note/releases/latest) |
+| **Windows 10 / 11** | `.exe` (Standard Setup) | [**Valtera Note_0.1.10_x64-setup.exe**](https://github.com/danikz/valtera-note/releases/latest) |
+| **Windows (Enterprise)** | `.msi` (WiX Installer) | [**Valtera Note_0.1.10_x64_en-US.msi**](https://github.com/danikz/valtera-note/releases/latest) |
+| **macOS (Apple Silicon & Intel)** | `.dmg` (Universal Binary) | [**Valtera Note_0.1.10_universal.dmg**](https://github.com/danikz/valtera-note/releases/latest) |
+| **Linux (Ubuntu / Debian)** | `.deb` (amd64) | [**valtera-note_0.1.10_amd64.deb**](https://github.com/danikz/valtera-note/releases/latest) |
+| **Linux (Universal)** | `.AppImage` (x86_64) | [**valtera-note_0.1.10_amd64.AppImage**](https://github.com/danikz/valtera-note/releases/latest) |
 
 > 🔄 **Automatic In-App Updates**: Valtera Note comes with a built-in cryptographic auto-updater. When a new version is released, you will receive an instant notification with 1-click upgrade.
 

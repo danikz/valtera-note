@@ -1,5 +1,6 @@
 import { check, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
+import { APP_VERSION } from '../constants/app';
 
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
@@ -16,7 +17,7 @@ class UpdaterService {
   downloadProgress = $state<UpdateProgress>({ downloaded: 0, total: null, percentage: 0 });
   currentUpdate = $state<Update | null>(null);
   newVersion = $state<string>('');
-  currentVersion = $state<string>('0.1.0');
+  currentVersion = $state<string>(APP_VERSION);
   releaseNotes = $state<string>('');
   releaseDate = $state<string>('');
   errorMessage = $state<string | null>(null);
@@ -40,7 +41,7 @@ class UpdaterService {
       if (update && update.available) {
         this.currentUpdate = update;
         this.newVersion = update.version || '';
-        this.currentVersion = update.currentVersion || '0.1.0';
+        this.currentVersion = update.currentVersion || APP_VERSION;
         this.releaseNotes = update.body || 'Pembaruan ini mencakup perbaikan bug dan peningkatan performa sistem.';
         this.releaseDate = update.date ? new Date(update.date).toLocaleDateString('id-ID', { dateStyle: 'medium' }) : '';
         this.updateAvailable = true;

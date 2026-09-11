@@ -1,5 +1,6 @@
 <script lang="ts">
   import { X, RefreshCw } from 'lucide-svelte';
+  import { APP_VERSION, APP_NAME, APP_DESCRIPTION, APP_COPYRIGHT } from '../../constants/app';
 
   let {
     isOpen = false,
@@ -10,8 +11,6 @@
     onClose: () => void;
     onCheckUpdates?: () => void;
   } = $props();
-
-  const APP_VERSION = '0.1.6';
 
   function handleKeydown(e: KeyboardEvent) {
     if (isOpen && e.key === 'Escape') {

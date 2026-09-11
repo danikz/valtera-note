@@ -453,7 +453,7 @@
                 <Info class="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
                 <span>Tentang Valtera Note</span>
               </span>
-              <span class="text-[10px] text-blue-300 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20 font-mono ml-4 flex-shrink-0">v0.1.7</span>
+              <span class="text-[10px] text-blue-300 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20 font-mono ml-4 flex-shrink-0">v0.1.8</span>
             </button>
             <button onclick={async () => { const { updaterService } = await import('../../services/updater.svelte'); await updaterService.checkForUpdates(true); closeMenu(); }} class="w-full px-3 py-1.5 flex items-center space-x-2 hover:bg-slate-800 text-left cursor-pointer transition-colors whitespace-nowrap">
               <RefreshCw class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />

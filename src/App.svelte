@@ -31,6 +31,7 @@
   import EmojiPickerModal from './components/Emoji/EmojiPickerModal.svelte';
   import ToolsWorkspace, { type ToolType } from './components/Tools/ToolsWorkspace.svelte';
   import SettingsWorkspace, { type SettingsTab } from './components/Settings/SettingsWorkspace.svelte';
+  import LockScreen from './components/Auth/LockScreen.svelte';
   import { editorStore } from './stores/editorStore.svelte';
   import { updaterService } from './services/updater.svelte';
   import { themeStore } from './stores/themeStore.svelte';
@@ -45,6 +46,7 @@
   let activeTool = $state<ToolType>('json');
   let activeSettingsTab = $state<SettingsTab>('supabase');
   let sqlViewerRef = $state<any>(null);
+  let lockState = $state<'checking' | 'setup' | 'locked' | 'unlocked'>('checking');
 
   function handleOpenTool(tool: ToolType = 'json') {
     activeTool = tool;
@@ -198,6 +200,23 @@
   onMount(() => {
     window.addEventListener('keydown', handleGlobalKeyDown);
 
+    // 0. E2E encryption state check (setup / locked / unlocked)
+    (async () => {
+      try {
+        const hasE2E = await ipc.hasMasterPassword();
+        if (!hasE2E) {
+          const declined = await ipc.getAppSetting('e2e_declined');
+          lockState = declined === '1' ? 'unlocked' : 'setup';
+        } else {
+          const status = await ipc.e2eStatus();
+          lockState = status === 'ready' ? 'unlocked' : 'locked';
+        }
+      } catch (err) {
+        console.warn('E2E state check error:', err);
+        lockState = 'unlocked';
+      }
+    })();
+
     // 1. Check if launched with a file argument (Open With or Double-click)
     (async () => {
       try {
@@ -238,6 +257,15 @@
 </script>
 
 <main class="h-screen w-screen flex flex-col bg-slate-950 text-slate-100 overflow-hidden font-sans select-none">
+  {#if lockState === 'setup' || lockState === 'locked'}
+    <LockScreen
+      mode={lockState === 'setup' ? 'setup' : 'locked'}
+      onDone={async () => {
+        lockState = 'unlocked';
+        await editorStore.reloadSession();
+      }}
+    />
+  {/if}
   <!-- Frameless Custom Titlebar -->
   <Titlebar 
     onOpenSyncModal={() => handleOpenSettings('supabase')}

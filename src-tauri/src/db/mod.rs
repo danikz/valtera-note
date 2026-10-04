@@ -310,4 +310,235 @@ impl DatabaseManager {
         }
         Ok(list)
     }
+
+    /// Enkripsi semua content plaintext (tanpa prefix enc:v1:) di tabs_state & snippets.
+    /// Idempoten: baris yang sudah terenkripsi dilewati. Dipakai saat set_master_password.
+    pub fn migrate_content<F>(&self, encrypt: F) -> Result<(usize, usize), String>
+    where
+        F: Fn(&str) -> Result<String, String>,
+    {
+        let conn = self.conn.lock().map_err(|e| e.to_string())?;
+        let mut tabs_done = 0usize;
+
+        {
+            let mut stmt = conn
+                .prepare(
+                    "SELECT id, content FROM tabs_state
+                     WHERE content IS NOT NULL AND content NOT LIKE 'enc:v1:%'",
+                )
+                .map_err(|e| e.to_string())?;
+            let rows: Vec<(i64, String)> = stmt
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+                .map_err(|e| e.to_string())?
+                .filter_map(|r| r.ok())
+                .collect();
+            drop(stmt);
+            for (id, content) in rows {
+                let enc = encrypt(&content)?;
+                conn.execute(
+                    "UPDATE tabs_state SET content = ?1 WHERE id = ?2",
+                    params![enc, id],
+                )
+                .map_err(|e| e.to_string())?;
+                tabs_done += 1;
+            }
+        }
+
+        let mut snippets_done = 0usize;
+        {
+            let mut stmt = conn
+                .prepare(
+                    "SELECT id, content FROM snippets
+                     WHERE content IS NOT NULL AND content NOT LIKE 'enc:v1:%' AND is_deleted = 0",
+                )
+                .map_err(|e| e.to_string())?;
+            let rows: Vec<(i64, String)> = stmt
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+                .map_err(|e| e.to_string())?
+                .filter_map(|r| r.ok())
+                .collect();
+            drop(stmt);
+            for (id, content) in rows {
+                let enc = encrypt(&content)?;
+                conn.execute(
+                    "UPDATE snippets SET content = ?1 WHERE id = ?2",
+                    params![enc, id],
+                )
+                .map_err(|e| e.to_string())?;
+                snippets_done += 1;
+            }
+        }
+
+        Ok((tabs_done, snippets_done))
+    }
+
+    /// Decrypt dengan kunci lama lalu re-encrypt dengan kunci baru (semua baris terenkripsi).
+    /// Dipakai saat change_password.
+    pub fn reencrypt_all<D, E>(&self, decrypt: D, encrypt: E) -> Result<(usize, usize), String>
+    where
+        D: Fn(&str) -> Result<String, String>,
+        E: Fn(&str) -> Result<String, String>,
+    {
+        let conn = self.conn.lock().map_err(|e| e.to_string())?;
+        let mut tabs_done = 0usize;
+
+        {
+            let mut stmt = conn
+                .prepare(
+                    "SELECT id, content FROM tabs_state
+                     WHERE content IS NOT NULL AND content LIKE 'enc:v1:%'",
+                )
+                .map_err(|e| e.to_string())?;
+            let rows: Vec<(i64, String)> = stmt
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+                .map_err(|e| e.to_string())?
+                .filter_map(|r| r.ok())
+                .collect();
+            drop(stmt);
+            for (id, content) in rows {
+                let plain = decrypt(&content)?;
+                let enc = encrypt(&plain)?;
+                conn.execute(
+                    "UPDATE tabs_state SET content = ?1 WHERE id = ?2",
+                    params![enc, id],
+                )
+                .map_err(|e| e.to_string())?;
+                tabs_done += 1;
+            }
+        }
+
+        let mut snippets_done = 0usize;
+        {
+            let mut stmt = conn
+                .prepare(
+                    "SELECT id, content FROM snippets
+                     WHERE content IS NOT NULL AND content LIKE 'enc:v1:%' AND is_deleted = 0",
+                )
+                .map_err(|e| e.to_string())?;
+            let rows: Vec<(i64, String)> = stmt
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+                .map_err(|e| e.to_string())?
+                .filter_map(|r| r.ok())
+                .collect();
+            drop(stmt);
+            for (id, content) in rows {
+                let plain = decrypt(&content)?;
+                let enc = encrypt(&plain)?;
+                conn.execute(
+                    "UPDATE snippets SET content = ?1 WHERE id = ?2",
+                    params![enc, id],
+                )
+                .map_err(|e| e.to_string())?;
+                snippets_done += 1;
+            }
+        }
+
+        Ok((tabs_done, snippets_done))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    impl DatabaseManager {
+        /// Insert snippet langsung via conn (tidak ada API write snippet publik).
+        fn insert_snippet(&self, content: &str, is_deleted: i64) -> i64 {
+            let conn = self.conn.lock().unwrap();
+            conn.execute(
+                "INSERT INTO snippets (title, language, category, content, is_deleted) VALUES ('t', 'sql', 'general', ?1, ?2)",
+                params![content, is_deleted],
+            )
+            .unwrap();
+            conn.last_insert_rowid()
+        }
+
+        fn get_tab_contents(&self) -> Vec<String> {
+            let conn = self.conn.lock().unwrap();
+            let mut stmt = conn.prepare("SELECT content FROM tabs_state ORDER BY id").unwrap();
+            stmt.query_map([], |r| r.get(0)).unwrap().filter_map(Result::ok).collect()
+        }
+
+        fn get_snippet_content(&self, id: i64) -> String {
+            let conn = self.conn.lock().unwrap();
+            conn.query_row("SELECT content FROM snippets WHERE id = ?1", params![id], |r| r.get(0)).unwrap()
+        }
+    }
+
+    fn fake_encrypt(s: &str) -> Result<String, String> {
+        Ok(format!("enc:v1:FAKE({})", s))
+    }
+
+    fn fake_decrypt(s: &str) -> Result<String, String> {
+        let inner = s.strip_prefix("enc:v1:FAKE(").ok_or("bad")?;
+        let inner = inner.strip_suffix(')').ok_or("bad")?;
+        Ok(inner.to_string())
+    }
+
+    fn tab_dto(title: &str, content: &str, is_active: bool) -> TabStateDto {
+        TabStateDto {
+            id: None,
+            document_id: None,
+            supabase_id: None,
+            file_path: None,
+            folder: None,
+            title: title.into(),
+            file_extension: "txt".into(),
+            content: content.into(),
+            is_active,
+            is_dirty: false,
+            is_scratchpad: true,
+            cursor_line: 1,
+            cursor_col: 1,
+            split_mode: "editor-only".into(),
+        }
+    }
+
+    #[test]
+    fn migrate_content_encrypts_plaintext_and_is_idempotent() {
+        let db = DatabaseManager::init_fallback();
+        db.save_session_tabs(&[
+            tab_dto("a", "rahasia satu", true),
+            tab_dto("b", "enc:v1:SUDAH", false),
+        ])
+        .unwrap();
+        let sid = db.insert_snippet("snippet rahasia", 0);
+
+        let (tabs, snippets) = db.migrate_content(fake_encrypt).unwrap();
+        assert_eq!((tabs, snippets), (1, 1));
+
+        let contents = db.get_tab_contents();
+        assert_eq!(contents[0], "enc:v1:FAKE(rahasia satu)");
+        assert_eq!(contents[1], "enc:v1:SUDAH"); // tidak double-encrypt
+
+        // idempoten: run kedua 0 baris
+        assert_eq!(db.migrate_content(fake_encrypt).unwrap(), (0, 0));
+
+        assert_eq!(db.get_snippet_content(sid), "enc:v1:FAKE(snippet rahasia)");
+    }
+
+    #[test]
+    fn reencrypt_all_rotates_ciphertext() {
+        let db = DatabaseManager::init_fallback();
+        db.save_session_tabs(&[tab_dto("a", "rahasia", true)]).unwrap();
+        db.migrate_content(fake_encrypt).unwrap();
+
+        let rot_enc = |s: &str| Ok(format!("enc:v1:ROT({})", s));
+        let rot_dec = |s: &str| -> Result<String, String> {
+            let inner = s.strip_prefix("enc:v1:FAKE(").ok_or("bad")?;
+            Ok(inner.strip_suffix(')').ok_or("bad")?.to_string())
+        };
+
+        let (tabs, snippets) = db.reencrypt_all(rot_dec, rot_enc).unwrap();
+        assert_eq!((tabs, snippets), (1, 0));
+        assert_eq!(db.get_tab_contents()[0], "enc:v1:ROT(rahasia)");
+    }
+
+    #[test]
+    fn migrate_skips_soft_deleted_snippets() {
+        let db = DatabaseManager::init_fallback();
+        db.insert_snippet("terhapus", 1);
+        let (tabs, snippets) = db.migrate_content(fake_encrypt).unwrap();
+        assert_eq!((tabs, snippets), (0, 0));
+    }
 }

@@ -79,13 +79,7 @@ class EditorStore {
 
   async init() {
     try {
-      const session = await ipc.loadSession();
-      if (session && Array.isArray(session.tabs)) {
-        this.tabs = session.tabs;
-        this.activeTabIndex = session.tabs.length > 0
-          ? Math.max(0, Math.min(session.active_tab_index, session.tabs.length - 1))
-          : 0;
-      }
+      await this.reloadSession();
       this.supabaseConfig = await ipc.getSupabaseConfig();
 
       // Load custom folders
@@ -138,6 +132,16 @@ class EditorStore {
       }
     } catch (e) {
       console.error('Failed to init session:', e);
+    }
+  }
+
+  async reloadSession() {
+    const session = await ipc.loadSession();
+    if (session && Array.isArray(session.tabs)) {
+      this.tabs = session.tabs;
+      this.activeTabIndex = session.tabs.length > 0
+        ? Math.max(0, Math.min(session.active_tab_index, session.tabs.length - 1))
+        : 0;
     }
   }
 
@@ -726,7 +730,7 @@ class EditorStore {
       const remotePayload: RemoteNote = {
         id: tab.supabase_id || undefined,
         title: tab.title || 'Untitled',
-        content: tab.content || '',
+        content: await ipc.encryptContent(tab.content || ''),
         file_extension: tab.file_extension || 'txt',
         folder: tab.folder || undefined,
         is_pinned: false,
@@ -779,6 +783,15 @@ class EditorStore {
         this.supabaseConfig.anon_key,
         this.supabaseConfig.access_token || undefined
       );
+
+      // Decrypt konten remote (passthrough jika belum terenkripsi)
+      if (Array.isArray(remoteNotes)) {
+        for (const remote of remoteNotes) {
+          if (remote.content) {
+            remote.content = await ipc.decryptContent(remote.content);
+          }
+        }
+      }
 
       // 1. Merge remote notes into local tabs
       if (Array.isArray(remoteNotes) && remoteNotes.length > 0) {
@@ -862,7 +875,7 @@ class EditorStore {
               {
                 id: tab.supabase_id || undefined,
                 title: tab.title,
-                content: tab.content || '',
+                content: await ipc.encryptContent(tab.content || ''),
                 file_extension: tab.file_extension || 'txt',
                 folder: tab.folder || undefined,
                 is_pinned: false,
@@ -907,8 +920,47 @@ class EditorStore {
     }
   }
 
+  /**
+   * One-time cloud migration: re-encrypt semua remote notes yang masih plaintext.
+   * Dipanggil setelah set_master_password sukses.
+   */
+  async migrateCloudNotes() {
+    if (!this.supabaseConfig.is_configured) return;
+    try {
+      const remoteNotes = await ipc.fetchRemoteNotes(
+        this.supabaseConfig.url,
+        this.supabaseConfig.anon_key,
+        this.supabaseConfig.access_token || undefined
+      );
+      if (!Array.isArray(remoteNotes)) return;
+      for (const note of remoteNotes) {
+        if (!note.id || note.is_deleted) continue;
+        if (note.content && !note.content.startsWith('enc:v1:')) {
+          await ipc.upsertRemoteNote(
+            this.supabaseConfig.url,
+            this.supabaseConfig.anon_key,
+            {
+              ...note,
+              content: await ipc.encryptContent(note.content)
+            },
+            this.supabaseConfig.access_token || undefined
+          );
+        }
+      }
+    } catch (e) {
+      console.warn('Cloud E2E migration failed:', e);
+    }
+  }
+
   private async persistTabs() {
     try {
+      // Guard: jangan tulis plaintext ke DB saat E2E aktif dan app terkunci
+      const status = await ipc.e2eStatus();
+      if (status === 'locked') {
+        console.warn('persistTabs skipped: app is locked');
+        return;
+      }
+
       const snapshot = this.tabs.map((t, idx) => ({
         ...t,
         is_active: idx === this.activeTabIndex

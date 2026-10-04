@@ -19,6 +19,21 @@ pub fn run() {
         }
     };
 
+    let keys = crypto::keystore::KeyManager::new();
+    // Auto-unlock: ambil kunci dari OS keyring, verifikasi terhadap verifier di DB
+    if let Ok(key) = crypto::keystore::KeyManager::load_from_keyring() {
+        let verifier_ok = db
+            .get_setting(crypto::SETTING_VERIFIER)
+            .ok()
+            .flatten()
+            .and_then(|v| crypto::decrypt(&key, &v).ok())
+            .map(|p| p == crypto::VERIFIER_PLAINTEXT)
+            .unwrap_or(false);
+        if verifier_ok {
+            keys.set_key(key);
+        }
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
@@ -47,6 +62,7 @@ pub fn run() {
             Ok(())
         })
         .manage(db)
+        .manage(keys)
         .invoke_handler(tauri::generate_handler![
             // File operations
             commands::fs::read_file_content,
@@ -59,6 +75,17 @@ pub fn run() {
             commands::db::get_app_setting,
             commands::db::set_app_setting,
             commands::db::list_snippets,
+            // E2E encryption
+            commands::crypto::e2e_status,
+            commands::crypto::has_master_password,
+            commands::crypto::set_master_password,
+            commands::crypto::unlock,
+            commands::crypto::lock,
+            commands::crypto::is_unlocked,
+            commands::crypto::change_password,
+            commands::crypto::encrypt_content,
+            commands::crypto::decrypt_content,
+            commands::crypto::forget_device,
             // SQL runner operations
             commands::sql::execute_sqlite_query,
             commands::sql::format_sql_query,

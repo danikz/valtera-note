@@ -655,6 +655,95 @@ export const ipc = {
     return localStorage.getItem(`valtera_setting_${key}`);
   },
 
+  async hasMasterPassword(): Promise<boolean> {
+    if (isTauri) {
+      try {
+        return await invoke<boolean>('has_master_password');
+      } catch (err) {
+        console.warn('IPC hasMasterPassword error:', err);
+      }
+    }
+    return false;
+  },
+
+  async e2eStatus(): Promise<'none' | 'locked' | 'ready'> {
+    if (isTauri) {
+      try {
+        return await invoke<'none' | 'locked' | 'ready'>('e2e_status');
+      } catch (err) {
+        console.warn('IPC e2eStatus error:', err);
+      }
+    }
+    return 'none';
+  },
+
+  async setMasterPassword(password: string, rememberDevice: boolean): Promise<void> {
+    if (isTauri) {
+      await invoke<void>('set_master_password', {
+        password,
+        rememberDevice
+      });
+      return;
+    }
+    throw new Error('Enkripsi hanya tersedia di aplikasi desktop');
+  },
+
+  async unlockMasterPassword(password: string): Promise<void> {
+    if (isTauri) {
+      await invoke<void>('unlock', { password });
+      return;
+    }
+    throw new Error('Enkripsi hanya tersedia di aplikasi desktop');
+  },
+
+  async lockApp(): Promise<void> {
+    if (isTauri) {
+      await invoke<void>('lock');
+    }
+  },
+
+  async changeMasterPassword(oldPassword: string, newPassword: string, rememberDevice: boolean): Promise<void> {
+    if (isTauri) {
+      await invoke<void>('change_password', {
+        oldPassword,
+        newPassword,
+        rememberDevice
+      });
+      return;
+    }
+    throw new Error('Enkripsi hanya tersedia di aplikasi desktop');
+  },
+
+  async forgetDevice(): Promise<void> {
+    if (isTauri) {
+      await invoke<void>('forget_device');
+    }
+  },
+
+  async encryptContent(content: string): Promise<string> {
+    if (isTauri) {
+      try {
+        return await invoke<string>('encrypt_content', { content });
+      } catch (err) {
+        console.warn('IPC encryptContent error:', err);
+        return content;
+      }
+    }
+    return content;
+  },
+
+  async decryptContent(content: string): Promise<string> {
+    if (isTauri) {
+      try {
+        return await invoke<string>('decrypt_content', { content });
+      } catch (err) {
+        console.warn('IPC decryptContent error:', err);
+        return content;
+      }
+    }
+    return content;
+  },
+
   async setAppSetting(key: string, value: string): Promise<void> {
     if (isTauri) {
       try {

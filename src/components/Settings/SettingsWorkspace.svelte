@@ -39,9 +39,10 @@
   import { themeStore, type ThemeMode, type ThemePreset } from '../../stores/themeStore.svelte';
   import { updaterService } from '../../services/updater.svelte';
   import { ipc } from '../../services/ipc';
+  import SecuritySettings from './SecuritySettings.svelte';
   import { APP_VERSION, APP_NAME, APP_DESCRIPTION, APP_COPYRIGHT } from '../../constants/app';
 
-  export type SettingsTab = 'supabase' | 'appearance' | 'editor' | 'about';
+  export type SettingsTab = 'supabase' | 'security' | 'appearance' | 'editor' | 'about';
 
   let { 
     activeTab = 'supabase',
@@ -397,6 +398,17 @@ with check (true);`;
         {/if}
       </button>
 
+      <!-- Item: Keamanan -->
+      <button
+        onclick={() => setTab('security')}
+        class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all cursor-pointer {currentTab === 'security' ? 'bg-blue-600 text-white shadow-sm font-semibold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'}"
+      >
+        <span class="flex items-center gap-2">
+          <ShieldCheck class="w-4 h-4 {currentTab === 'security' ? 'text-white' : 'text-emerald-400'}" />
+          Keamanan
+        </span>
+      </button>
+
       <!-- Item: Tampilan & Tema -->
       <button 
         onclick={() => setTab('appearance')}
@@ -658,6 +670,8 @@ with check (true);`;
         <!-- ==================================================== -->
         <!-- TAB 2: APPEARANCE & THEMES -->
         <!-- ==================================================== -->
+        {:else if currentTab === 'security'}
+          <SecuritySettings />
         {:else if currentTab === 'appearance'}
           <div class="space-y-6">
             <div>

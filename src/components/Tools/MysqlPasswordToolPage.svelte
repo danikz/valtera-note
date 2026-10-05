@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { 
+  import { copyText } from '../../utils/clipboard';
+  import {
     Key, 
     RefreshCw, 
     Copy, 
@@ -182,14 +183,12 @@
 
   async function copyToClipboard(text: string, label: string = 'Password tersalin!') {
     if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
+    const ok = await copyText(text);
+    if (ok) {
       copiedToast = label;
       setTimeout(() => {
         if (copiedToast === label) copiedToast = null;
       }, 2000);
-    } catch (err) {
-      console.warn('Clipboard write error:', err);
     }
   }
 

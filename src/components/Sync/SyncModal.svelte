@@ -27,6 +27,7 @@
     BookOpen,
     User
   } from 'lucide-svelte';
+  import { copyText } from '../../utils/clipboard';
 
   let { isOpen, onClose }: { isOpen: boolean; onClose: () => void } = $props();
 
@@ -180,12 +181,12 @@ with check (auth.uid() = user_id or user_id is null);`;
   }
 
   async function handleCopySql() {
-    try {
-      await navigator.clipboard.writeText(SQL_MIGRATION);
+    const ok = await copyText(SQL_MIGRATION);
+    if (ok) {
       copiedSql = true;
       setTimeout(() => { copiedSql = false; }, 2000);
-    } catch (e) {
-      console.warn('Copy failed:', e);
+    } else {
+      statusMessage = { text: 'Gagal menyalin skrip — silakan salin manual dari kotak di bawah.', type: 'error' };
     }
   }
 

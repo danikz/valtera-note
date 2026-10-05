@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { 
+  import { copyText, readClipboardText } from '../../utils/clipboard';
+  import {
     Sparkles, 
     Minimize2, 
     FileCode, 
@@ -408,45 +409,31 @@
   }
 
   async function handlePaste() {
-    try {
-      const text = await navigator.clipboard.readText();
-      if (text) {
-        rawInput = text;
-        showToast('Dipaste dari clipboard');
-      }
-    } catch (e) {
-      console.warn('Paste error:', e);
+    const text = await readClipboardText();
+    if (text) {
+      rawInput = text;
+      showToast('Dipaste dari clipboard');
+    } else {
+      showToast('Clipboard kosong / tidak bisa dibaca');
     }
   }
 
   async function handleCopyJson() {
     if (!formattedCode) return;
-    try {
-      await navigator.clipboard.writeText(formattedCode);
-      showToast('Hasil JSON tersalin!');
-    } catch (e) {
-      console.warn('Copy error:', e);
-    }
+    const ok = await copyText(formattedCode);
+    showToast(ok ? 'Hasil JSON tersalin!' : 'Gagal menyalin JSON');
   }
 
   async function handleCopyCsv() {
     if (!csvOutput) return;
-    try {
-      await navigator.clipboard.writeText(csvOutput);
-      showToast('CSV tersalin ke clipboard!');
-    } catch (e) {
-      console.warn('Copy CSV error:', e);
-    }
+    const ok = await copyText(csvOutput);
+    showToast(ok ? 'CSV tersalin ke clipboard!' : 'Gagal menyalin CSV');
   }
 
   async function handleCopyMarkdown() {
     if (!markdownTableOutput) return;
-    try {
-      await navigator.clipboard.writeText(markdownTableOutput);
-      showToast('Tabel Markdown tersalin ke clipboard!');
-    } catch (e) {
-      console.warn('Copy Markdown error:', e);
-    }
+    const ok = await copyText(markdownTableOutput);
+    showToast(ok ? 'Tabel Markdown tersalin ke clipboard!' : 'Gagal menyalin tabel Markdown');
   }
 
   function handleDownloadCsv() {

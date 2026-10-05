@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { 
+  import { copyText, readClipboardText } from '../../utils/clipboard';
+  import {
     Globe, 
     Copy, 
     Check, 
@@ -80,34 +81,24 @@
   });
 
   async function handlePaste() {
-    try {
-      const clip = await navigator.clipboard.readText();
-      if (clip) {
-        inputUrl = clip;
-        showToast('Ditempel dari clipboard');
-      }
-    } catch (err) {
-      console.warn('Paste error:', err);
+    const clip = await readClipboardText();
+    if (clip) {
+      inputUrl = clip;
+      showToast('Ditempel dari clipboard');
+    } else {
+      showToast('Clipboard kosong / tidak bisa dibaca');
     }
   }
 
   async function handleCopy() {
     if (!conversionResult.output) return;
-    try {
-      await navigator.clipboard.writeText(conversionResult.output);
-      showToast('Hasil URL tersalin!');
-    } catch (err) {
-      console.warn('Copy error:', err);
-    }
+    const ok = await copyText(conversionResult.output);
+    showToast(ok ? 'Hasil URL tersalin!' : 'Gagal menyalin hasil');
   }
 
   async function copyItem(text: string, label: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      showToast(`${label} tersalin!`);
-    } catch (err) {
-      console.warn(err);
-    }
+    const ok = await copyText(text);
+    showToast(ok ? `${label} tersalin!` : 'Gagal menyalin');
   }
 
   function handleSwap() {

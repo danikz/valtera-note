@@ -28,6 +28,7 @@
     HardDrive
   } from 'lucide-svelte';
   import { ipc } from '../../services/ipc';
+  import { copyText } from '../../utils/clipboard';
   import { editorStore } from '../../stores/editorStore.svelte';
   import type { TableSummary, TableColumn, SqlResult } from '../../types';
 
@@ -250,12 +251,8 @@
   // Copy Cell
   async function handleCopyCell(val: any) {
     if (val === null || val === undefined) return;
-    try {
-      await navigator.clipboard.writeText(String(val));
-      showToast('Nilai sel disalin!');
-    } catch (e) {
-      console.warn('Copy failed:', e);
-    }
+    const ok = await copyText(String(val));
+    showToast(ok ? 'Nilai sel disalin!' : 'Gagal menyalin nilai sel');
   }
 
   // Export Table Data to CSV
@@ -300,7 +297,7 @@
   }
 
   // Export to Markdown Table
-  function handleExportMarkdown() {
+  async function handleExportMarkdown() {
     const data = activeTab === 'query' ? queryResult : tableData;
     if (!data || !data.columns || !data.rows) {
       showToast('Tidak ada data untuk diekspor.');
@@ -313,8 +310,8 @@
     ).join('\n');
 
     const mdTable = `${headers}\n${separators}\n${rows}`;
-    navigator.clipboard.writeText(mdTable);
-    showToast('Tabel Markdown tersalin ke clipboard!');
+    const ok = await copyText(mdTable);
+    showToast(ok ? 'Tabel Markdown tersalin ke clipboard!' : 'Gagal menyalin tabel Markdown');
   }
 
   // Open query or table in editor tab
@@ -432,7 +429,7 @@
         />
         {#if dbPath}
           <button 
-            onclick={() => { navigator.clipboard.writeText(dbPath); showToast('Path database tersalin!'); }}
+            onclick={async () => { const ok = await copyText(dbPath); showToast(ok ? 'Path database tersalin!' : 'Gagal menyalin path'); }}
             class="absolute right-2 top-1.5 text-slate-400 hover:text-slate-200 transition-colors"
             title="Salin path database"
           >
@@ -977,7 +974,7 @@
                   <span>Sintaks DDL (CREATE TABLE)</span>
                 </h3>
                 <button 
-                  onclick={() => { navigator.clipboard.writeText(tableDdl()); showToast('DDL disalin!'); }}
+                  onclick={async () => { const ok = await copyText(tableDdl()); showToast(ok ? 'DDL disalin!' : 'Gagal menyalin DDL'); }}
                   class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium flex items-center space-x-1 transition-colors cursor-pointer"
                 >
                   <Copy class="w-3 h-3" />

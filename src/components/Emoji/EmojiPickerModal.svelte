@@ -11,6 +11,7 @@
   } from 'lucide-svelte';
   import { EMOJI_LIST, EMOJI_CATEGORIES, type EmojiItem } from '../../utils/emojis';
   import { editorStore } from '../../stores/editorStore.svelte';
+  import { copyText } from '../../utils/clipboard';
 
   let { isOpen, onClose }: { isOpen: boolean; onClose: () => void } = $props();
 
@@ -64,14 +65,12 @@
 
   async function handleCopyEmoji(e: MouseEvent, item: EmojiItem) {
     e.stopPropagation();
-    try {
-      await navigator.clipboard.writeText(item.char);
+    const ok = await copyText(item.char);
+    if (ok) {
       copiedChar = item.char;
       setTimeout(() => {
         if (copiedChar === item.char) copiedChar = null;
       }, 1500);
-    } catch (err) {
-      console.warn('Failed to copy emoji to clipboard:', err);
     }
   }
 

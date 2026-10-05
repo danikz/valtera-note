@@ -4,6 +4,7 @@
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { convertFileSrc } from '@tauri-apps/api/core';
   import { readFile } from '@tauri-apps/plugin-fs';
+  import { copyText } from '../../utils/clipboard';
   import { 
     Upload, 
     Download, 
@@ -527,21 +528,13 @@
 
   // Copy Snippet Actions
   async function handleCopyHtml() {
-    try {
-      await navigator.clipboard.writeText(htmlSnippet);
-      showToast('Kode HTML <head> tersalin!');
-    } catch (e) {
-      showToast('Gagal menyalin');
-    }
+    const ok = await copyText(htmlSnippet);
+    showToast(ok ? 'Kode HTML <head> tersalin!' : 'Gagal menyalin');
   }
 
   async function handleCopyManifest() {
-    try {
-      await navigator.clipboard.writeText(manifestSnippet);
-      showToast('manifest.json tersalin!');
-    } catch (e) {
-      showToast('Gagal menyalin');
-    }
+    const ok = await copyText(manifestSnippet);
+    showToast(ok ? 'manifest.json tersalin!' : 'Gagal menyalin');
   }
 
   function handleExportHtmlToNewTab() {
@@ -1522,10 +1515,10 @@
                   <p class="text-sm font-bold text-slate-100">browserconfig.xml</p>
                   <p class="text-xs text-slate-400 mt-0.5">Konfigurasi XML untuk Windows Start Menu Tiles</p>
                 </div>
-                <button 
-                  onclick={() => {
-                    navigator.clipboard.writeText(browserconfigSnippet);
-                    showToast('browserconfig.xml tersalin!');
+                <button
+                  onclick={async () => {
+                    const ok = await copyText(browserconfigSnippet);
+                    showToast(ok ? 'browserconfig.xml tersalin!' : 'Gagal menyalin');
                   }}
                   class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors cursor-pointer flex items-center space-x-1.5"
                 >
@@ -1613,10 +1606,10 @@
                   <h3 class="text-xs font-bold text-slate-200">Isi Berkas browserconfig.xml</h3>
                   <p class="text-[11px] text-slate-400">Konfigurasi XML untuk Windows Start tiles.</p>
                 </div>
-                <button 
-                  onclick={() => {
-                    navigator.clipboard.writeText(browserconfigSnippet);
-                    showToast('browserconfig.xml tersalin!');
+                <button
+                  onclick={async () => {
+                    const ok = await copyText(browserconfigSnippet);
+                    showToast(ok ? 'browserconfig.xml tersalin!' : 'Gagal menyalin');
                   }}
                   class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium flex items-center space-x-1.5 transition-colors cursor-pointer"
                 >

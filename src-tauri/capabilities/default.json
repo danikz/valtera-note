@@ -16,6 +16,8 @@
     "fs:default",
     "updater:default",
     "process:default",
-    "window-state:default"
+    "window-state:default",
+    "clipboard-manager:allow-write-text",
+    "clipboard-manager:allow-read-text"
   ]
 }

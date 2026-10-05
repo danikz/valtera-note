@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { 
+  import { copyText } from '../../utils/clipboard';
+  import {
     Key, 
     RefreshCw, 
     Copy, 
@@ -51,21 +52,13 @@
 
   async function handleCopyAll() {
     if (!formattedOutput) return;
-    try {
-      await navigator.clipboard.writeText(formattedOutput);
-      showToast(`${generatedUuids.length} UUID tersalin!`);
-    } catch (err) {
-      console.warn(err);
-    }
+    const ok = await copyText(formattedOutput);
+    showToast(ok ? `${generatedUuids.length} UUID tersalin!` : 'Gagal menyalin UUID');
   }
 
   async function handleCopySingle(text: string, idx: number) {
-    try {
-      await navigator.clipboard.writeText(text);
-      showToast(`UUID #${idx + 1} tersalin!`);
-    } catch (err) {
-      console.warn(err);
-    }
+    const ok = await copyText(text);
+    showToast(ok ? `UUID #${idx + 1} tersalin!` : 'Gagal menyalin UUID');
   }
 
   function showToast(msg: string) {

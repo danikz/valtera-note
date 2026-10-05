@@ -40,6 +40,7 @@
     LogOut
   } from 'lucide-svelte';
   import { editorStore } from '../../stores/editorStore.svelte';
+  import { copyText } from '../../utils/clipboard';
   import { themeStore, type ThemeMode, type ThemePreset } from '../../stores/themeStore.svelte';
   import { updaterService } from '../../services/updater.svelte';
   import { ipc } from '../../services/ipc';
@@ -330,10 +331,14 @@ with check (auth.uid() = user_id);
     statusMessage = { text: 'Akun Supabase dikeluarkan dari device ini.', type: 'success' };
   }
 
-  function handleCopySql() {
-    navigator.clipboard.writeText(SQL_MIGRATION);
-    copiedSql = true;
-    setTimeout(() => (copiedSql = false), 2500);
+  async function handleCopySql() {
+    const ok = await copyText(SQL_MIGRATION);
+    if (ok) {
+      copiedSql = true;
+      setTimeout(() => (copiedSql = false), 2500);
+    } else {
+      statusMessage = { text: 'Gagal menyalin skrip — silakan salin manual dari kotak skrip.', type: 'error' };
+    }
   }
 
   // ==========================================

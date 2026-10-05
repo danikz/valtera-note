@@ -10,6 +10,7 @@
     Quote, 
     ToggleLeft 
   } from 'lucide-svelte';
+  import { copyText } from '../../utils/clipboard';
   import JsonTreeNode from './JsonTreeNode.svelte';
 
   let { 
@@ -30,8 +31,8 @@
     searchQuery?: string;
     expandAllTrigger?: number;
     collapseAllTrigger?: number;
-    onCopyPath?: (path: string) => void;
-    onCopyValue?: (val: any) => void;
+    onCopyPath?: (path: string) => boolean | Promise<boolean> | void;
+    onCopyValue?: (val: any) => boolean | Promise<boolean> | void;
   } = $props();
 
   let isOpen = $state(true);
@@ -100,18 +101,21 @@
     }
   });
 
-  function handleCopy(e: MouseEvent, type: 'path' | 'value') {
+  async function handleCopy(e: MouseEvent, type: 'path' | 'value') {
     e.stopPropagation();
+    let ok: boolean;
     if (type === 'path' && onCopyPath) {
-      onCopyPath(path);
+      ok = (await onCopyPath(path)) !== false;
     } else if (type === 'value' && onCopyValue) {
-      onCopyValue(value);
+      ok = (await onCopyValue(value)) !== false;
     } else {
       const text = type === 'path' ? path : (typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value));
-      navigator.clipboard.writeText(text);
+      ok = await copyText(text);
     }
-    isCopied = true;
-    setTimeout(() => { isCopied = false; }, 1500);
+    isCopied = ok;
+    if (ok) {
+      setTimeout(() => { isCopied = false; }, 1500);
+    }
   }
 </script>
 

@@ -14,6 +14,7 @@
     CheckCheck
   } from 'lucide-svelte';
   import { editorStore } from '../../stores/editorStore.svelte';
+  import { copyText } from '../../utils/clipboard';
   import JsonTreeNode from './JsonTreeNode.svelte';
 
   let searchQuery = $state('');
@@ -68,25 +69,23 @@
     }
   }
 
-  function handleCopyAll() {
+  async function handleCopyAll() {
     if (!parseResult.isValid || parseResult.data === null) return;
-    try {
-      navigator.clipboard.writeText(JSON.stringify(parseResult.data, null, 2));
-      showToast('Copied full JSON to clipboard');
-    } catch (e) {
-      console.warn('Copy error:', e);
-    }
+    const ok = await copyText(JSON.stringify(parseResult.data, null, 2));
+    showToast(ok ? 'Copied full JSON to clipboard' : 'Gagal menyalin — coba lagi');
   }
 
-  function handleCopyPath(path: string) {
-    navigator.clipboard.writeText(path);
-    showToast(`Copied path: ${path}`);
+  async function handleCopyPath(path: string) {
+    const ok = await copyText(path);
+    showToast(ok ? `Copied path: ${path}` : 'Gagal menyalin path');
+    return ok;
   }
 
-  function handleCopyValue(val: any) {
+  async function handleCopyValue(val: any) {
     const text = typeof val === 'object' ? JSON.stringify(val, null, 2) : String(val);
-    navigator.clipboard.writeText(text);
-    showToast('Copied value');
+    const ok = await copyText(text);
+    showToast(ok ? 'Copied value' : 'Gagal menyalin value');
+    return ok;
   }
 
   function showToast(msg: string) {

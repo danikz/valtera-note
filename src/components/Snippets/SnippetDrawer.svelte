@@ -1,5 +1,6 @@
 <script lang="ts">
   import { editorStore } from '../../stores/editorStore.svelte';
+  import { copyText } from '../../utils/clipboard';
   import { 
     X, 
     Database, 
@@ -371,14 +372,12 @@
   }
 
   async function handleCopy(id: string, code: string) {
-    try {
-      await navigator.clipboard.writeText(code);
+    const ok = await copyText(code);
+    if (ok) {
       copiedId = id;
       setTimeout(() => {
         if (copiedId === id) copiedId = null;
       }, 1800);
-    } catch (e) {
-      console.warn('Copy failed:', e);
     }
   }
 

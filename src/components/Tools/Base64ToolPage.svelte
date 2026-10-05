@@ -11,6 +11,7 @@
     Sparkles,
     FileText
   } from 'lucide-svelte';
+  import { copyText, readClipboardText } from '../../utils/clipboard';
 
   let mode = $state<'encode' | 'decode'>('encode');
   let inputText = $state('');
@@ -65,25 +66,19 @@
   });
 
   async function handlePaste() {
-    try {
-      const clip = await navigator.clipboard.readText();
-      if (clip) {
-        inputText = clip;
-        showToast('Ditempel dari clipboard');
-      }
-    } catch (err) {
-      console.warn('Paste error:', err);
+    const clip = await readClipboardText();
+    if (clip) {
+      inputText = clip;
+      showToast('Ditempel dari clipboard');
+    } else {
+      showToast('Clipboard kosong / tidak bisa dibaca');
     }
   }
 
   async function handleCopy() {
     if (!conversionResult.output) return;
-    try {
-      await navigator.clipboard.writeText(conversionResult.output);
-      showToast('Hasil Base64 tersalin!');
-    } catch (err) {
-      console.warn('Copy error:', err);
-    }
+    const ok = await copyText(conversionResult.output);
+    showToast(ok ? 'Hasil Base64 tersalin!' : 'Gagal menyalin hasil');
   }
 
   function handleSwap() {

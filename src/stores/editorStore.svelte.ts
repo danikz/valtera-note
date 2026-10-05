@@ -1,4 +1,5 @@
 import { ipc } from '../services/ipc';
+import { formatTime, loadDisplayTimezone } from '../utils/time';
 import type { TabState, SupabaseConfig, SplitMode, RemoteNote } from '../types';
 
 export function extractTitleFromContent(content: string, ext: string = 'md'): string {
@@ -80,6 +81,7 @@ class EditorStore {
 
   async init() {
     try {
+      await loadDisplayTimezone();
       await this.reloadSession();
       this.supabaseConfig = await ipc.getSupabaseConfig();
 
@@ -608,7 +610,7 @@ class EditorStore {
         tab.file_extension = path.split('.').pop() || tab.file_extension;
         tab.is_dirty = false;
         tab.is_scratchpad = false;
-        this.lastSavedAt = new Date().toLocaleTimeString();
+        this.lastSavedAt = formatTime();
         this.persistTabs();
 
         if (this.supabaseConfig.is_configured) {
@@ -620,7 +622,7 @@ class EditorStore {
           await this.syncSingleTab(tab);
         } else {
           tab.is_dirty = false;
-          this.lastSavedAt = new Date().toLocaleTimeString();
+          this.lastSavedAt = formatTime();
           this.persistTabs();
         }
       }
@@ -684,7 +686,7 @@ class EditorStore {
           this.isSaving = true;
           await ipc.writeFile(tab.file_path, tab.content);
           tab.is_dirty = false;
-          this.lastSavedAt = new Date().toLocaleTimeString();
+          this.lastSavedAt = formatTime();
         } catch (err) {
           console.error('Auto-save to disk failed:', err);
         } finally {
@@ -761,7 +763,7 @@ class EditorStore {
         tab.sync_status = 'synced';
         tab.is_dirty = false;
         this.syncStatus = 'synced';
-        this.lastSyncedAt = new Date().toLocaleTimeString();
+        this.lastSyncedAt = formatTime();
         this.lastSavedAt = this.lastSyncedAt;
         this.syncMessage = `Auto-synced at ${this.lastSyncedAt}`;
         this.persistTabs();
@@ -966,7 +968,7 @@ class EditorStore {
         this.syncMessage = 'Sync partially failed';
       } else {
         this.syncStatus = 'synced';
-        this.lastSyncedAt = new Date().toLocaleTimeString();
+        this.lastSyncedAt = formatTime();
         this.syncMessage = `Auto-synced at ${this.lastSyncedAt}`;
       }
       this.persistTabs();

@@ -41,6 +41,13 @@
   } from 'lucide-svelte';
   import { editorStore } from '../../stores/editorStore.svelte';
   import { copyText } from '../../utils/clipboard';
+  import {
+    TIMEZONE_OPTIONS,
+    SETTING_DISPLAY_TIMEZONE,
+    getDisplayTimezone,
+    setDisplayTimezone,
+    gmtOffsetLabel
+  } from '../../utils/time';
   import { themeStore, type ThemeMode, type ThemePreset } from '../../stores/themeStore.svelte';
   import { updaterService } from '../../services/updater.svelte';
   import { ipc } from '../../services/ipc';
@@ -338,6 +345,20 @@ with check (auth.uid() = user_id);
       setTimeout(() => (copiedSql = false), 2500);
     } else {
       statusMessage = { text: 'Gagal menyalin skrip — silakan salin manual dari kotak skrip.', type: 'error' };
+    }
+  }
+
+  // Zona waktu tampilan (Pengaturan → Tampilan & Tema)
+  let selectedTimezone = $state(getDisplayTimezone());
+
+  async function handleTimezoneChange(e: Event) {
+    const tz = (e.currentTarget as HTMLSelectElement).value;
+    setDisplayTimezone(tz);
+    try {
+      await ipc.setAppSetting(SETTING_DISPLAY_TIMEZONE, tz);
+      statusMessage = { text: 'Zona waktu tampilan diperbarui.', type: 'success' };
+    } catch (err) {
+      statusMessage = { text: 'Gagal menyimpan zona waktu.', type: 'error' };
     }
   }
 
@@ -820,6 +841,25 @@ with check (auth.uid() = user_id);
               <p class="text-xs text-slate-400 mt-1">
                 Personalisasikan nuansa visual Valtera Note dengan pilihan mode gelap, mode terang profesional, dan palet tema koding.
               </p>
+            </div>
+
+            <!-- Timezone Setting -->
+            <div class="p-5 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-3">
+              <span class="block text-xs font-bold text-slate-300 uppercase tracking-wider">Zona Waktu Tampilan</span>
+              <p class="text-[11px] text-slate-400 leading-relaxed">
+                Waktu tersimpan & status sinkronisasi ditampilkan dalam format 24 jam mengikuti zona ini (default Jakarta / GMT+7).
+              </p>
+              <select
+                value={selectedTimezone}
+                onchange={handleTimezoneChange}
+                class="w-full md:w-80 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
+              >
+                {#each TIMEZONE_OPTIONS as tzopt (tzopt.value)}
+                  <option value={tzopt.value}>
+                    {tzopt.label}{gmtOffsetLabel(tzopt.value) ? ` — ${gmtOffsetLabel(tzopt.value)}` : ''}
+                  </option>
+                {/each}
+              </select>
             </div>
 
             <!-- Color Mode Selection (Dark / Light / System) -->

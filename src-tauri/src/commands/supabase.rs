@@ -41,8 +41,34 @@ pub async fn save_supabase_config(
 ) -> Result<(), String> {
     let db = Arc::clone(&db);
     tokio::task::spawn_blocking(move || {
+        let old_url = db.get_setting("supabase_url")?.unwrap_or_default();
         db.set_setting("supabase_url", &url)?;
         db.set_setting("supabase_anon_key", &anon_key)?;
+        // Ganti project = sesi lama tidak berlaku. Token terbitan project lain
+        // dijamin 401 di project baru (iss berbeda), dan refresh-nya juga gagal.
+        if !old_url.is_empty() && old_url != url {
+            db.delete_setting(SETTING_ACCESS_TOKEN)?;
+            db.delete_setting(SETTING_REFRESH_TOKEN)?;
+            db.delete_setting(SETTING_TOKEN_EXPIRES_AT)?;
+            db.delete_setting("supabase_user_email")?;
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Hapus seluruh sesi auth Supabase (token + identitas email) dari settings DB.
+/// Logout yang hanya membersihkan state frontend membuat sync berikutnya tetap
+/// memakai token lama dari DB.
+#[tauri::command]
+pub async fn supabase_logout(db: State<'_, Arc<DatabaseManager>>) -> Result<(), String> {
+    let db = Arc::clone(&db);
+    tokio::task::spawn_blocking(move || {
+        db.delete_setting(SETTING_ACCESS_TOKEN)?;
+        db.delete_setting(SETTING_REFRESH_TOKEN)?;
+        db.delete_setting(SETTING_TOKEN_EXPIRES_AT)?;
+        db.delete_setting("supabase_user_email")?;
         Ok(())
     })
     .await

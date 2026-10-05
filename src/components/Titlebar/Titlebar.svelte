@@ -596,18 +596,18 @@
 
     <!-- Window Management Buttons (Windows 11 / Modern Desktop Frameless Controls) -->
     <div class="flex items-center h-full ml-1 border-l border-slate-800/80">
-      <button 
+      <button
         onclick={handleMinimize}
-        class="h-full w-11 flex items-center justify-center text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 transition-colors cursor-pointer window-ctrl-btn"
+        class="h-full w-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-600/70 transition-colors duration-150 cursor-pointer window-ctrl-btn"
         title="Minimize"
         aria-label="Minimize"
       >
         <Minus class="w-3.5 h-3.5" />
       </button>
 
-      <button 
+      <button
         onclick={handleToggleMaximize}
-        class="h-full w-11 flex items-center justify-center text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 transition-colors cursor-pointer window-ctrl-btn"
+        class="h-full w-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-600/70 transition-colors duration-150 cursor-pointer window-ctrl-btn"
         title={isMaximized ? "Restore Down" : "Maximize"}
         aria-label={isMaximized ? "Restore Down" : "Maximize"}
       >
@@ -623,9 +623,9 @@
         {/if}
       </button>
 
-      <button 
+      <button
         onclick={handleClose}
-        class="h-full w-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-600 transition-colors cursor-pointer window-close-btn"
+        class="h-full w-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500 transition-colors duration-150 cursor-pointer window-close-btn"
         title="Close"
         aria-label="Close"
       >

@@ -385,6 +385,72 @@ with check (auth.uid() = user_id or user_id is null);`;
           </div>
         {/if}
 
+        <!-- Credentials Form -->
+        <div class="space-y-3 bg-slate-950/60 p-3.5 rounded-lg border border-slate-800/70">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <span class="font-semibold text-slate-200">Supabase API Credentials</span>
+              {#if editorStore.supabaseConfig.is_configured}
+                <span class="px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-400 border border-emerald-800/50 text-[10px]">Tersimpan</span>
+              {/if}
+            </div>
+            <button 
+              onclick={handleTestConnection}
+              disabled={isTesting}
+              class="flex items-center space-x-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-emerald-400 font-medium transition-colors disabled:opacity-50"
+            >
+              {#if isTesting}
+                <Loader2 class="w-3 h-3 animate-spin" />
+              {:else}
+                <Activity class="w-3 h-3" />
+              {/if}
+              <span>{isTesting ? 'Testing...' : 'Test Connection'}</span>
+            </button>
+          </div>
+
+          <!-- Project URL -->
+          <div class="space-y-1">
+            <label for="url-input" class="block text-slate-400">Project URL</label>
+            <div class="relative">
+              <Server class="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
+              <input 
+                id="url-input"
+                type="text" 
+                bind:value={url} 
+                placeholder="https://xyzcompany.supabase.co"
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono"
+              />
+            </div>
+          </div>
+
+          <!-- Anon Public Key with Eye Toggle -->
+          <div class="space-y-1">
+            <label for="key-input" class="block text-slate-400">API Key (anon public atau service role)</label>
+            <div class="relative flex items-center">
+              <Key class="w-3.5 h-3.5 absolute left-3 text-slate-500 pointer-events-none" />
+              <input 
+                id="key-input"
+                type={showKey ? 'text' : 'password'} 
+                bind:value={anonKey} 
+                placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-9 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono"
+              />
+              <button 
+                type="button"
+                onclick={() => (showKey = !showKey)}
+                class="absolute right-2.5 text-slate-500 hover:text-slate-200 p-1 rounded transition-colors"
+                title={showKey ? "Sembunyikan API Key" : "Lihat API Key"}
+              >
+                {#if showKey}
+                  <EyeOff class="w-3.5 h-3.5" />
+                {:else}
+                  <Eye class="w-3.5 h-3.5" />
+                {/if}
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Table Status Indicator Banner -->
         {#if tableStatus === 'ready'}
           <div class="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-700/60 flex items-center justify-between text-emerald-300">
@@ -545,72 +611,6 @@ with check (auth.uid() = user_id or user_id is null);`;
               <pre class="bg-slate-900 border border-slate-800 p-2.5 rounded-lg text-[10px] font-mono text-emerald-300/90 overflow-x-auto max-h-40 leading-relaxed select-all"><code>{SQL_MIGRATION}</code></pre>
             </div>
           {/if}
-        </div>
-
-        <!-- Credentials Form -->
-        <div class="space-y-3 bg-slate-950/60 p-3.5 rounded-lg border border-slate-800/70">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-2">
-              <span class="font-semibold text-slate-200">Supabase API Credentials</span>
-              {#if editorStore.supabaseConfig.is_configured}
-                <span class="px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-400 border border-emerald-800/50 text-[10px]">Tersimpan</span>
-              {/if}
-            </div>
-            <button 
-              onclick={handleTestConnection}
-              disabled={isTesting}
-              class="flex items-center space-x-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-emerald-400 font-medium transition-colors disabled:opacity-50"
-            >
-              {#if isTesting}
-                <Loader2 class="w-3 h-3 animate-spin" />
-              {:else}
-                <Activity class="w-3 h-3" />
-              {/if}
-              <span>{isTesting ? 'Testing...' : 'Test Connection'}</span>
-            </button>
-          </div>
-
-          <!-- Project URL -->
-          <div class="space-y-1">
-            <label for="url-input" class="block text-slate-400">Project URL</label>
-            <div class="relative">
-              <Server class="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
-              <input 
-                id="url-input"
-                type="text" 
-                bind:value={url} 
-                placeholder="https://xyzcompany.supabase.co"
-                class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono"
-              />
-            </div>
-          </div>
-
-          <!-- Anon Public Key with Eye Toggle -->
-          <div class="space-y-1">
-            <label for="key-input" class="block text-slate-400">API Key (anon public atau service role)</label>
-            <div class="relative flex items-center">
-              <Key class="w-3.5 h-3.5 absolute left-3 text-slate-500 pointer-events-none" />
-              <input 
-                id="key-input"
-                type={showKey ? 'text' : 'password'} 
-                bind:value={anonKey} 
-                placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-9 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono"
-              />
-              <button 
-                type="button"
-                onclick={() => (showKey = !showKey)}
-                class="absolute right-2.5 text-slate-500 hover:text-slate-200 p-1 rounded transition-colors"
-                title={showKey ? "Sembunyikan API Key" : "Lihat API Key"}
-              >
-                {#if showKey}
-                  <EyeOff class="w-3.5 h-3.5" />
-                {:else}
-                  <Eye class="w-3.5 h-3.5" />
-                {/if}
-              </button>
-            </div>
-          </div>
         </div>
 
         <!-- Help Guide Info -->

@@ -88,4 +88,20 @@ mod tests {
         km.set_key([5u8; 32]);
         assert_eq!(km.with_key(|k| *k), Some([5u8; 32]));
     }
+
+    /// Integrasi Credential Manager: butuh backend keyring platform yang aktif
+    /// (windows-native / apple-native / sync-secret-service). Tanpa backend,
+    /// Entry::new gagal di runtime dan fitur "ingat device" menjadi no-op.
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn keyring_roundtrip_real_credential_manager() {
+        let key: Key = [7u8; 32];
+        // bersihkan sisa test sebelumnya
+        let _ = KeyManager::delete_from_keyring();
+        KeyManager::save_to_keyring(&key).expect("save ke Windows Credential Manager");
+        let loaded = KeyManager::load_from_keyring().expect("load dari Windows Credential Manager");
+        assert_eq!(loaded, key);
+        KeyManager::delete_from_keyring().expect("hapus entri test");
+        assert!(KeyManager::load_from_keyring().is_err());
+    }
 }

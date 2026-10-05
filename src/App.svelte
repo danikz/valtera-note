@@ -213,7 +213,9 @@
         }
       } catch (err) {
         console.warn('E2E state check error:', err);
-        lockState = 'unlocked';
+        // Fail-closed: kalau status tidak bisa dipastikan, anggap terkunci
+        // (bukan 'unlocked') agar tidak ada plaintext yang ditulis/di-sync.
+        lockState = 'locked';
       }
     })();
 

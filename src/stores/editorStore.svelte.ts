@@ -717,6 +717,9 @@ class EditorStore {
   async syncSingleTab(tab: TabState) {
     if (!this.supabaseConfig.is_configured) return;
 
+    // Jangan push saat app terkunci (plaintext tidak akan pernah ter-encrypt).
+    if ((await ipc.e2eStatus()) === 'locked') return;
+
     try {
       this.isSyncing = true;
       this.syncStatus = 'syncing';
@@ -774,6 +777,11 @@ class EditorStore {
     if (!this.supabaseConfig.is_configured || this.isSyncing) return;
 
     try {
+      // Jangan sync saat app terkunci: encrypt/decrypt akan gagal
+      // dan konten di sisi lokal masih kosong (guard load_session).
+      const e2eStatus = await ipc.e2eStatus();
+      if (e2eStatus === 'locked') return;
+
       this.isSyncing = true;
       this.syncStatus = 'syncing';
       if (!silent) this.syncMessage = 'Syncing cloud notes...';
@@ -784,10 +792,16 @@ class EditorStore {
         this.supabaseConfig.access_token || undefined
       );
 
-      // Decrypt konten remote (passthrough jika belum terenkripsi)
+      // Decrypt konten remote (passthrough jika belum terenkripsi).
+      // Catat note yang masih plaintext di cloud agar bisa disembuhkan
+      // (re-upsert terenkripsi) — migrasi setup bisa saja terlewat.
+      const plaintextCloudNotes: RemoteNote[] = [];
       if (Array.isArray(remoteNotes)) {
         for (const remote of remoteNotes) {
           if (remote.content) {
+            if (!remote.content.startsWith('enc:v1:')) {
+              plaintextCloudNotes.push(remote);
+            }
             remote.content = await ipc.decryptContent(remote.content);
           }
         }
@@ -900,6 +914,21 @@ class EditorStore {
             pushFailCount++;
           }
         }
+      }
+
+      // 3. Sembuhkan note cloud yang masih plaintext (migrasi setup bisa terlewat
+      //    saat offline): re-upsert dengan konten terenkripsi.
+      for (const note of plaintextCloudNotes) {
+        if (!note.id || note.is_deleted || this.deletedNoteIds.includes(note.id)) continue;
+        await ipc.upsertRemoteNote(
+          this.supabaseConfig.url,
+          this.supabaseConfig.anon_key,
+          {
+            ...note,
+            content: await ipc.encryptContent(note.content)
+          },
+          this.supabaseConfig.access_token || undefined
+        );
       }
 
       if (pushFailCount > 0 && pushSuccessCount === 0) {

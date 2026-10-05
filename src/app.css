@@ -6,20 +6,24 @@
 }
 
 @layer base {
-  /* Scrollbar custom styling */
+  /* Scrollbar custom styling — tebal & kontras agar mudah dipegang */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 11px;
+    height: 11px;
   }
   ::-webkit-scrollbar-track {
-    background: #090d16;
+    background: #0b101c;
   }
   ::-webkit-scrollbar-thumb {
-    background: #1e293b;
-    border-radius: 3px;
+    background: #3b4a63;
+    border-radius: 6px;
+    border: 2px solid #0b101c;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #334155;
+    background: #526180;
+  }
+  ::-webkit-scrollbar-corner {
+    background: #0b101c;
   }
 }
 

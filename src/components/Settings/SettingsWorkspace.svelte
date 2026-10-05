@@ -605,78 +605,12 @@ with check (auth.uid() = user_id);
               {/if}
             </div>
 
-            <!-- Supabase Account Card -->
-            <div class="p-5 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-4">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-2">
-                  <User class="w-4 h-4 text-blue-400" />
-                  <h3 class="text-xs font-bold text-slate-200">Akun Supabase</h3>
-                </div>
-                {#if editorStore.supabaseConfig.user_email}
-                  <span class="px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    Masuk: {editorStore.supabaseConfig.user_email}
-                  </span>
-                {:else}
-                  <span class="px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-slate-800 text-slate-400">Belum Masuk</span>
-                {/if}
-              </div>
-
-              <p class="text-[11px] text-slate-400 leading-relaxed">
-                Login akun diperlukan agar sinkronisasi berjalan aman (Row Level Security per-pengguna).
-                Sesi ditahan otomatis dengan token refresh — tidak perlu login ulang tiap jam.
-              </p>
-
-              {#if editorStore.supabaseConfig.user_email}
-                <button
-                  onclick={handleSupabaseLogout}
-                  class="px-3 py-2 rounded-xl hover:bg-rose-950/40 text-rose-400 text-xs font-medium flex items-center space-x-1.5 transition-colors cursor-pointer"
-                >
-                  <LogOut class="w-3.5 h-3.5" />
-                  <span>Keluar dari Akun</span>
-                </button>
-              {:else}
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <input
-                    type="email"
-                    bind:value={loginEmail}
-                    placeholder="email@contoh.com"
-                    class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
-                  />
-                  <input
-                    type="password"
-                    bind:value={loginPassword}
-                    placeholder="Password Supabase"
-                    class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
-                  />
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                  <button
-                    onclick={() => handleSupabaseAuth('login')}
-                    disabled={isAuthWorking}
-                    class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer disabled:opacity-50"
-                  >
-                    {#if isAuthWorking}
-                      <Loader2 class="w-3.5 h-3.5 animate-spin" />
-                      <span>Memproses...</span>
-                    {:else}
-                      <LogIn class="w-3.5 h-3.5" />
-                      <span>Masuk</span>
-                    {/if}
-                  </button>
-                  <button
-                    onclick={() => handleSupabaseAuth('register')}
-                    disabled={isAuthWorking}
-                    class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center space-x-1.5 transition-colors cursor-pointer disabled:opacity-50"
-                  >
-                    <UserPlus class="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Daftar Akun Baru</span>
-                  </button>
-                </div>
-              {/if}
-            </div>
-
             <!-- Credentials Form -->
             <div class="p-5 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-4">
+              <div class="flex items-center space-x-2">
+                <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">1</span>
+                <h3 class="text-xs font-bold text-slate-200">Kredensial Project</h3>
+              </div>
               <!-- URL input -->
               <div class="space-y-1.5">
                 <label class="text-xs font-semibold text-slate-300 flex items-center justify-between">
@@ -765,6 +699,7 @@ with check (auth.uid() = user_id);
             <div class="p-5 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-4">
               <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-2">
+                  <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">2</span>
                   <Database class="w-4 h-4 text-emerald-400" />
                   <h3 class="text-xs font-bold text-slate-200">Status Skema Tabel (public.notes)</h3>
                 </div>
@@ -826,6 +761,77 @@ with check (auth.uid() = user_id);
                   </div>
                 {/if}
               </div>
+            </div>
+
+            <!-- Supabase Account Card -->
+            <div class="p-5 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-4">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                  <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">3</span>
+                  <User class="w-4 h-4 text-blue-400" />
+                  <h3 class="text-xs font-bold text-slate-200">Akun Supabase</h3>
+                </div>
+                {#if editorStore.supabaseConfig.user_email}
+                  <span class="px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    Masuk: {editorStore.supabaseConfig.user_email}
+                  </span>
+                {:else}
+                  <span class="px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-slate-800 text-slate-400">Belum Masuk</span>
+                {/if}
+              </div>
+
+              <p class="text-[11px] text-slate-400 leading-relaxed">
+                Login akun diperlukan agar sinkronisasi berjalan aman (Row Level Security per-pengguna).
+                Sesi ditahan otomatis dengan token refresh — tidak perlu login ulang tiap jam.
+              </p>
+
+              {#if editorStore.supabaseConfig.user_email}
+                <button
+                  onclick={handleSupabaseLogout}
+                  class="px-3 py-2 rounded-xl hover:bg-rose-950/40 text-rose-400 text-xs font-medium flex items-center space-x-1.5 transition-colors cursor-pointer"
+                >
+                  <LogOut class="w-3.5 h-3.5" />
+                  <span>Keluar dari Akun</span>
+                </button>
+              {:else}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <input
+                    type="email"
+                    bind:value={loginEmail}
+                    placeholder="email@contoh.com"
+                    class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
+                  />
+                  <input
+                    type="password"
+                    bind:value={loginPassword}
+                    placeholder="Password Supabase"
+                    class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
+                  />
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <button
+                    onclick={() => handleSupabaseAuth('login')}
+                    disabled={isAuthWorking}
+                    class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    {#if isAuthWorking}
+                      <Loader2 class="w-3.5 h-3.5 animate-spin" />
+                      <span>Memproses...</span>
+                    {:else}
+                      <LogIn class="w-3.5 h-3.5" />
+                      <span>Masuk</span>
+                    {/if}
+                  </button>
+                  <button
+                    onclick={() => handleSupabaseAuth('register')}
+                    disabled={isAuthWorking}
+                    class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center space-x-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    <UserPlus class="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Daftar Akun Baru</span>
+                  </button>
+                </div>
+              {/if}
             </div>
           </div>
 

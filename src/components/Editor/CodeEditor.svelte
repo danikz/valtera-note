@@ -10,11 +10,146 @@
   import { markdown } from '@codemirror/lang-markdown';
   import { sql } from '@codemirror/lang-sql';
   import { editorStore } from '../../stores/editorStore.svelte';
+  import { themeStore } from '../../stores/themeStore.svelte';
   import { emojiCompletionSource } from '../../utils/emojis';
 
   let editorContainer = $state<HTMLDivElement | null>(null);
   let view: EditorView | null = null;
   let languageCompartment = new Compartment();
+  let themeCompartment = new Compartment();
+
+  // Tema editor mengikuti mode: light pakai skema terang + warna sintaks
+  // bawaan CodeMirror (defaultHighlightStyle); dark tetap One Dark.
+  const darkEditorSpec: Record<string, any> = {
+          '&': {
+            height: '100%',
+            backgroundColor: '#090d16',
+            color: '#f1f5f9'
+          },
+          '.cm-content': {
+            caretColor: '#38bdf8',
+            fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+            fontSize: '13.5px',
+            lineHeight: '1.6'
+          },
+          '&.cm-focused .cm-cursor': {
+            borderLeftColor: '#38bdf8'
+          },
+          '&.cm-focused .cm-selectionBackground, ::selection': {
+            backgroundColor: '#1e293b'
+          },
+          '.cm-gutters': {
+            backgroundColor: '#0b0f19',
+            color: '#475569',
+            borderRight: '1px solid #1e293b'
+          },
+          '.cm-tooltip.cm-tooltip-autocomplete': {
+            backgroundColor: '#0f172a',
+            border: '1px solid #334155',
+            borderRadius: '8px',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
+            padding: '4px'
+          },
+          '.cm-tooltip-autocomplete ul': {
+            maxHeight: '220px',
+            fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace'
+          },
+          '.cm-tooltip-autocomplete ul li': {
+            padding: '4px 8px',
+            borderRadius: '6px',
+            fontSize: '12px',
+            color: '#cbd5e1'
+          },
+          '.cm-tooltip-autocomplete ul li[aria-selected]': {
+            backgroundColor: '#1d4ed8',
+            color: '#ffffff'
+          },
+          '.cm-completionLabel': {
+            fontWeight: '600'
+          },
+          '.cm-completionDetail': {
+            marginLeft: '8px',
+            fontStyle: 'normal',
+            color: '#94a3b8',
+            fontSize: '11px'
+          },
+          '.cm-tooltip-autocomplete ul li[aria-selected] .cm-completionDetail': {
+            color: '#bfdbfe'
+          }
+  };
+
+  const lightEditorSpec: Record<string, any> = {
+          '&': {
+            height: '100%',
+            backgroundColor: '#ffffff',
+            color: '#0f172a'
+          },
+          '.cm-content': {
+            caretColor: '#0284c7',
+            fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+            fontSize: '13.5px',
+            lineHeight: '1.6'
+          },
+          '&.cm-focused .cm-cursor': {
+            borderLeftColor: '#0284c7'
+          },
+          '&.cm-focused .cm-selectionBackground, ::selection': {
+            backgroundColor: '#dbeafe'
+          },
+          '.cm-gutters': {
+            backgroundColor: '#f8fafc',
+            color: '#94a3b8',
+            borderRight: '1px solid #e2e8f0'
+          },
+          '.cm-activeLine': {
+            backgroundColor: '#f1f5f9'
+          },
+          '.cm-activeLineGutter': {
+            backgroundColor: '#e2e8f0',
+            color: '#0f172a'
+          },
+          '.cm-tooltip.cm-tooltip-autocomplete': {
+            backgroundColor: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '8px',
+            boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.18), 0 8px 10px -6px rgba(15, 23, 42, 0.12)',
+            padding: '4px'
+          },
+          '.cm-tooltip-autocomplete ul': {
+            maxHeight: '220px',
+            fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace'
+          },
+          '.cm-tooltip-autocomplete ul li': {
+            padding: '4px 8px',
+            borderRadius: '6px',
+            fontSize: '12px',
+            color: '#334155'
+          },
+          '.cm-tooltip-autocomplete ul li[aria-selected]': {
+            backgroundColor: '#2563eb',
+            color: '#ffffff'
+          },
+          '.cm-completionLabel': {
+            fontWeight: '600'
+          },
+          '.cm-completionDetail': {
+            marginLeft: '8px',
+            fontStyle: 'normal',
+            color: '#94a3b8',
+            fontSize: '11px'
+          },
+          '.cm-tooltip-autocomplete ul li[aria-selected] .cm-completionDetail': {
+            color: '#dbeafe'
+          }
+  };
+
+  function editorThemeExtensions(dark: boolean) {
+    return [EditorView.theme(dark ? darkEditorSpec : lightEditorSpec, { dark }), ...(dark ? [oneDark] : [])];
+  }
+
+  function currentDark() {
+    return themeStore.isDarkEffective();
+  }
   let isInternalUpdate = false;
   let currentLoadedTabId: string | null = null;
   let currentLanguageExt = '';
@@ -70,7 +205,7 @@
         highlightActiveLine(),
         highlightSelectionMatches(),
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-        oneDark,
+        themeCompartment.of(editorThemeExtensions(currentDark())),
         languageCompartment.of(getLanguageExtension(initialExt)),
         autocompletion({
           override: [
@@ -128,63 +263,6 @@
             editorStore.updateCursor(line.number, pos - line.from + 1);
           }
         }),
-        EditorView.theme({
-          '&': {
-            height: '100%',
-            backgroundColor: '#090d16',
-            color: '#f1f5f9'
-          },
-          '.cm-content': {
-            caretColor: '#38bdf8',
-            fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
-            fontSize: '13.5px',
-            lineHeight: '1.6'
-          },
-          '&.cm-focused .cm-cursor': {
-            borderLeftColor: '#38bdf8'
-          },
-          '&.cm-focused .cm-selectionBackground, ::selection': {
-            backgroundColor: '#1e293b'
-          },
-          '.cm-gutters': {
-            backgroundColor: '#0b0f19',
-            color: '#475569',
-            borderRight: '1px solid #1e293b'
-          },
-          '.cm-tooltip.cm-tooltip-autocomplete': {
-            backgroundColor: '#0f172a',
-            border: '1px solid #334155',
-            borderRadius: '8px',
-            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
-            padding: '4px'
-          },
-          '.cm-tooltip-autocomplete ul': {
-            maxHeight: '220px',
-            fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace'
-          },
-          '.cm-tooltip-autocomplete ul li': {
-            padding: '4px 8px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            color: '#cbd5e1'
-          },
-          '.cm-tooltip-autocomplete ul li[aria-selected]': {
-            backgroundColor: '#1d4ed8',
-            color: '#ffffff'
-          },
-          '.cm-completionLabel': {
-            fontWeight: '600'
-          },
-          '.cm-completionDetail': {
-            marginLeft: '8px',
-            fontStyle: 'normal',
-            color: '#94a3b8',
-            fontSize: '11px'
-          },
-          '.cm-tooltip-autocomplete ul li[aria-selected] .cm-completionDetail': {
-            color: '#bfdbfe'
-          }
-        })
       ]
     });
 
@@ -217,6 +295,13 @@
         effects: languageCompartment.reconfigure(getLanguageExtension(activeTab.file_extension))
       });
     }
+  });
+
+  $effect(() => {
+    // Rekonfigurasi tema editor saat mode gelap/terang berganti.
+    const dark = themeStore.isDarkEffective();
+    if (!view) return;
+    view.dispatch({ effects: themeCompartment.reconfigure(editorThemeExtensions(dark)) });
   });
 
   onMount(() => {

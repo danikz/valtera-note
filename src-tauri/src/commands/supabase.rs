@@ -123,7 +123,7 @@ pub async fn auto_create_supabase_table(
         for all
         to authenticated
         using (auth.uid() = user_id or user_id is null)
-        with check (auth.uid() = user_id);
+        with check (auth.uid() = user_id or user_id is null);
     ";
 
     client.execute_sql_management(&project_ref, &token, sql).await

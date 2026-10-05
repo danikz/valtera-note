@@ -22,9 +22,10 @@
     Eye, 
     EyeOff, 
     Code2, 
-    ChevronDown, 
-    ChevronUp, 
-    BookOpen 
+    ChevronDown,
+    ChevronUp,
+    BookOpen,
+    User
   } from 'lucide-svelte';
 
   let { isOpen, onClose }: { isOpen: boolean; onClose: () => void } = $props();
@@ -43,9 +44,10 @@
   let copiedSql = $state(false);
   let statusMessage = $state<{ text: string; type: 'success' | 'error' } | null>(null);
 
-  const SQL_MIGRATION = `-- 1. Create notes table
+  const SQL_MIGRATION = `-- 1. Create notes table (with user_id for per-user Row Level Security)
 create table if not exists public.notes (
     id uuid default gen_random_uuid() primary key,
+    user_id uuid default auth.uid(),
     title text not null default 'Untitled',
     content text not null default '',
     file_extension text not null default 'md',
@@ -56,24 +58,32 @@ create table if not exists public.notes (
     updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- 2. Add folder column if table was previously created without it
+-- 2. Migrate tables created by older app versions
 alter table public.notes add column if not exists folder text;
+alter table public.notes add column if not exists user_id uuid default auth.uid();
 
--- 3. Create indices
+-- 3. Index for sync queries
 create index if not exists idx_notes_updated_at on public.notes(updated_at desc);
 
--- 4. Enable RLS and allow full access for anon and authenticated API keys
+-- 4. Lock the table to the logged-in owner only.
+--    The app must be logged in (Settings > Akun Supabase) to sync after this.
+--    Rows with user_id NULL are legacy rows; the owner can still update them
+--    so the app can keep syncing notes created before login existed.
 alter table public.notes enable row level security;
+
+revoke all on public.notes from anon;
 
 drop policy if exists "Allow API access" on public.notes;
 drop policy if exists "Allow all for anon and authenticated" on public.notes;
+drop policy if exists "Enable read access for all users" on public.notes;
+drop policy if exists "Owner full access" on public.notes;
 
-create policy "Allow all for anon and authenticated" 
-on public.notes 
-for all 
-to anon, authenticated 
-using (true) 
-with check (true);`;
+create policy "Owner full access"
+on public.notes
+for all
+to authenticated
+using (auth.uid() = user_id or user_id is null)
+with check (auth.uid() = user_id or user_id is null);`;
 
   function getProjectRef(): string | null {
     try {
@@ -502,6 +512,7 @@ with check (true);`;
                   <li>Buka <a href={getProjectRef() ? `https://supabase.com/dashboard/project/${getProjectRef()}/sql/new` : 'https://supabase.com/dashboard'} target="_blank" class="text-emerald-400 underline hover:text-emerald-300">SQL Editor di Supabase</a>.</li>
                   <li>Klik tombol <strong>Copy Skrip SQL</strong> di bawah, paste ke SQL Editor, lalu klik <strong>Run</strong>.</li>
                   <li>Masukkan <strong>Project URL</strong> & <strong>API Key (anon)</strong> di formulir bawah, lalu klik <strong>Connect & Sync</strong>.</li>
+                  <li><strong>Daftar / Masuk</strong> akun di Pengaturan → Akun Supabase. Skrip di atas mengunci tabel hanya untuk user yang login — tanpa langkah ini sinkronisasi tidak bisa menulis data.</li>
                 </ol>
               </div>
 
@@ -610,6 +621,17 @@ with check (true);`;
           <p>• Setelah tersambung, <strong>setiap catatan yang Anda ketik akan otomatis tersinkronisasi ke cloud</strong> dalam 1.5 detik tanpa perlu klik sync manual.</p>
           <p>• Aplikasi juga otomatis menarik pembaruan cloud secara berkala di background setiap 30 detik.</p>
         </div>
+
+        {#if editorStore.supabaseConfig.is_configured && !editorStore.supabaseConfig.user_email}
+          <!-- Anon Mode Warning -->
+          <div class="p-3 bg-amber-950/30 border border-amber-900/40 rounded-lg text-[11px] leading-relaxed space-y-1">
+            <div class="flex items-center space-x-1.5 text-amber-300 font-semibold">
+              <User class="w-3.5 h-3.5" />
+              <span>Mode Anonim — Data Belum Terkunci ke Akun</span>
+            </div>
+            <p class="text-slate-400">Sinkronisasi tetap berjalan, tapi tanpa login siapa pun yang memegang API key bisa membaca tabel. Buka <strong class="text-slate-300">Pengaturan → Akun Supabase</strong> lalu <strong class="text-slate-300">Daftar / Masuk</strong> agar data terkunci ke akunmu (Row Level Security).</p>
+          </div>
+        {/if}
 
       </div>
 

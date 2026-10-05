@@ -262,6 +262,10 @@
             const line = update.state.doc.lineAt(pos);
             editorStore.updateCursor(line.number, pos - line.from + 1);
           }
+          if (update.selectionSet || update.docChanged) {
+            const sel = update.state.selection.main;
+            editorStore.updateSelection(sel.from, sel.to);
+          }
         }),
       ]
     });
@@ -280,12 +284,32 @@
     const docLength = view.state.doc.length;
     const currentDoc = view.state.doc.toString();
 
-    // If tab switched or external content updated
+    // If tab switched or external content updated — pakai minimal diff
+    // (prefix/suffix sama dipertahankan) agar posisi kursor tidak lompat
+    // ke awal dokumen setiap sinkronisasi eksternal (mis. sisip AI).
     if (tabKey !== currentLoadedTabId || currentDoc !== activeTab.content) {
+      const isSameTab = tabKey === currentLoadedTabId;
       currentLoadedTabId = tabKey;
-      view.dispatch({
-        changes: { from: 0, to: docLength, insert: activeTab.content }
-      });
+      const next = activeTab.content;
+      if (isSameTab) {
+        const minLen = Math.min(currentDoc.length, next.length);
+        let start = 0;
+        while (start < minLen && currentDoc[start] === next[start]) start++;
+        let endOld = currentDoc.length;
+        let endNew = next.length;
+        while (endOld > start && endNew > start && currentDoc[endOld - 1] === next[endNew - 1]) {
+          endOld--;
+          endNew--;
+        }
+        view.dispatch({
+          changes: { from: start, to: endOld, insert: next.slice(start, endNew) }
+        });
+      } else {
+        editorStore.updateSelection(0, 0);
+        view.dispatch({
+          changes: { from: 0, to: docLength, insert: next }
+        });
+      }
     }
 
     // Reconfigure language only if extension changed

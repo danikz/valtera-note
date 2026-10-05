@@ -41,6 +41,7 @@
     onOpenSnippetsModal, 
     onOpenCommandPalette,
     onOpenEmojiPicker,
+    onOpenAiModal,
     onOpenTool,
     onOpenAbout,
     onOpenSettings,
@@ -54,9 +55,10 @@
     onOpenSnippetsModal: () => void; 
     onOpenCommandPalette: () => void; 
     onOpenEmojiPicker?: () => void;
+    onOpenAiModal?: () => void;
     onOpenTool?: (tool: ToolType) => void;
     onOpenAbout?: () => void;
-    onOpenSettings?: (tab?: 'supabase' | 'appearance' | 'editor' | 'about') => void;
+    onOpenSettings?: (tab?: 'supabase' | 'appearance' | 'editor' | 'ai' | 'about') => void;
     onSwitchToNotes?: () => void;
     onToggleSidebar?: () => void;
     isSidebarOpen?: boolean;
@@ -320,6 +322,12 @@
               <span class="flex items-center space-x-2 whitespace-nowrap"><Search class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" /><span>Command Palette</span></span>
               <kbd class="text-[10px] text-slate-500 font-mono ml-4 flex-shrink-0">Ctrl+K</kbd>
             </button>
+            {#if onOpenAiModal}
+              <button onclick={() => { onOpenAiModal(); closeMenu(); }} class="w-full px-3 py-1.5 flex items-center justify-between hover:bg-slate-800 text-left cursor-pointer transition-colors whitespace-nowrap">
+                <span class="flex items-center space-x-2 whitespace-nowrap"><Sparkles class="w-3.5 h-3.5 text-violet-400 flex-shrink-0" /><span>AI Assistant</span></span>
+                <kbd class="text-[10px] text-slate-500 font-mono ml-4 flex-shrink-0">Ctrl+Shift+A</kbd>
+              </button>
+            {/if}
             <div class="my-1 border-t border-slate-800"></div>
             <button onclick={() => { editorStore.setSplitMode('editor-only'); closeMenu(); }} class="w-full px-3 py-1.5 flex items-center space-x-2 hover:bg-slate-800 text-left cursor-pointer transition-colors whitespace-nowrap">
               <span>Mode Editor Penuh</span>

@@ -274,6 +274,40 @@ export const ipc = {
     this.clearSupabaseSessionStorage();
   },
 
+  // ===== AI Assistant (BYO key: OpenAI-compatible / Anthropic) =====
+  async aiGetConfig(): Promise<{ kind: string; base_url: string; has_api_key: boolean; model: string }> {
+    if (isTauri) {
+      try {
+        return await invoke('ai_get_config');
+      } catch (err) {
+        console.warn('IPC aiGetConfig error:', err);
+      }
+    }
+    return { kind: 'openai', base_url: '', has_api_key: false, model: '' };
+  },
+
+  async aiSaveConfig(kind: string, baseUrl: string, apiKey: string | null, model: string): Promise<void> {
+    if (isTauri) {
+      await invoke('ai_save_config', { kind, base_url: baseUrl, api_key: apiKey, model });
+    }
+  },
+
+  async aiComplete(system: string, user: string, maxTokens?: number): Promise<string> {
+    if (isTauri) {
+      return await invoke<string>('ai_complete', {
+        request: { system, user, max_tokens: maxTokens }
+      });
+    }
+    throw new Error('AI Assistant hanya tersedia di aplikasi desktop.');
+  },
+
+  async aiTestConnection(): Promise<string> {
+    if (isTauri) {
+      return await invoke<string>('ai_test_connection');
+    }
+    throw new Error('AI Assistant hanya tersedia di aplikasi desktop.');
+  },
+
   async checkSupabaseTable(url: string, anonKey: string, accessToken?: string): Promise<boolean> {
     const cleanUrl = url.trim().replace(/\/+$/, '');
     const cleanKey = anonKey.trim();

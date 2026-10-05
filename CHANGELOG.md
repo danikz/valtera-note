@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.18] - 2026-10-05
+
+### ✨ Fitur Baru: AI Assistant (BYO API Key, Provider Bebas)
+- **Provider bebas**: dukungan native **Anthropic Claude** (Messages API) dan **semua endpoint OpenAI-compatible** — OpenAI, OpenRouter, Groq, hingga Ollama/LM Studio lokal (100% offline). Preset satu klik di Pengaturan → AI Assistant.
+- **Aksi AI di editor** (Ctrl+Shift+A atau menu Edit → AI Assistant): Ringkas, Perbaiki Tulisan, terjemahkan → English/Indonesia, Jelaskan, Commit Msg, dan prompt kustom. Bekerja pada teks terpilih (otomatis) atau seluruh catatan; hasil bisa disalin, mengganti seleksi, atau disisipkan di posisi kursor.
+- **API key tersimpan hanya di perangkat** (database lokal app); permintaan dikirim langsung dari backend Rust ke provider — tanpa server perantara, bebas masalah CORS.
+- **Peringatan privasi eksplisit**: konten yang dikirim ke AI keluar sebagai plaintext — enkripsi E2E melindungi penyimpanan lokal & cloud, bukan permintaan AI.
+- **Bonus**: sinkronisasi konten eksternal ke editor kini memakai minimal diff (prefix/suffix) sehingga kursor tidak lagi melompat ke awal dokumen saat teks disisipkan dari luar (mis. hasil AI).
+
+---
+
 ## [0.1.17] - 2026-10-05
 
 ### 🌕 Perbaikan Menyeluruh Mode Light

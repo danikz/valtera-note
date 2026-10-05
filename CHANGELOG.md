@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.11] - 2026-10-04
+
+### 🔐 Fitur Baru: Enkripsi End-to-End (Dua Arah: Lokal & Cloud)
+- **Master Password End-to-End**: Konten catatan dienkripsi dengan **XChaCha20-Poly1305** (kunci diturunkan dari master password via **Argon2id**, parameter OWASP) sebelum disimpan ke database lokal maupun disinkronkan ke Supabase Cloud. Hanya pemilik password yang bisa membaca isinya.
+- **Lock Screen & Setup Wizard**: Layar kunci muncul saat app dibuka (input password, peringatan "lupa password = data hilang permanen", opsi ingat device).
+- **Ingat di Device Ini**: Kunci disimpan aman di **Windows Credential Manager** (macOS Keychain / Linux Secret Service) — auto-unlock saat app dibuka ulang, tanpa menyimpan password.
+- **Migrasi Otomatis**: Seluruh catatan lama (lokal & cloud) dienkripsi otomatis sekali saat password pertama di-set — transaksional (gagal di tengah jalan = rollback penuh, tanpa data campuran).
+- **Ganti Master Password**: Semua catatan lokal & cloud dienkripsi ulang dengan kunci baru dalam satu transaksi.
+- **Tab Keamanan di Settings**: Status enkripsi, ganti password, "Kunci Sekarang", dan "Lupakan Password di Device Ini".
+- **Proteksi Fail-Closed**: Save & sync ditolak di sisi Rust saat app terkunci — catatan tidak pernah tersimpan plaintext tanpa sengaja; sinkronisasi berhenti dengan error yang terlihat jika ciphertext tidak bisa didekripsi (tidak pernah menimpa catatan lokal).
+
+### 🛠 Perbaikan
+- **Backend Keyring Platform**: Crate `keyring` v3 tanpa fitur default — backend `windows-native` / `apple-native` / `sync-secret-service` kini diaktifkan eksplisit (diverifikasi roundtrip nyata ke Windows Credential Manager), sehingga fitur "ingat device" benar-benar persisten.
+- CI Linux: tambah `libdbus-1-dev` untuk build backend Secret Service.
+
+---
+
 ## [0.1.10] - 2026-09-11
 
 ### 🔄 Pembaruan Otomatis & Konsistensi Tampilan Versi

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.16] - 2026-10-05
+
+### 🧭 Alur Setup Urut: Kredensial → Tabel → Akun
+- Kartu di Pengaturan → Supabase kini bernomor sesuai urutan setup yang benar: **1. Kredensial Project → 2. Status Skema Tabel → 3. Akun Supabase** (sebelumnya kartu Akun berada di atas Kredensial — kebalik).
+- SyncModal diurutkan ulang mengikuti alur yang sama: form kredensial di atas, lalu status tabel & panduan SQL di bawahnya.
+
+### 🎨 Polish UI
+- **Scrollbar lebih tebal & terlihat**: 6px → 11px dengan thumb lebih kontras dan hover lebih terang — scrollbar vertikal/horizontal di editor dan panel tidak lagi nyaris hitam dan susah dipegang.
+- **Hover tombol jendela diperhalus**: minimize/maximize memakai abu terang (bukan nyaris hitam), close tetap merah khas Windows dengan transisi lebih halus.
+
+---
+
 ## [0.1.15] - 2026-10-05
 
 ### ✨ Fitur: Format Waktu 24 Jam + Zona Waktu Bisa Diatur

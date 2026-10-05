@@ -226,6 +226,36 @@ impl SupabaseClient {
         Ok(auth_res)
     }
 
+    pub async fn refresh_token(&self, refresh_token: &str) -> Result<SupabaseAuthResponse, String> {
+        let url = format!("{}/auth/v1/token?grant_type=refresh_token", self.url);
+        let body = serde_json::json!({
+            "refresh_token": refresh_token.trim(),
+        });
+
+        let res = self.client.post(&url)
+            .header("apikey", &self.anon_key)
+            .header("Content-Type", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("Network request failed: {}", e))?;
+
+        let status = res.status();
+        let text = res.text().await.unwrap_or_default();
+
+        if !status.is_success() {
+            if let Ok(err_json) = serde_json::from_str::<SupabaseAuthResponse>(&text) {
+                if let Some(msg) = err_json.error_description.or(err_json.msg).or(err_json.message) {
+                    return Err(msg);
+                }
+            }
+            return Err(format!("Token refresh failed (HTTP {}): {}", status.as_u16(), text));
+        }
+
+        serde_json::from_str(&text)
+            .map_err(|e| format!("Failed to parse refresh response: {}", e))
+    }
+
     pub async fn fetch_notes(&self) -> Result<Vec<RemoteNote>, String> {
         let url = format!("{}/rest/v1/notes?select=*&is_deleted=eq.false&order=updated_at.desc", self.url);
         let mut req = self.client.get(&url).header("apikey", &self.anon_key);
@@ -361,19 +391,21 @@ impl SupabaseClient {
         let mut patch_req = self.client.patch(&patch_url)
             .header("apikey", &self.anon_key)
             .header("Content-Type", "application/json");
-        
+
         if let Some(token) = &self.access_token {
             patch_req = patch_req.header("Authorization", format!("Bearer {}", token));
         } else {
             patch_req = patch_req.header("Authorization", format!("Bearer {}", self.anon_key));
         }
 
-        let _ = patch_req.json(&serde_json::json!({
+        match patch_req.json(&serde_json::json!({
             "is_deleted": true,
             "updated_at": chrono_iso_now()
-        })).send().await;
-
-        Ok(())
+        })).send().await {
+            Ok(response) if response.status().is_success() => Ok(()),
+            Ok(response) => Err(format!("Delete note failed (HTTP {})", response.status().as_u16())),
+            Err(e) => Err(format!("Delete note failed: {}", e)),
+        }
     }
 }
 

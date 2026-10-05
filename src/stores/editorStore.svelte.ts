@@ -44,6 +44,7 @@ class EditorStore {
   });
   isSyncing = $state<boolean>(false);
   syncStatus = $state<'idle' | 'syncing' | 'synced' | 'error'>('idle');
+  syncPaused = $state<boolean>(false);
   lastSavedAt = $state<string>('');
   lastSyncedAt = $state<string>('');
   syncMessage = $state<string>('');
@@ -717,11 +718,18 @@ class EditorStore {
   async syncSingleTab(tab: TabState) {
     if (!this.supabaseConfig.is_configured) return;
 
-    // Jangan push saat app terkunci (plaintext tidak akan pernah ter-encrypt).
-    if ((await ipc.e2eStatus()) === 'locked') return;
-
+    // Set flag sebelum await pertama agar tidak bisa interleave dengan autoSyncAll.
+    this.isSyncing = true;
     try {
-      this.isSyncing = true;
+      // Jangan push saat app terkunci (plaintext tidak akan pernah ter-encrypt).
+      // Jangan diam-diam: tandai agar StatusBar menampilkan alasan penjedaannya.
+      if ((await ipc.e2eStatus()) === 'locked') {
+        this.syncPaused = true;
+        this.syncMessage = 'Sync dijeda: app terkunci';
+        return;
+      }
+      this.syncPaused = false;
+
       this.syncStatus = 'syncing';
       this.syncMessage = 'Syncing...';
 
@@ -761,10 +769,11 @@ class EditorStore {
         throw new Error('Supabase response did not return a valid note id');
       }
     } catch (e: any) {
+      const msg = typeof e === 'string' ? e : e?.message || String(e);
       console.warn('Auto-sync single tab error:', e);
       tab.sync_status = 'error';
       this.syncStatus = 'error';
-      this.syncMessage = 'Sync failed';
+      this.syncMessage = `Sync gagal: ${msg}`;
     } finally {
       this.isSyncing = false;
     }
@@ -776,13 +785,20 @@ class EditorStore {
   async autoSyncAll(silent = false) {
     if (!this.supabaseConfig.is_configured || this.isSyncing) return;
 
+    // Set flag sebelum await pertama agar sync berikutnya tidak ikut masuk.
+    this.isSyncing = true;
     try {
       // Jangan sync saat app terkunci: encrypt/decrypt akan gagal
       // dan konten di sisi lokal masih kosong (guard load_session).
+      // Tandai paused agar StatusBar menjelaskan kenapa sync tidak jalan.
       const e2eStatus = await ipc.e2eStatus();
-      if (e2eStatus === 'locked') return;
+      if (e2eStatus === 'locked') {
+        this.syncPaused = true;
+        this.syncMessage = 'Sync dijeda: app terkunci';
+        return;
+      }
+      this.syncPaused = false;
 
-      this.isSyncing = true;
       this.syncStatus = 'syncing';
       if (!silent) this.syncMessage = 'Syncing cloud notes...';
 
@@ -941,9 +957,10 @@ class EditorStore {
       }
       this.persistTabs();
     } catch (e: any) {
+      const msg = typeof e === 'string' ? e : e?.message || String(e);
       console.warn('Full sync error:', e);
       this.syncStatus = 'error';
-      this.syncMessage = 'Sync failed';
+      this.syncMessage = `Sync gagal: ${msg}`;
     } finally {
       this.isSyncing = false;
     }

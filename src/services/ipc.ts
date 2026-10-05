@@ -205,6 +205,22 @@ export const ipc = {
         anonKey: anonKey.trim(),
         anon_key: anonKey.trim()
       }).catch(err => console.warn('IPC auto-heal SQLite config error:', err));
+
+      // Pulihkan juga sesi auth (untuk auto-refresh token di sisi Rust)
+      if (accessToken && !nativeConfig?.access_token) {
+        invoke<void>('set_app_setting', { key: 'supabase_access_token', value: accessToken })
+          .catch(err => console.warn('IPC auto-heal access token error:', err));
+      }
+      const lsRefresh = localStorage.getItem('valtera_supabase_refresh_token');
+      const lsExpires = localStorage.getItem('valtera_supabase_token_expires_at');
+      if (lsRefresh) {
+        invoke<void>('set_app_setting', { key: 'supabase_refresh_token', value: lsRefresh })
+          .catch(err => console.warn('IPC auto-heal refresh token error:', err));
+      }
+      if (lsExpires) {
+        invoke<void>('set_app_setting', { key: 'supabase_token_expires_at', value: lsExpires })
+          .catch(err => console.warn('IPC auto-heal token expiry error:', err));
+      }
     }
 
     return {
@@ -301,6 +317,7 @@ export const ipc = {
     const sql = `
       create table if not exists public.notes (
           id uuid default gen_random_uuid() primary key,
+          user_id uuid default auth.uid(),
           title text not null default 'Untitled',
           content text not null default '',
           file_extension text not null default 'md',
@@ -311,11 +328,15 @@ export const ipc = {
           updated_at timestamp with time zone default timezone('utc'::text, now()) not null
       );
       alter table public.notes add column if not exists folder text;
+      alter table public.notes add column if not exists user_id uuid default auth.uid();
       create index if not exists idx_notes_updated_at on public.notes(updated_at desc);
       alter table public.notes enable row level security;
+      revoke all on public.notes from anon;
       drop policy if exists "Allow API access" on public.notes;
       drop policy if exists "Allow all for anon and authenticated" on public.notes;
-      create policy "Allow all for anon and authenticated" on public.notes for all to anon, authenticated using (true) with check (true);
+      drop policy if exists "Enable read access for all users" on public.notes;
+      drop policy if exists "Owner full access" on public.notes;
+      create policy "Owner full access" on public.notes for all to authenticated using (auth.uid() = user_id or user_id is null) with check (auth.uid() = user_id);
     `;
 
     const res = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
@@ -425,6 +446,11 @@ export const ipc = {
 
     if (data.access_token) {
       localStorage.setItem('valtera_supabase_access_token', data.access_token);
+      if (data.refresh_token) {
+        localStorage.setItem('valtera_supabase_refresh_token', data.refresh_token);
+      }
+      const expiresIn = typeof data.expires_in === 'number' ? data.expires_in : 3600;
+      localStorage.setItem('valtera_supabase_token_expires_at', String(Math.floor(Date.now() / 1000) + expiresIn));
       return 'Registration and login successful!';
     }
 
@@ -472,6 +498,11 @@ export const ipc = {
     localStorage.setItem('valtera_supabase_user_email', email.trim());
     if (data.access_token) {
       localStorage.setItem('valtera_supabase_access_token', data.access_token);
+      if (data.refresh_token) {
+        localStorage.setItem('valtera_supabase_refresh_token', data.refresh_token);
+      }
+      const expiresIn = typeof data.expires_in === 'number' ? data.expires_in : 3600;
+      localStorage.setItem('valtera_supabase_token_expires_at', String(Math.floor(Date.now() / 1000) + expiresIn));
     }
 
     return 'Login successful';
@@ -514,11 +545,16 @@ export const ipc = {
           'Authorization': `Bearer ${accessToken || cleanKey}`
         }
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        // Jangan ditelan: pull yang gagal (mis. 401 JWT expired / 403 RLS)
+        // harus terlihat, bukan terlihat seperti "cloud kosong".
+        throw new Error(`HTTP ${res.status}: ${errText}`);
+      }
       return await res.json();
     } catch (e) {
       console.warn('fetchRemoteNotes failed:', e);
-      return [];
+      throw e;
     }
   },
 
@@ -628,7 +664,7 @@ export const ipc = {
         }
       });
       if (!res.ok) {
-        await fetch(`${cleanUrl}/rest/v1/notes?id=eq.${id}`, {
+        const patchRes = await fetch(`${cleanUrl}/rest/v1/notes?id=eq.${id}`, {
           method: 'PATCH',
           headers: {
             'apikey': cleanKey,
@@ -637,9 +673,13 @@ export const ipc = {
           },
           body: JSON.stringify({ is_deleted: true, updated_at: new Date().toISOString() })
         });
+        if (!patchRes.ok) {
+          throw new Error(`Delete gagal (HTTP ${res.status}, soft-delete HTTP ${patchRes.status})`);
+        }
       }
     } catch (e) {
       console.warn('deleteRemoteNote failed:', e);
+      throw e;
     }
   },
 

@@ -257,7 +257,9 @@ impl SupabaseClient {
     }
 
     pub async fn fetch_notes(&self) -> Result<Vec<RemoteNote>, String> {
-        let url = format!("{}/rest/v1/notes?select=*&is_deleted=eq.false&order=updated_at.desc", self.url);
+        // Tanpa filter is_deleted: frontend perlu melihat tombstone remote agar
+        // note yang sudah dihapus tidak di-push ulang oleh heal logic.
+        let url = format!("{}/rest/v1/notes?select=*&order=updated_at.desc", self.url);
         let mut req = self.client.get(&url).header("apikey", &self.anon_key);
         if let Some(token) = &self.access_token {
             req = req.header("Authorization", format!("Bearer {}", token));

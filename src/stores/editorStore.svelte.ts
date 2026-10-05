@@ -887,13 +887,27 @@ class EditorStore {
       let pushSuccessCount = 0;
       let pushFailCount = 0;
 
+      // ID yang benar-benar ada di cloud. Note lama bisa membawa supabase_id
+      // lokal dari era sync rusak (di-assign tapi push-nya gagal); tanpa cek ini
+      // note tersebut dilewati selamanya karena "sudah punya id".
+      const remoteIds = new Set<string>(
+        Array.isArray(remoteNotes)
+          ? remoteNotes.map(r => r.id).filter((id): id is string => Boolean(id))
+          : []
+      );
+
       for (const tab of this.tabs) {
         // Skip empty unsaved untitled scratchpad (no file path, no folder, no custom name, no content)
         if (!tab.supabase_id && !tab.file_path && !tab.folder && !tab.is_custom_named && (!tab.content || !tab.content.trim())) {
           continue;
         }
 
-        if (!tab.supabase_id || tab.is_dirty) {
+        const missingRemotely =
+          !!tab.supabase_id &&
+          !remoteIds.has(tab.supabase_id) &&
+          !this.deletedNoteIds.includes(tab.supabase_id);
+
+        if (!tab.supabase_id || tab.is_dirty || missingRemotely) {
           if (!tab.supabase_id && typeof crypto !== 'undefined' && crypto.randomUUID) {
             tab.supabase_id = crypto.randomUUID();
           }

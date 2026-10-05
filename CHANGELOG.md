@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.13] - 2026-10-05
+
+### 🐛 Perbaikan: Note Tidak Pernah Ter-Push ke Cloud
+- **Note yang "hilang" dari cloud kini pulih otomatis**: catatan lama yang membawa `supabase_id` lokal dari era sync rusak (ID pernah di-assign tapi push-nya gagal) dilewati selamanya oleh auto-sync karena dianggap sudah ada di cloud — Supabase terlihat tidak pernah berubah. `autoSyncAll` kini membandingkan ID lokal dengan ID yang benar-benar ada di cloud (hasil pull) lalu men-push yang belum ada; pulih dalam satu siklus sync (≤30 detik) dan kasus serupa tidak terulang.
+- `fetch_notes` tidak lagi memfilter `is_deleted=eq.false`: heal logic perlu melihat tombstone remote agar note yang sudah dihapus di cloud tidak dihidupkan kembali. Jalur pull tetap aman karena sudah memiliki guard `remote.is_deleted` sendiri.
+
+### 🔒 Keamanan: SQL Migration Disamakan dengan Auto-Create (RLS Ketat)
+- Skrip "Copy SQL Script" di SyncModal masih membuat policy permisif `Allow all for anon and authenticated` — kontradiksi dengan changelog 0.1.12; pengguna yang menjalankannya mendapat tabel terbuka untuk anon. Skrip kini identik dengan auto-create 1-klik: `revoke all from anon` + policy `Owner full access` untuk `authenticated`.
+- Policy kini `using/with check (auth.uid() = user_id or user_id is null)`: note yang dibuat sebelum era login (user_id NULL) tetap bisa di-update pemiliknya setelah login; baris baru selalu terisi `auth.uid()` via default kolom.
+- Panduan setup mencantumkan langkah 4 (Daftar/Masuk akun), dan SyncModal menampilkan peringatan "Mode Anonim — Data Belum Terkunci ke Akun" saat aplikasi tersambung tanpa sesi login.
+
+---
+
 ## [0.1.12] - 2026-10-05
 
 ### 🐛 Perbaikan Kritis: Sinkronisasi Cloud Tidak Jalan

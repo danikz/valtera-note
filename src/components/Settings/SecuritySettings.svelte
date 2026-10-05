@@ -7,6 +7,7 @@
   let oldPassword = $state('');
   let newPassword = $state('');
   let confirmPassword = $state('');
+  let rememberDevice = $state(true);
   let isWorking = $state(false);
   let message = $state<{ text: string; type: 'success' | 'error' } | null>(null);
 
@@ -28,7 +29,7 @@
     }
     isWorking = true;
     try {
-      await ipc.changeMasterPassword(oldPassword, newPassword, true);
+      await ipc.changeMasterPassword(oldPassword, newPassword, rememberDevice);
       message = { text: 'Password berhasil diganti. Semua data dienkripsi ulang.', type: 'success' };
       oldPassword = newPassword = confirmPassword = '';
     } catch (e: any) {
@@ -46,6 +47,12 @@
   async function handleForgetDevice() {
     await ipc.forgetDevice();
     await ipc.lockApp();
+    window.location.reload();
+  }
+
+  async function handleEnable() {
+    // Hapus flag decline lalu reload — App.svelte akan menampilkan layar setup.
+    await ipc.setAppSetting('e2e_declined', '0');
     window.location.reload();
   }
 </script>
@@ -66,10 +73,24 @@
       </div>
       <div>
         <h3 class="text-sm font-semibold text-slate-100">Enkripsi Belum Aktif</h3>
-        <p class="text-xs text-slate-400">Aktifkan via layar setup saat app dibuka.</p>
+        <p class="text-xs text-slate-400">Catatan masih disimpan dalam bentuk terbaca.</p>
       </div>
     {/if}
   </div>
+
+  {#if status !== 'ready'}
+    <div class="space-y-3 rounded-xl border border-slate-700/60 bg-slate-800/40 p-4">
+      <button
+        onclick={handleEnable}
+        class="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-500"
+      >
+        <ShieldCheck class="h-4 w-4" /> Aktifkan Enkripsi
+      </button>
+      <p class="text-[11px] text-slate-500">
+        Layar setup enkripsi akan muncul. Lupa master password = data tidak bisa dipulihkan.
+      </p>
+    </div>
+  {/if}
 
   {#if status === 'ready'}
     <div class="space-y-3 rounded-xl border border-slate-700/60 bg-slate-800/40 p-4">
@@ -95,6 +116,12 @@
           placeholder="Ulangi password baru"
           class="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-blue-500 focus:outline-none"
         />
+
+        <label class="flex cursor-pointer items-center gap-2 text-xs text-slate-300">
+          <input type="checkbox" bind:checked={rememberDevice} class="accent-blue-600" />
+          Ingat password baru di device ini (Windows Credential Manager)
+        </label>
+
         {#if message}
           <p class="text-xs {message.type === 'success' ? 'text-emerald-400' : 'text-red-400'}">
             {message.text}

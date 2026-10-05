@@ -11,6 +11,17 @@ pub async fn save_tabs_state(
     db: State<'_, Arc<DatabaseManager>>,
     keys: State<'_, KeyManager>,
 ) -> Result<(), String> {
+    // Fail-closed di Rust: jika master password aktif tapi app terkunci, tolak tulisan.
+    // Tanpa ini, save saat terkunci menghapus semua baris tabs_state
+    // (save_session_tabs delete-all-then-insert) lalu menulis data kosong.
+    let db_guard = Arc::clone(&db);
+    let has_e2e = tokio::task::spawn_blocking(move || db_guard.has_setting(crypto::SETTING_SALT))
+        .await
+        .map_err(|e| e.to_string())?;
+    if has_e2e && !keys.is_unlocked() {
+        return Err("App terkunci - tidak bisa menyimpan catatan".to_string());
+    }
+
     let mut tabs = tabs;
 
     // Enkripsi konten sebelum tulis ke DB (jika unlocked)

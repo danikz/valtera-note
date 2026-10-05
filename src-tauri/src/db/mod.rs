@@ -203,6 +203,21 @@ impl DatabaseManager {
         Ok(())
     }
 
+    /// Cek keberadaan setting (fail-closed: DB error dianggap ada, agar guard
+    /// keamanan tidak membuka akses saat DB bermasalah).
+    pub fn has_setting(&self, key: &str) -> bool {
+        match self.conn.lock() {
+            Ok(conn) => {
+                let mut stmt = match conn.prepare("SELECT 1 FROM app_settings WHERE key = ?1") {
+                    Ok(s) => s,
+                    Err(_) => return true,
+                };
+                stmt.exists(params![key]).unwrap_or(true)
+            }
+            Err(_) => true,
+        }
+    }
+
     pub fn save_session_tabs(&self, tabs: &[TabStateDto]) -> Result<(), String> {
         let mut conn = self.conn.lock().map_err(|e| e.to_string())?;
         let tx = conn.transaction().map_err(|e| e.to_string())?;
@@ -311,17 +326,24 @@ impl DatabaseManager {
         Ok(list)
     }
 
-    /// Enkripsi semua content plaintext (tanpa prefix enc:v1:) di tabs_state & snippets.
+    /// Enkripsi semua content plaintext (tanpa prefix enc:v1:) di tabs_state & snippets,
+    /// lalu tulis salt + verifier — SEMUA dalam satu transaksi (rollback penuh saat gagal).
     /// Idempoten: baris yang sudah terenkripsi dilewati. Dipakai saat set_master_password.
-    pub fn migrate_content<F>(&self, encrypt: F) -> Result<(usize, usize), String>
+    pub fn migrate_content<F>(
+        &self,
+        encrypt: F,
+        salt_b64: &str,
+        verifier: &str,
+    ) -> Result<(usize, usize), String>
     where
         F: Fn(&str) -> Result<String, String>,
     {
-        let conn = self.conn.lock().map_err(|e| e.to_string())?;
+        let mut conn = self.conn.lock().map_err(|e| e.to_string())?;
+        let tx = conn.transaction().map_err(|e| e.to_string())?;
         let mut tabs_done = 0usize;
 
         {
-            let mut stmt = conn
+            let mut stmt = tx
                 .prepare(
                     "SELECT id, content FROM tabs_state
                      WHERE content IS NOT NULL AND content NOT LIKE 'enc:v1:%'",
@@ -335,7 +357,7 @@ impl DatabaseManager {
             drop(stmt);
             for (id, content) in rows {
                 let enc = encrypt(&content)?;
-                conn.execute(
+                tx.execute(
                     "UPDATE tabs_state SET content = ?1 WHERE id = ?2",
                     params![enc, id],
                 )
@@ -346,7 +368,7 @@ impl DatabaseManager {
 
         let mut snippets_done = 0usize;
         {
-            let mut stmt = conn
+            let mut stmt = tx
                 .prepare(
                     "SELECT id, content FROM snippets
                      WHERE content IS NOT NULL AND content NOT LIKE 'enc:v1:%' AND is_deleted = 0",
@@ -360,7 +382,7 @@ impl DatabaseManager {
             drop(stmt);
             for (id, content) in rows {
                 let enc = encrypt(&content)?;
-                conn.execute(
+                tx.execute(
                     "UPDATE snippets SET content = ?1 WHERE id = ?2",
                     params![enc, id],
                 )
@@ -369,21 +391,33 @@ impl DatabaseManager {
             }
         }
 
+        Self::tx_set_setting(&tx, crate::crypto::SETTING_SALT, salt_b64)?;
+        Self::tx_set_setting(&tx, crate::crypto::SETTING_VERIFIER, verifier)?;
+
+        tx.commit().map_err(|e| e.to_string())?;
         Ok((tabs_done, snippets_done))
     }
 
-    /// Decrypt dengan kunci lama lalu re-encrypt dengan kunci baru (semua baris terenkripsi).
+    /// Decrypt dengan kunci lama lalu re-encrypt dengan kunci baru (semua baris terenkripsi),
+    /// lalu tulis salt + verifier baru — SEMUA dalam satu transaksi (rollback penuh saat gagal).
     /// Dipakai saat change_password.
-    pub fn reencrypt_all<D, E>(&self, decrypt: D, encrypt: E) -> Result<(usize, usize), String>
+    pub fn reencrypt_all<D, E>(
+        &self,
+        decrypt: D,
+        encrypt: E,
+        salt_b64: &str,
+        verifier: &str,
+    ) -> Result<(usize, usize), String>
     where
         D: Fn(&str) -> Result<String, String>,
         E: Fn(&str) -> Result<String, String>,
     {
-        let conn = self.conn.lock().map_err(|e| e.to_string())?;
+        let mut conn = self.conn.lock().map_err(|e| e.to_string())?;
+        let tx = conn.transaction().map_err(|e| e.to_string())?;
         let mut tabs_done = 0usize;
 
         {
-            let mut stmt = conn
+            let mut stmt = tx
                 .prepare(
                     "SELECT id, content FROM tabs_state
                      WHERE content IS NOT NULL AND content LIKE 'enc:v1:%'",
@@ -398,7 +432,7 @@ impl DatabaseManager {
             for (id, content) in rows {
                 let plain = decrypt(&content)?;
                 let enc = encrypt(&plain)?;
-                conn.execute(
+                tx.execute(
                     "UPDATE tabs_state SET content = ?1 WHERE id = ?2",
                     params![enc, id],
                 )
@@ -409,7 +443,7 @@ impl DatabaseManager {
 
         let mut snippets_done = 0usize;
         {
-            let mut stmt = conn
+            let mut stmt = tx
                 .prepare(
                     "SELECT id, content FROM snippets
                      WHERE content IS NOT NULL AND content LIKE 'enc:v1:%' AND is_deleted = 0",
@@ -424,7 +458,7 @@ impl DatabaseManager {
             for (id, content) in rows {
                 let plain = decrypt(&content)?;
                 let enc = encrypt(&plain)?;
-                conn.execute(
+                tx.execute(
                     "UPDATE snippets SET content = ?1 WHERE id = ?2",
                     params![enc, id],
                 )
@@ -433,7 +467,27 @@ impl DatabaseManager {
             }
         }
 
+        Self::tx_set_setting(&tx, crate::crypto::SETTING_SALT, salt_b64)?;
+        Self::tx_set_setting(&tx, crate::crypto::SETTING_VERIFIER, verifier)?;
+
+        tx.commit().map_err(|e| e.to_string())?;
         Ok((tabs_done, snippets_done))
+    }
+
+    /// Tulis setting di dalam transaksi yang sedang berjalan.
+    fn tx_set_setting(
+        tx: &rusqlite::Transaction,
+        key: &str,
+        value: &str,
+    ) -> Result<(), String> {
+        tx.execute(
+            "INSERT INTO app_settings (key, value, updated_at)
+             VALUES (?1, ?2, CURRENT_TIMESTAMP)
+             ON CONFLICT(key) DO UPDATE SET value = ?2, updated_at = CURRENT_TIMESTAMP",
+            params![key, value],
+        )
+        .map_err(|e| e.to_string())?;
+        Ok(())
     }
 }
 
@@ -463,6 +517,10 @@ mod tests {
             let conn = self.conn.lock().unwrap();
             conn.query_row("SELECT content FROM snippets WHERE id = ?1", params![id], |r| r.get(0)).unwrap()
         }
+
+        fn get_raw_setting(&self, key: &str) -> Option<String> {
+            self.get_setting(key).unwrap()
+        }
     }
 
     fn fake_encrypt(s: &str) -> Result<String, String> {
@@ -471,8 +529,7 @@ mod tests {
 
     fn fake_decrypt(s: &str) -> Result<String, String> {
         let inner = s.strip_prefix("enc:v1:FAKE(").ok_or("bad")?;
-        let inner = inner.strip_suffix(')').ok_or("bad")?;
-        Ok(inner.to_string())
+        Ok(inner.strip_suffix(')').ok_or("bad")?.to_string())
     }
 
     fn tab_dto(title: &str, content: &str, is_active: bool) -> TabStateDto {
@@ -504,24 +561,55 @@ mod tests {
         .unwrap();
         let sid = db.insert_snippet("snippet rahasia", 0);
 
-        let (tabs, snippets) = db.migrate_content(fake_encrypt).unwrap();
+        let (tabs, snippets) = db
+            .migrate_content(fake_encrypt, "salt-b64", "verifier-ct")
+            .unwrap();
         assert_eq!((tabs, snippets), (1, 1));
 
         let contents = db.get_tab_contents();
         assert_eq!(contents[0], "enc:v1:FAKE(rahasia satu)");
         assert_eq!(contents[1], "enc:v1:SUDAH"); // tidak double-encrypt
 
+        assert_eq!(db.get_raw_setting("e2e_salt"), Some("salt-b64".to_string()));
+        assert_eq!(db.get_raw_setting("e2e_verifier"), Some("verifier-ct".to_string()));
+
         // idempoten: run kedua 0 baris
-        assert_eq!(db.migrate_content(fake_encrypt).unwrap(), (0, 0));
+        assert_eq!(
+            db.migrate_content(fake_encrypt, "salt-b64", "verifier-ct").unwrap(),
+            (0, 0)
+        );
 
         assert_eq!(db.get_snippet_content(sid), "enc:v1:FAKE(snippet rahasia)");
+    }
+
+    #[test]
+    fn migrate_rolls_back_on_encrypt_failure() {
+        let db = DatabaseManager::init_fallback();
+        db.save_session_tabs(&[tab_dto("a", "pertama", true), tab_dto("b", "kedua", false)])
+            .unwrap();
+
+        let fail_on_second = |s: &str| -> Result<String, String> {
+            if s == "kedua" {
+                Err("boom".to_string())
+            } else {
+                fake_encrypt(s)
+            }
+        };
+
+        assert!(db.migrate_content(fail_on_second, "salt-b64", "verifier-ct").is_err());
+
+        // Rollback: tidak ada baris yang berubah, tidak ada setting yang ditulis
+        let contents = db.get_tab_contents();
+        assert_eq!(contents, vec!["pertama".to_string(), "kedua".to_string()]);
+        assert_eq!(db.get_raw_setting("e2e_salt"), None);
+        assert_eq!(db.get_raw_setting("e2e_verifier"), None);
     }
 
     #[test]
     fn reencrypt_all_rotates_ciphertext() {
         let db = DatabaseManager::init_fallback();
         db.save_session_tabs(&[tab_dto("a", "rahasia", true)]).unwrap();
-        db.migrate_content(fake_encrypt).unwrap();
+        db.migrate_content(fake_encrypt, "salt-old", "verifier-old").unwrap();
 
         let rot_enc = |s: &str| Ok(format!("enc:v1:ROT({})", s));
         let rot_dec = |s: &str| -> Result<String, String> {
@@ -529,16 +617,60 @@ mod tests {
             Ok(inner.strip_suffix(')').ok_or("bad")?.to_string())
         };
 
-        let (tabs, snippets) = db.reencrypt_all(rot_dec, rot_enc).unwrap();
+        let (tabs, snippets) = db
+            .reencrypt_all(rot_dec, rot_enc, "salt-new", "verifier-new")
+            .unwrap();
         assert_eq!((tabs, snippets), (1, 0));
         assert_eq!(db.get_tab_contents()[0], "enc:v1:ROT(rahasia)");
+        assert_eq!(db.get_raw_setting("e2e_salt"), Some("salt-new".to_string()));
+        assert_eq!(db.get_raw_setting("e2e_verifier"), Some("verifier-new".to_string()));
+    }
+
+    #[test]
+    fn reencrypt_rolls_back_on_encrypt_failure() {
+        let db = DatabaseManager::init_fallback();
+        db.save_session_tabs(&[tab_dto("a", "pertama", true), tab_dto("b", "kedua", false)])
+            .unwrap();
+        db.migrate_content(fake_encrypt, "salt-old", "verifier-old").unwrap();
+        let before = db.get_tab_contents();
+
+        let fail_on_second_enc = |s: &str| -> Result<String, String> {
+            if s == "kedua" {
+                Err("boom".to_string())
+            } else {
+                Ok(format!("enc:v1:ROT({})", s))
+            }
+        };
+        let rot_dec = |s: &str| -> Result<String, String> {
+            let inner = s.strip_prefix("enc:v1:FAKE(").ok_or("bad")?;
+            Ok(inner.strip_suffix(')').ok_or("bad")?.to_string())
+        };
+
+        assert!(db
+            .reencrypt_all(rot_dec, fail_on_second_enc, "salt-new", "verifier-new")
+            .is_err());
+
+        // Rollback: konten tetap kunci lama, salt/verifier lama tidak tertimpa
+        assert_eq!(db.get_tab_contents(), before);
+        assert_eq!(db.get_raw_setting("e2e_salt"), Some("salt-old".to_string()));
+        assert_eq!(db.get_raw_setting("e2e_verifier"), Some("verifier-old".to_string()));
     }
 
     #[test]
     fn migrate_skips_soft_deleted_snippets() {
         let db = DatabaseManager::init_fallback();
         db.insert_snippet("terhapus", 1);
-        let (tabs, snippets) = db.migrate_content(fake_encrypt).unwrap();
+        let (tabs, snippets) = db
+            .migrate_content(fake_encrypt, "salt-b64", "verifier-ct")
+            .unwrap();
         assert_eq!((tabs, snippets), (0, 0));
+    }
+
+    #[test]
+    fn has_setting_detects_presence_and_fails_closed() {
+        let db = DatabaseManager::init_fallback();
+        assert!(!db.has_setting("e2e_salt"));
+        db.set_setting("e2e_salt", "x").unwrap();
+        assert!(db.has_setting("e2e_salt"));
     }
 }

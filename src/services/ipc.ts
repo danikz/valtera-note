@@ -722,24 +722,18 @@ export const ipc = {
 
   async encryptContent(content: string): Promise<string> {
     if (isTauri) {
-      try {
-        return await invoke<string>('encrypt_content', { content });
-      } catch (err) {
-        console.warn('IPC encryptContent error:', err);
-        return content;
-      }
+      // Tidak ditelan: gagal enkripsi (mis. app terkunci) harus menghentikan
+      // alur sync agar plaintext/ciphertext lama tidak pernah ter-push.
+      return await invoke<string>('encrypt_content', { content });
     }
     return content;
   },
 
   async decryptContent(content: string): Promise<string> {
     if (isTauri) {
-      try {
-        return await invoke<string>('decrypt_content', { content });
-      } catch (err) {
-        console.warn('IPC decryptContent error:', err);
-        return content;
-      }
+      // Tidak ditelan: ciphertext yang gagal didekripsi TIDAK boleh diteruskan —
+      // error menghentikan sync sebelum merge menimpa konten lokal.
+      return await invoke<string>('decrypt_content', { content });
     }
     return content;
   },

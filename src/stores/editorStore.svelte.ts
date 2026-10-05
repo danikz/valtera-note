@@ -571,6 +571,31 @@ class EditorStore {
     }
   }
 
+  // Seleksi aktif di editor (posisi dokumen + teksnya) untuk aksi AI.
+  selectionRange = $state<{ from: number; to: number } | null>(null);
+  selectionText = $state<string>('');
+
+  updateSelection(from: number, to: number) {
+    const content = this.activeTab?.content || '';
+    const safeFrom = Math.max(0, Math.min(from, content.length));
+    const safeTo = Math.max(safeFrom, Math.min(to, content.length));
+    this.selectionRange = { from: safeFrom, to: safeTo };
+    this.selectionText = content.slice(safeFrom, safeTo);
+  }
+
+  // Terapkan teks hasil AI: ganti seleksi aktif, atau sisip di posisi kursor
+  // bila seleksi kosong.
+  applyAiText(text: string) {
+    const tab = this.activeTab;
+    if (!tab) return;
+    const content = tab.content || '';
+    const range = this.selectionRange;
+    const from = range ? Math.max(0, Math.min(range.from, content.length)) : content.length;
+    const to = range ? Math.max(from, Math.min(range.to, content.length)) : content.length;
+    const next = content.slice(0, from) + text + content.slice(to);
+    this.updateContent(next);
+  }
+
   setSplitMode(mode: SplitMode) {
     const tab = this.activeTab;
     if (tab) {

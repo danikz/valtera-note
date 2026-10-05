@@ -29,6 +29,7 @@
   import UpdateModal from './components/Update/UpdateModal.svelte';
   import AboutModal from './components/About/AboutModal.svelte';
   import EmojiPickerModal from './components/Emoji/EmojiPickerModal.svelte';
+  import AiModal from './components/Ai/AiModal.svelte';
   import ToolsWorkspace, { type ToolType } from './components/Tools/ToolsWorkspace.svelte';
   import SettingsWorkspace, { type SettingsTab } from './components/Settings/SettingsWorkspace.svelte';
   import LockScreen from './components/Auth/LockScreen.svelte';
@@ -41,6 +42,7 @@
   let isSnippetsOpen = $state(false);
   let isCommandPaletteOpen = $state(false);
   let isEmojiPickerOpen = $state(false);
+  let isAiModalOpen = $state(false);
   let isAboutModalOpen = $state(false);
   let currentView = $state<'notes' | 'tools' | 'settings'>('notes');
   let activeTool = $state<ToolType>('json');
@@ -138,6 +140,11 @@
     else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'e') {
       e.preventDefault();
       isEmojiPickerOpen = !isEmojiPickerOpen;
+    }
+    // Ctrl+Shift+A -> AI Assistant
+    else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'a') {
+      e.preventDefault();
+      isAiModalOpen = !isAiModalOpen;
     }
     // Ctrl+Shift+J -> Toggle JSON Formatter & Viewer Full Page
     else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'j') {
@@ -269,11 +276,12 @@
     />
   {/if}
   <!-- Frameless Custom Titlebar -->
-  <Titlebar 
+  <Titlebar
     onOpenSyncModal={() => handleOpenSettings('supabase')}
     onOpenSnippetsModal={() => (isSnippetsOpen = true)}
     onOpenCommandPalette={() => (isCommandPaletteOpen = true)}
     onOpenEmojiPicker={() => (isEmojiPickerOpen = true)}
+    onOpenAiModal={() => (isAiModalOpen = true)}
     onOpenTool={handleOpenTool}
     onOpenAbout={() => handleOpenSettings('about')}
     onOpenSettings={handleOpenSettings}
@@ -518,9 +526,16 @@
   />
 
   <!-- Emoji & Icon Picker Modal (Ctrl+Shift+E) -->
-  <EmojiPickerModal 
+  <EmojiPickerModal
     isOpen={isEmojiPickerOpen}
     onClose={() => (isEmojiPickerOpen = false)}
+  />
+
+  <!-- AI Assistant Modal (Ctrl+Shift+A) -->
+  <AiModal
+    isOpen={isAiModalOpen}
+    onClose={() => (isAiModalOpen = false)}
+    onOpenSettings={() => handleOpenSettings('ai')}
   />
 
   <!-- Mandatory / Automated Update Modal -->

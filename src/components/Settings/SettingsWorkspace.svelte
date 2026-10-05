@@ -1,12 +1,13 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { 
-    Cloud, 
-    Palette, 
-    Sliders, 
-    Info, 
-    ArrowLeft, 
-    Check, 
+  import {
+    Cloud,
+    Palette,
+    Sliders,
+    Info,
+    Bot,
+    ArrowLeft,
+    Check,
     Copy, 
     ExternalLink, 
     RefreshCw, 
@@ -41,6 +42,7 @@
   } from 'lucide-svelte';
   import { editorStore } from '../../stores/editorStore.svelte';
   import { copyText } from '../../utils/clipboard';
+  import AiSettings from './AiSettings.svelte';
   import {
     TIMEZONE_OPTIONS,
     SETTING_DISPLAY_TIMEZONE,
@@ -54,7 +56,7 @@
   import SecuritySettings from './SecuritySettings.svelte';
   import { APP_VERSION, APP_NAME, APP_DESCRIPTION, APP_COPYRIGHT } from '../../constants/app';
 
-  export type SettingsTab = 'supabase' | 'security' | 'appearance' | 'editor' | 'about';
+  export type SettingsTab = 'supabase' | 'security' | 'appearance' | 'editor' | 'ai' | 'about';
 
   let { 
     activeTab = 'supabase',
@@ -95,6 +97,17 @@
   let loginEmail = $state('');
   let loginPassword = $state('');
   let isAuthWorking = $state(false);
+  let cfgAiReady = $state(false);
+
+  // Indikator hijau di sidebar: AI sudah dikonfigurasi lengkap?
+  onMount(async () => {
+    try {
+      const c = await ipc.aiGetConfig();
+      cfgAiReady = c.has_api_key && !!c.base_url && !!c.model;
+    } catch {
+      // biarkan false
+    }
+  });
 
   const SQL_MIGRATION = `-- 1. Buat tabel notes di Supabase (user_id otomatis terisi dari sesi login)
 create table if not exists public.notes (
@@ -525,6 +538,20 @@ with check (auth.uid() = user_id);
           <span>Preferensi Editor</span>
         </div>
         <span class="text-[10px] font-mono text-slate-400">{themeStore.fontSize}px</span>
+      </button>
+
+      <!-- Item: AI Assistant -->
+      <button
+        onclick={() => setTab('ai')}
+        class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all cursor-pointer {currentTab === 'ai' ? 'bg-blue-600 text-white shadow-sm font-semibold' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'}"
+      >
+        <div class="flex items-center space-x-2.5">
+          <Bot class="w-4 h-4 {currentTab === 'ai' ? 'text-white' : 'text-violet-400'}" />
+          <span>AI Assistant</span>
+        </div>
+        {#if cfgAiReady}
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+        {/if}
       </button>
 
       <!-- Item: Tentang Aplikasi -->
@@ -1076,6 +1103,12 @@ with check (auth.uid() = user_id);
         <!-- ==================================================== -->
         <!-- TAB 4: ABOUT & UPDATES -->
         <!-- ==================================================== -->
+        <!-- ==================================================== -->
+        <!-- TAB 4: AI ASSISTANT -->
+        <!-- ==================================================== -->
+        {:else if currentTab === 'ai'}
+          <AiSettings />
+
         {:else if currentTab === 'about'}
           <div class="space-y-6">
             <div>

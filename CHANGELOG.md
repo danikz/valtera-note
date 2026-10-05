@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.15] - 2026-10-05
+
+### ✨ Fitur: Format Waktu 24 Jam + Zona Waktu Bisa Diatur
+- Waktu tersimpan & status sinkronisasi kini **selalu format 24 jam** dengan label zona eksplisit (contoh: `21.30.05 GMT+7`) — sebelumnya mengikuti locale sistem yang bisa tampil 12 jam AM/PM tanpa keterangan zona.
+- **Pengaturan → Tampilan & Tema → Zona Waktu Tampilan**: pilih zona (default Jakarta/WIB; tersedia WITA, WIT, UTC, Singapura, Tokyo, dll.). Tersimpan per-device di app settings dan berlaku langsung tanpa restart.
+
+### 🐛 Perbaikan: Tombol Copy "Bohong" di Semua Tools
+- **Clipboard kini benar-benar berisi data**: `navigator.clipboard` di WebView2 sering gagal diam-diam (window tidak fokus / gesture tidak dikenali), tapi toast "tersalin!" tetap muncul — JSON tool (copy path/value/CSV/Markdown), SQL script, SQLite, Base64, URL, UUID, MySQL password, Favicon, Emoji picker, dan Snippets semuanya terpengaruh.
+- **Plugin clipboard resmi Tauri** (`clipboard-manager`) ditambahkan sebagai jalur utama, dengan fallback `navigator.clipboard` → `execCommand`. Semua tombol copy kini memakai util bersama yang mengembalikan keberhasilan nyata: toast "tersalin" hanya muncul kalau data benar-benar masuk clipboard, selain itu muncul "Gagal menyalin".
+- Tombol "Paste" di JSON/Base64/URL tool kini juga membaca lewat plugin clipboard (readText) dengan pesan jelas kalau clipboard kosong.
+
+---
+
 ## [0.1.14] - 2026-10-05
 
 ### 🐛 Perbaikan: Ganti Project Supabase Membuat Sync Mati (401)

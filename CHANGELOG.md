@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.17] - 2026-10-05
+
+### 🌕 Perbaikan Menyeluruh Mode Light
+- **Nama aplikasi terlihat lagi**: badge "Valtera Note" di titlebar memakai teks biru muda (`text-blue-300`) yang jatuh di latar putih saat mode light — kini semua aksen teks terang (blue/emerald/amber/rose/sky/dll.) otomatis dipetakan ke versi gelapnya saat mode light.
+- **Editor kembali bisa dibaca di mode light**: sebelumnya tema light memaksa semua teks editor jadi satu warna gelap via `!important` (warna sintaks hilang) di atas tema gelap inline — hasilnya kacau. Kini tema editor dikontrol compartment yang mengikuti mode: light memakai skema terang + warna sintaks bawaan CodeMirror, dark tetap One Dark, dan peralihan mode langsung berlaku tanpa buka ulang tab.
+- **Cakupan override light diperluas**: varian background/border (slate-700, slate-800/90-30, border /30-/70, divide), state hover (bg-slate-700/800/900, border), teks putih yang menempel di permukaan terang (menu terbuka di titlebar), dan placeholder — menutup celah-celah yang membuat mode light tampak "tempang".
+
+---
+
 ## [0.1.16] - 2026-10-05
 
 ### 🧭 Alur Setup Urut: Kredensial → Tabel → Akun

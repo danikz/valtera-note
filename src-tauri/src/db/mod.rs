@@ -196,10 +196,17 @@ impl DatabaseManager {
     pub fn set_setting(&self, key: &str, value: &str) -> Result<(), String> {
         let conn = self.conn.lock().map_err(|e| e.to_string())?;
         conn.execute("
-            INSERT INTO app_settings (key, value, updated_at) 
+            INSERT INTO app_settings (key, value, updated_at)
             VALUES (?1, ?2, CURRENT_TIMESTAMP)
             ON CONFLICT(key) DO UPDATE SET value = ?2, updated_at = CURRENT_TIMESTAMP
         ", params![key, value]).map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
+    pub fn delete_setting(&self, key: &str) -> Result<(), String> {
+        let conn = self.conn.lock().map_err(|e| e.to_string())?;
+        conn.execute("DELETE FROM app_settings WHERE key = ?1", params![key])
+            .map_err(|e| e.to_string())?;
         Ok(())
     }
 

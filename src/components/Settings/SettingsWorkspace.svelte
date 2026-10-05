@@ -325,10 +325,7 @@ with check (auth.uid() = user_id);
   }
 
   async function handleSupabaseLogout() {
-    await ipc.setAppSetting('supabase_access_token', '');
-    await ipc.setAppSetting('supabase_refresh_token', '');
-    await ipc.setAppSetting('supabase_token_expires_at', '');
-    await ipc.setAppSetting('supabase_user_email', '');
+    await ipc.supabaseLogout();
     editorStore.setSupabaseConfig({ user_email: null, access_token: null });
     statusMessage = { text: 'Akun Supabase dikeluarkan dari device ini.', type: 'success' };
   }

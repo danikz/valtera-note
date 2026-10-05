@@ -94,6 +94,7 @@ pub fn run() {
             // Supabase operations
             commands::supabase::get_supabase_config,
             commands::supabase::save_supabase_config,
+            commands::supabase::supabase_logout,
             commands::supabase::test_supabase_connection,
             commands::supabase::check_supabase_table,
             commands::supabase::auto_create_supabase_table,

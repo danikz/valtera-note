@@ -247,8 +247,31 @@ export const ipc = {
         throw err;
       }
     }
+    // Ganti project: sesi (token/email) milik project lama tidak berlaku lagi.
+    const oldUrl = localStorage.getItem('valtera_supabase_url');
+    if (oldUrl && oldUrl !== cleanUrl) {
+      this.clearSupabaseSessionStorage();
+    }
     localStorage.setItem('valtera_supabase_url', cleanUrl);
     localStorage.setItem('valtera_supabase_anon_key', cleanKey);
+  },
+
+  clearSupabaseSessionStorage(): void {
+    localStorage.removeItem('valtera_supabase_user_email');
+    localStorage.removeItem('valtera_supabase_access_token');
+    localStorage.removeItem('valtera_supabase_refresh_token');
+    localStorage.removeItem('valtera_supabase_token_expires_at');
+  },
+
+  async supabaseLogout(): Promise<void> {
+    if (isTauri) {
+      try {
+        await invoke<void>('supabase_logout');
+      } catch (err) {
+        console.warn('IPC supabaseLogout error:', err);
+      }
+    }
+    this.clearSupabaseSessionStorage();
   },
 
   async checkSupabaseTable(url: string, anonKey: string, accessToken?: string): Promise<boolean> {

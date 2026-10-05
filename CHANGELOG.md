@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.12] - 2026-10-05
+
+### 🐛 Perbaikan Kritis: Sinkronisasi Cloud Tidak Jalan
+- **User yang menolak E2E kini bisa sync lagi**: `encrypt_content` gagal total untuk pengguna yang menekan "Lewati" di layar setup enkripsi (tidak ada kunci di memori), membuat SEMUA push ke Supabase gagal dengan "App terkunci - tidak bisa mengenkripsi". Kini plaintext passthrough sesuai pilihan user; sebelum memilih (setup awal) tetap fail-closed.
+- **Auto-refresh token Supabase**: `supabase_login`/`supabase_register` kini menyimpan `refresh_token` + waktu kedaluwarsa. Command sync (`fetch`/`upsert`/`delete`) me-refresh token proaktif 2 menit sebelum kadaluarsa dan retry sekali saat kena 401 — sync tidak lagi mati sejam setelah login.
+- **Sync saat app terkunci tidak lagi diam-diam**: StatusBar menampilkan "Sync Dijeda (Terkunci)" dan pesan alasan; error sync kini menampilkan penyebab aslinya di tooltip (bukan cuma "Sync failed").
+- **Error pull/delete tidak lagi ditelan**: fallback browser `fetchRemoteNotes` yang gagal kini melempar error (sebelumnya terlihat seperti "cloud kosong"); `delete_note` Rust mengembalikan error nyata bila hard-delete dan soft-delete sama-sama gagal.
+- **UI Login Supabase**: kartu "Akun Supabase" di Settings (Masuk/Daftar/Keluar) — sebelumnya command login/registrasi ada tapi tidak pernah bisa diakses user.
+
+### 🔒 Keamanan: Row Level Security Per-Pengguna
+- Skema auto-create & SQL migration kini menambah kolom `user_id uuid default auth.uid()` dan policy `to authenticated` (`auth.uid() = user_id`) — menggantikan policy lama `to anon, authenticated using (true)` yang membuka seluruh tabel ke siapa pun yang memegang anon key, tanpa pemisahan data antar user.
+- `revoke all ... from anon` + drop policy publik bawaan dashboard. Tabel lama tetap kompatibel: baris lama ber-`user_id` NULL tetap terlihat setelah login (panduan backfill tersedia di skrip SQL).
+
+---
+
 ## [0.1.11] - 2026-10-04
 
 ### 🔐 Fitur Baru: Enkripsi End-to-End (Dua Arah: Lokal & Cloud)

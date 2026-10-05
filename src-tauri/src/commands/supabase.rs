@@ -4,6 +4,10 @@ use crate::supabase::SupabaseClient;
 use crate::db::DatabaseManager;
 use crate::models::SupabaseConfigDto;
 
+const SETTING_ACCESS_TOKEN: &str = "supabase_access_token";
+const SETTING_REFRESH_TOKEN: &str = "supabase_refresh_token";
+const SETTING_TOKEN_EXPIRES_AT: &str = "supabase_token_expires_at";
+
 #[tauri::command]
 pub async fn get_supabase_config(
     db: State<'_, Arc<DatabaseManager>>,
@@ -13,7 +17,7 @@ pub async fn get_supabase_config(
         let url = db.get_setting("supabase_url")?.unwrap_or_default();
         let anon_key = db.get_setting("supabase_anon_key")?.unwrap_or_default();
         let user_email = db.get_setting("supabase_user_email")?;
-        let access_token = db.get_setting("supabase_access_token")?;
+        let access_token = db.get_setting(SETTING_ACCESS_TOKEN)?;
 
         let is_configured = !url.is_empty() && !anon_key.is_empty();
 
@@ -74,7 +78,7 @@ pub async fn auto_create_supabase_table(
     token: String,
 ) -> Result<String, String> {
     let client = SupabaseClient::new(url.clone(), anon_key);
-    
+
     // Extract project ref from URL (e.g. https://xyz.supabase.co -> xyz)
     let project_ref = if let Ok(parsed) = reqwest::Url::parse(&url) {
         parsed.host_str().unwrap_or("").split('.').next().unwrap_or("").to_string()
@@ -89,6 +93,7 @@ pub async fn auto_create_supabase_table(
     let sql = "
         create table if not exists public.notes (
             id uuid default gen_random_uuid() primary key,
+            user_id uuid default auth.uid(),
             title text not null default 'Untitled',
             content text not null default '',
             file_extension text not null default 'md',
@@ -100,23 +105,119 @@ pub async fn auto_create_supabase_table(
         );
 
         alter table public.notes add column if not exists folder text;
+        alter table public.notes add column if not exists user_id uuid default auth.uid();
 
         create index if not exists idx_notes_updated_at on public.notes(updated_at desc);
 
         alter table public.notes enable row level security;
-        
+
+        revoke all on public.notes from anon;
+
         drop policy if exists \"Allow API access\" on public.notes;
         drop policy if exists \"Allow all for anon and authenticated\" on public.notes;
+        drop policy if exists \"Enable read access for all users\" on public.notes;
+        drop policy if exists \"Owner full access\" on public.notes;
 
-        create policy \"Allow all for anon and authenticated\" 
-        on public.notes 
-        for all 
-        to anon, authenticated 
-        using (true) 
-        with check (true);
+        create policy \"Owner full access\"
+        on public.notes
+        for all
+        to authenticated
+        using (auth.uid() = user_id or user_id is null)
+        with check (auth.uid() = user_id);
     ";
 
     client.execute_sql_management(&project_ref, &token, sql).await
+}
+
+fn unix_now() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
+
+fn is_auth_error(err: &str) -> bool {
+    err.contains("HTTP 401") || err.contains("JWT expired") || err.contains("JWS signature")
+}
+
+/// Simpan sesi auth (access/refresh/expiry) ke settings DB.
+fn persist_auth_session(
+    db: &DatabaseManager,
+    access_token: &str,
+    refresh_token: Option<&str>,
+    expires_in: u64,
+) -> Result<(), String> {
+    db.set_setting(SETTING_ACCESS_TOKEN, access_token)?;
+    if let Some(r) = refresh_token {
+        let r = r.trim();
+        if !r.is_empty() {
+            db.set_setting(SETTING_REFRESH_TOKEN, r)?;
+        }
+    }
+    db.set_setting(
+        SETTING_TOKEN_EXPIRES_AT,
+        &(unix_now() + expires_in as i64).to_string(),
+    )?;
+    Ok(())
+}
+
+/// Perbarui access token memakai refresh_token tersimpan, lalu simpan sesi baru.
+pub async fn refresh_stored_token(db: &DatabaseManager) -> Result<String, String> {
+    let url = db.get_setting("supabase_url")?.unwrap_or_default();
+    let anon_key = db.get_setting("supabase_anon_key")?.unwrap_or_default();
+    let refresh = db.get_setting(SETTING_REFRESH_TOKEN)?.unwrap_or_default();
+    if url.is_empty() || anon_key.is_empty() || refresh.is_empty() {
+        return Err("Tidak ada sesi login Supabase tersimpan".to_string());
+    }
+
+    let client = SupabaseClient::new(url, anon_key);
+    let res = client.refresh_token(&refresh).await?;
+    let token = res
+        .access_token
+        .ok_or_else(|| "Refresh response tidak memuat access_token".to_string())?;
+    let expires_in = res.expires_in.unwrap_or(3600);
+    let new_refresh = res.refresh_token.unwrap_or(refresh);
+    persist_auth_session(db, &token, Some(&new_refresh), expires_in)?;
+    Ok(token)
+}
+
+/// Token efektif untuk request sync: token dari DB, di-refresh proaktif bila
+/// mendekati kadaluarsa. None bila user belum pernah login (fallback anon key).
+pub async fn effective_access_token(db: Arc<DatabaseManager>) -> Option<String> {
+    let db_read = Arc::clone(&db);
+    let (token, refresh, expires_at) = tokio::task::spawn_blocking(move || {
+        let token = db_read
+            .get_setting(SETTING_ACCESS_TOKEN)
+            .ok()
+            .flatten()
+            .filter(|s| !s.is_empty());
+        let refresh = db_read
+            .get_setting(SETTING_REFRESH_TOKEN)
+            .ok()
+            .flatten()
+            .filter(|s| !s.is_empty());
+        let expires_at = db_read
+            .get_setting(SETTING_TOKEN_EXPIRES_AT)
+            .ok()
+            .flatten()
+            .and_then(|s| s.parse::<i64>().ok());
+        (token, refresh, expires_at)
+    })
+    .await
+    .ok()?;
+
+    if refresh.is_none() {
+        return token;
+    }
+
+    // Tanpa expires_at (login versi lama) token dipakai apa adanya;
+    // retry 401 pada command sync yang menyelamatkan.
+    let needs_refresh = expires_at.map_or(false, |t| unix_now() >= t - 120);
+    if !needs_refresh {
+        return token;
+    }
+
+    refresh_stored_token(&db).await.ok().or(token)
 }
 
 #[tauri::command]
@@ -129,8 +230,10 @@ pub async fn supabase_register(
 ) -> Result<String, String> {
     let client = SupabaseClient::new(url.clone(), anon_key.clone());
     let res = client.register_email(&email, &password).await?;
-    
-    let token = res.access_token.unwrap_or_default();
+
+    let token = res.access_token.clone().unwrap_or_default();
+    let refresh_token = res.refresh_token.clone();
+    let expires_in = res.expires_in.unwrap_or(3600);
     let email_clone = email.clone();
     let db = Arc::clone(&db);
 
@@ -139,7 +242,7 @@ pub async fn supabase_register(
         db.set_setting("supabase_anon_key", &anon_key)?;
         db.set_setting("supabase_user_email", &email_clone)?;
         if !token.is_empty() {
-            db.set_setting("supabase_access_token", &token)?;
+            persist_auth_session(&db, &token, refresh_token.as_deref(), expires_in)?;
         }
         Ok::<(), String>(())
     })
@@ -159,8 +262,10 @@ pub async fn supabase_login(
 ) -> Result<String, String> {
     let client = SupabaseClient::new(url.clone(), anon_key.clone());
     let res = client.login_email(&email, &password).await?;
-    
+
     let token = res.access_token.ok_or_else(|| "No access token received".to_string())?;
+    let refresh_token = res.refresh_token;
+    let expires_in = res.expires_in.unwrap_or(3600);
     let email_clone = email.clone();
     let db = Arc::clone(&db);
 
@@ -168,7 +273,7 @@ pub async fn supabase_login(
         db.set_setting("supabase_url", &url)?;
         db.set_setting("supabase_anon_key", &anon_key)?;
         db.set_setting("supabase_user_email", &email_clone)?;
-        db.set_setting("supabase_access_token", &token)?;
+        persist_auth_session(&db, &token, refresh_token.as_deref(), expires_in)?;
         Ok::<(), String>(())
     })
     .await
@@ -182,12 +287,28 @@ pub async fn fetch_remote_notes(
     url: String,
     anon_key: String,
     access_token: Option<String>,
+    db: State<'_, Arc<DatabaseManager>>,
 ) -> Result<Vec<crate::supabase::RemoteNote>, String> {
     let mut client = SupabaseClient::new(url, anon_key);
-    if let Some(token) = access_token {
+    let token = effective_access_token(Arc::clone(&db))
+        .await
+        .or(access_token)
+        .filter(|s| !s.is_empty());
+    if let Some(token) = token {
         client.set_access_token(token);
     }
-    client.fetch_notes().await
+
+    match client.fetch_notes().await {
+        Ok(notes) => Ok(notes),
+        Err(e) if is_auth_error(&e) => match refresh_stored_token(&db).await {
+            Ok(token) => {
+                client.set_access_token(token);
+                client.fetch_notes().await
+            }
+            Err(_) => Err(e),
+        },
+        Err(e) => Err(e),
+    }
 }
 
 #[tauri::command]
@@ -196,12 +317,28 @@ pub async fn upsert_remote_note(
     anon_key: String,
     note: crate::supabase::RemoteNote,
     access_token: Option<String>,
+    db: State<'_, Arc<DatabaseManager>>,
 ) -> Result<crate::supabase::RemoteNote, String> {
     let mut client = SupabaseClient::new(url, anon_key);
-    if let Some(token) = access_token {
+    let token = effective_access_token(Arc::clone(&db))
+        .await
+        .or(access_token)
+        .filter(|s| !s.is_empty());
+    if let Some(token) = token {
         client.set_access_token(token);
     }
-    client.upsert_note(&note).await
+
+    match client.upsert_note(&note).await {
+        Ok(saved) => Ok(saved),
+        Err(e) if is_auth_error(&e) => match refresh_stored_token(&db).await {
+            Ok(token) => {
+                client.set_access_token(token);
+                client.upsert_note(&note).await
+            }
+            Err(_) => Err(e),
+        },
+        Err(e) => Err(e),
+    }
 }
 
 #[tauri::command]
@@ -210,10 +347,26 @@ pub async fn delete_remote_note(
     anon_key: String,
     id: String,
     access_token: Option<String>,
+    db: State<'_, Arc<DatabaseManager>>,
 ) -> Result<(), String> {
     let mut client = SupabaseClient::new(url, anon_key);
-    if let Some(token) = access_token {
+    let token = effective_access_token(Arc::clone(&db))
+        .await
+        .or(access_token)
+        .filter(|s| !s.is_empty());
+    if let Some(token) = token {
         client.set_access_token(token);
     }
-    client.delete_note(&id).await
+
+    match client.delete_note(&id).await {
+        Ok(()) => Ok(()),
+        Err(e) if is_auth_error(&e) => match refresh_stored_token(&db).await {
+            Ok(token) => {
+                client.set_access_token(token);
+                client.delete_note(&id).await
+            }
+            Err(_) => Err(e),
+        },
+        Err(e) => Err(e),
+    }
 }

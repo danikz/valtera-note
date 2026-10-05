@@ -2,7 +2,7 @@
   import { editorStore } from '../../stores/editorStore.svelte';
   import { updaterService } from '../../services/updater.svelte';
   import { APP_VERSION } from '../../constants/app';
-  import { Cloud, CheckCircle2, Check, Loader2, RefreshCw, AlertCircle, ArrowUpCircle, Sparkles } from 'lucide-svelte';
+  import { Cloud, CheckCircle2, Check, Loader2, RefreshCw, AlertCircle, ArrowUpCircle, Sparkles, Lock } from 'lucide-svelte';
 
   const languages = [
     { label: 'Plain Text', ext: 'txt' },
@@ -118,10 +118,13 @@
       {:else if editorStore.supabaseConfig.is_configured}
         {#if editorStore.syncStatus === 'error'}
           <AlertCircle class="w-3 h-3 text-amber-400" />
-          <span class="text-amber-300">Sync Offline</span>
+          <span class="text-amber-300" title={editorStore.syncMessage}>Sync Offline</span>
+        {:else if editorStore.syncPaused}
+          <Lock class="w-3 h-3 text-amber-400" />
+          <span class="text-amber-300" title={editorStore.syncMessage}>Sync Dijeda (Terkunci)</span>
         {:else}
           <CheckCircle2 class="w-3 h-3 text-emerald-400" />
-          <span class="text-emerald-400">
+          <span class="text-emerald-400" title={editorStore.syncMessage}>
             {editorStore.lastSyncedAt ? `Cloud Synced (${editorStore.lastSyncedAt})` : 'Cloud Connected'}
           </span>
         {/if}

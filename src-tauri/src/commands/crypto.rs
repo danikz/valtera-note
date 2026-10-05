@@ -223,7 +223,7 @@ pub async fn change_password(
     // 4. Rotasi ciphertext cloud (kunci lama -> baru). Gagal dikembalikan sebagai
     //    error agar user tahu cloud masih pakai kunci lama; catatan lokal sudah
     //    aman (transaksi lokal sudah commit sebelum langkah ini).
-    if let Err(e) = rotate_cloud_notes(&db, &old_key, &new_key).await {
+    if let Err(e) = rotate_cloud_notes(Arc::clone(&db), &old_key, &new_key).await {
         return Err(format!(
             "Password diganti secara lokal, TAPI re-enkripsi cloud gagal: {}. Catatan cloud masih terenkripsi dengan kunci lama.",
             e
@@ -236,7 +236,7 @@ pub async fn change_password(
 /// dengan kunci lama (mis. dienkripsi device lain dengan salt berbeda) dilewati
 /// dan dilaporkan lewat log.
 async fn rotate_cloud_notes(
-    db: &DatabaseManager,
+    db: Arc<DatabaseManager>,
     old_key: &Key,
     new_key: &Key,
 ) -> Result<(), String> {
@@ -245,13 +245,10 @@ async fn rotate_cloud_notes(
     if url.is_empty() || anon_key.is_empty() {
         return Ok(());
     }
-    let access_token = db.get_setting("supabase_access_token")?;
 
     let mut client = SupabaseClient::new(url, anon_key);
-    if let Some(token) = access_token {
-        if !token.is_empty() {
-            client.set_access_token(token);
-        }
+    if let Some(token) = crate::commands::supabase::effective_access_token(db).await {
+        client.set_access_token(token);
     }
 
     let notes = client
@@ -298,17 +295,47 @@ async fn rotate_cloud_notes(
 }
 
 /// Enkripsi konten untuk sync cloud. Plaintext passthrough jika sudah terenkripsi.
+///
+/// Mode: master password di-set -> wajib kunci dari KeyManager (error saat
+/// terkunci). User yang secara eksplisit menolak E2E (e2e_declined=1) ->
+/// passthrough plaintext sesuai pilihannya. Sebelum memilih (setup awal) ->
+/// fail-closed agar plaintext tidak bocor sebelum keputusan.
 #[tauri::command]
 pub async fn encrypt_content(
     content: String,
     keys: State<'_, KeyManager>,
+    db: State<'_, Arc<DatabaseManager>>,
 ) -> Result<String, String> {
     if crypto::is_encrypted(&content) {
         return Ok(content);
     }
-    keys.with_key(|k| crypto::encrypt(k, &content))
-        .ok_or_else(|| "App terkunci - tidak bisa mengenkripsi".to_string())
-        .and_then(|r| r)
+
+    let db_has_master = Arc::clone(&db);
+    let has_master = tokio::task::spawn_blocking(move || {
+        Ok::<_, String>(db_has_master.get_setting(SETTING_SALT)?.is_some())
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+
+    if has_master {
+        return keys
+            .with_key(|k| crypto::encrypt(k, &content))
+            .ok_or_else(|| "App terkunci - tidak bisa mengenkripsi".to_string())
+            .and_then(|r| r);
+    }
+
+    let db_declined = Arc::clone(&db);
+    let declined = tokio::task::spawn_blocking(move || {
+        Ok::<_, String>(db_declined.get_setting(SETTING_DECLINED)?.as_deref() == Some("1"))
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+
+    if declined {
+        return Ok(content);
+    }
+
+    Err("Enkripsi belum dikonfigurasi - selesaikan setup keamanan terlebih dahulu".to_string())
 }
 
 /// Decrypt konten dari cloud. Ciphertext passthrough jika belum terenkripsi.

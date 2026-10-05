@@ -33,7 +33,11 @@
     Trash2, 
     FolderGit2, 
     Code2,
-    BookOpen
+    BookOpen,
+    User,
+    UserPlus,
+    LogIn,
+    LogOut
   } from 'lucide-svelte';
   import { editorStore } from '../../stores/editorStore.svelte';
   import { themeStore, type ThemeMode, type ThemePreset } from '../../stores/themeStore.svelte';
@@ -80,10 +84,14 @@
   let tableStatus = $state<'ready' | 'missing' | 'unknown'>('unknown');
   let statusMessage = $state<{ text: string; type: 'success' | 'error' } | null>(null);
   let copiedSql = $state(false);
+  let loginEmail = $state('');
+  let loginPassword = $state('');
+  let isAuthWorking = $state(false);
 
-  const SQL_MIGRATION = `-- 1. Buat tabel notes di Supabase
+  const SQL_MIGRATION = `-- 1. Buat tabel notes di Supabase (user_id otomatis terisi dari sesi login)
 create table if not exists public.notes (
     id uuid default gen_random_uuid() primary key,
+    user_id uuid default auth.uid(),
     title text not null default 'Untitled',
     content text not null default '',
     file_extension text not null default 'md',
@@ -94,24 +102,32 @@ create table if not exists public.notes (
     updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- 2. Tambah kolom folder bila belum ada
+-- 2. Tambah kolom bila tabel sudah ada dari versi lama
 alter table public.notes add column if not exists folder text;
+alter table public.notes add column if not exists user_id uuid default auth.uid();
 
 -- 3. Buat indeks untuk kecepatan query
 create index if not exists idx_notes_updated_at on public.notes(updated_at desc);
 
--- 4. Aktifkan RLS dan izinkan akses API
+-- 4. Aktifkan RLS: hanya pemilik akun (authenticated) yang bisa akses datanya
 alter table public.notes enable row level security;
+
+revoke all on public.notes from anon;
 
 drop policy if exists "Allow API access" on public.notes;
 drop policy if exists "Allow all for anon and authenticated" on public.notes;
+drop policy if exists "Enable read access for all users" on public.notes;
+drop policy if exists "Owner full access" on public.notes;
 
-create policy "Allow all for anon and authenticated" 
-on public.notes 
-for all 
-to anon, authenticated 
-using (true) 
-with check (true);`;
+create policy "Owner full access"
+on public.notes
+for all
+to authenticated
+using (auth.uid() = user_id or user_id is null)
+with check (auth.uid() = user_id);
+
+-- Catatan: baris lama (user_id kosong) tetap terlihat setelah login.
+-- Isi pemiliknya dengan: update public.notes set user_id = '<uuid-akun-anda>';`;
 
   function getProjectRef(): string | null {
     try {
@@ -149,6 +165,7 @@ with check (true);`;
       if (stored) {
         if (stored.url) url = stored.url;
         if (stored.anon_key) anonKey = stored.anon_key;
+        if (stored.user_email) loginEmail = stored.user_email;
       }
       if (url && anonKey) {
         checkTable();
@@ -252,16 +269,68 @@ with check (true);`;
   async function handleClearCredentials() {
     if (confirm('Yakin ingin menghapus kredensial Supabase dari aplikasi ini? Catatan lokal tetap aman.')) {
       await ipc.saveSupabaseConfig('', '');
+      await ipc.setAppSetting('supabase_access_token', '');
+      await ipc.setAppSetting('supabase_refresh_token', '');
+      await ipc.setAppSetting('supabase_token_expires_at', '');
+      await ipc.setAppSetting('supabase_user_email', '');
       editorStore.setSupabaseConfig({
         url: '',
         anon_key: '',
-        is_configured: false
+        is_configured: false,
+        user_email: null,
+        access_token: null
       });
       url = '';
       anonKey = '';
+      loginEmail = '';
+      loginPassword = '';
       tableStatus = 'unknown';
       statusMessage = { text: 'Kredensial Supabase berhasil dihapus.', type: 'success' };
     }
+  }
+
+  async function handleSupabaseAuth(mode: 'login' | 'register') {
+    const cleanUrl = url.trim().replace(/\/+$/, '');
+    const cleanKey = anonKey.trim();
+    if (!cleanUrl || !cleanKey) {
+      statusMessage = { text: 'Isi Project URL dan Anon Key terlebih dahulu sebelum login.', type: 'error' };
+      return;
+    }
+    if (!loginEmail.trim() || !loginPassword) {
+      statusMessage = { text: 'Email dan password akun Supabase wajib diisi.', type: 'error' };
+      return;
+    }
+
+    isAuthWorking = true;
+    statusMessage = null;
+    try {
+      const msg = mode === 'login'
+        ? await ipc.supabaseLogin(cleanUrl, cleanKey, loginEmail, loginPassword)
+        : await ipc.supabaseRegister(cleanUrl, cleanKey, loginEmail, loginPassword);
+      const cfg = await ipc.getSupabaseConfig();
+      editorStore.setSupabaseConfig({
+        url: cleanUrl,
+        anon_key: cleanKey,
+        is_configured: true,
+        user_email: loginEmail.trim(),
+        access_token: cfg.access_token ?? null
+      });
+      loginPassword = '';
+      statusMessage = { text: msg, type: 'success' };
+    } catch (err: any) {
+      statusMessage = { text: `${mode === 'login' ? 'Login' : 'Registrasi'} gagal: ${err?.message || err}`, type: 'error' };
+    } finally {
+      isAuthWorking = false;
+    }
+  }
+
+  async function handleSupabaseLogout() {
+    await ipc.setAppSetting('supabase_access_token', '');
+    await ipc.setAppSetting('supabase_refresh_token', '');
+    await ipc.setAppSetting('supabase_token_expires_at', '');
+    await ipc.setAppSetting('supabase_user_email', '');
+    editorStore.setSupabaseConfig({ user_email: null, access_token: null });
+    statusMessage = { text: 'Akun Supabase dikeluarkan dari device ini.', type: 'success' };
   }
 
   function handleCopySql() {
@@ -510,6 +579,76 @@ with check (true);`;
                   <RefreshCw class="w-3.5 h-3.5 {editorStore.isSyncing ? 'animate-spin' : ''}" />
                   <span>{editorStore.isSyncing ? 'Sinkronisasi...' : 'Sinkronkan'}</span>
                 </button>
+              {/if}
+            </div>
+
+            <!-- Supabase Account Card -->
+            <div class="p-5 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-4">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                  <User class="w-4 h-4 text-blue-400" />
+                  <h3 class="text-xs font-bold text-slate-200">Akun Supabase</h3>
+                </div>
+                {#if editorStore.supabaseConfig.user_email}
+                  <span class="px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    Masuk: {editorStore.supabaseConfig.user_email}
+                  </span>
+                {:else}
+                  <span class="px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-slate-800 text-slate-400">Belum Masuk</span>
+                {/if}
+              </div>
+
+              <p class="text-[11px] text-slate-400 leading-relaxed">
+                Login akun diperlukan agar sinkronisasi berjalan aman (Row Level Security per-pengguna).
+                Sesi ditahan otomatis dengan token refresh — tidak perlu login ulang tiap jam.
+              </p>
+
+              {#if editorStore.supabaseConfig.user_email}
+                <button
+                  onclick={handleSupabaseLogout}
+                  class="px-3 py-2 rounded-xl hover:bg-rose-950/40 text-rose-400 text-xs font-medium flex items-center space-x-1.5 transition-colors cursor-pointer"
+                >
+                  <LogOut class="w-3.5 h-3.5" />
+                  <span>Keluar dari Akun</span>
+                </button>
+              {:else}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <input
+                    type="email"
+                    bind:value={loginEmail}
+                    placeholder="email@contoh.com"
+                    class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
+                  />
+                  <input
+                    type="password"
+                    bind:value={loginPassword}
+                    placeholder="Password Supabase"
+                    class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
+                  />
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <button
+                    onclick={() => handleSupabaseAuth('login')}
+                    disabled={isAuthWorking}
+                    class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    {#if isAuthWorking}
+                      <Loader2 class="w-3.5 h-3.5 animate-spin" />
+                      <span>Memproses...</span>
+                    {:else}
+                      <LogIn class="w-3.5 h-3.5" />
+                      <span>Masuk</span>
+                    {/if}
+                  </button>
+                  <button
+                    onclick={() => handleSupabaseAuth('register')}
+                    disabled={isAuthWorking}
+                    class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center space-x-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    <UserPlus class="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Daftar Akun Baru</span>
+                  </button>
+                </div>
               {/if}
             </div>
 

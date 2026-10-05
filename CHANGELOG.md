@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.14] - 2026-10-05
+
+### 🐛 Perbaikan: Ganti Project Supabase Membuat Sync Mati (401)
+- **Sesi lama kini dibersihkan saat ganti project**: mengganti Project URL tidak menghapus token sesi lama, sehingga sync terus memakai JWT terbitan project lama di project baru — dijamin 401 (issuer beda) dan refresh token juga selalu gagal, sync mati dengan pesan peringatan samar "Sinkronisasi selesai dengan peringatan". `save_supabase_config` kini menghapus access/refresh token + expiry + email user saat URL berubah, termasuk salinannya di localStorage.
+- **Logout benar-benar menghapus sesi**: command baru `supabase_logout` menghapus token & identitas dari database; sebelumnya logout hanya membersihkan state frontend dan token di DB tetap dipakai sync berikutnya.
+
+---
+
 ## [0.1.13] - 2026-10-05
 
 ### 🐛 Perbaikan: Note Tidak Pernah Ter-Push ke Cloud

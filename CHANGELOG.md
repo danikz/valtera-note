@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.24] - 2026-10-06
+
+### ✨ Fitur Baru: SSH Manager — Terminal & Kredensial Tersimpan
+- **SSH Manager di Developer Tools**: koneksi ke VPS/server langsung dari app — daftar koneksi tersimpan (klik = connect), formulir kredensial, dan terminal interaktif penuh (xterm.js + PTY `xterm-256color`) dengan resize tersinkron ke server.
+- **Kredensial terenkripsi E2E**: host/user/password/private key dienkripsi dengan kunci master password sebelum disimpan di SQLite lokal; didekripsi hanya saat connect. Butuh master password terpasang & app dalam kondisi unlocked.
+- **Auth password & private key** (+passphrase) via `russh` (pure Rust — tanpa dependensi binary eksternal, portable semua platform).
+- **Paste & clipboard terminal lengkap**: normalisasi CRLF Windows, Ctrl+C cerdas (salin saat ada seleksi, SIGINT saat tidak), klik kanan → menu konteks (Salin/Tempel/Pilih Semua/Bersihkan), Ctrl+Shift+V, dan pengiriman terchunk untuk paste besar. Bracketed paste lewat end-to-end sehingga multi-baris aman di shell modern.
+- **Sesi tetap hidup di Rust**: menutup tampilan / minimize tidak memutus koneksi; chips "Sesi Aktif" untuk re-attach.
+- Masuk lewat **Tools → tab SSH Manager** atau Command Palette.
+
+### 🎨 Perbaikan: Sidebar Explorer Sejajar
+- Row file explorer (Tree & Flat) kini tinggi tetap (36px) dengan zona aksi kanan lebar tetap (104px): slot status tercadang (dirty dot + cloud/sync) + tombol seragam 16×16 — kolom icon, nama, status, dan aksi sejajar sempurna antar row; nama panjang ellipsis, path dipindah ke tooltip.
+
+---
+
 ## [0.1.23] - 2026-10-06
 
 ### ✨ AI Chat Kini Bisa MENULIS ke Catatan

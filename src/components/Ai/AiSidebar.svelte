@@ -9,10 +9,15 @@
     TextQuote,
     AlertTriangle,
     SendHorizonal,
-    Settings2
+    Settings2,
+    Copy,
+    Check,
+    PenLine,
+    CornerDownRight
   } from 'lucide-svelte';
   import { editorStore } from '../../stores/editorStore.svelte';
   import { ipc } from '../../services/ipc';
+  import { copyText } from '../../utils/clipboard';
 
   let { isOpen, onClose, onOpenSettings }: { isOpen: boolean; onClose: () => void; onOpenSettings?: () => void } = $props();
 
@@ -65,7 +70,28 @@
       const sel = selection.length > MAX_SEL_CHARS ? selection.slice(0, MAX_SEL_CHARS) + '[...]' : selection;
       system += `\n\n[Teks yang sedang dipilih user di catatan itu]:\n${sel}`;
     }
+    // Protokol menulis: AI menghasilkan catatan lengkap di blok valtera-write,
+    // frontend menampilkan tombol "Terapkan ke Catatan". Bekerja di semua
+    // provider tanpa perlu dukungan tool-calling.
+    system += [
+      '',
+      '',
+      'PROTOKOL MENULIS KE CATATAN:',
+      '- Bila user meminta menulis, mengubah, menambah, atau memperbaiki ISI catatan aktif, balas dengan penjelasan singkat lalu sertakan VERSI LENGKAP catatan terbaru di dalam blok ber-tag "valtera-write", contoh:',
+      '```valtera-write',
+      '...(seluruh isi catatan terbaru, gabungan isi lama + perubahan)...',
+      '```',
+      '- Selalu sertakan catatan secara LENGKAP (jangan hanya bagian yang berubah) dan jangan menulis isi catatan di luar blok tersebut.',
+      '- Bila user hanya bertanya atau berdiskusi tanpa meminta perubahan catatan, JANGAN gunakan blok valtera-write.'
+    ].join('\n');
     return system;
+  }
+
+  // Ekstrak blok valtera-write dari balasan assistant.
+  function parseWriteBlock(content: string): { prose: string; write: string | null } {
+    const m = content.match(/```valtera-write\r?\n([\s\S]*?)(?:```|$)/);
+    if (!m) return { prose: content, write: null };
+    return { prose: content.replace(/```valtera-write\r?\n[\s\S]*?(?:```|$)/, '').trim(), write: m[1].trim() };
   }
 
   const canSend = $derived(!!chatInput.trim() && !busy);
@@ -103,6 +129,24 @@
   function clearChat() {
     messages = [];
     chatInput = '';
+    appliedWrites = {};
+  }
+
+  // Status penerapan blok valtera-write per indeks pesan.
+  let appliedWrites = $state<Record<number, boolean>>({});
+  let copiedIdx = $state<number | null>(null);
+
+  function applyWrite(i: number, content: string) {
+    if (!confirm('Ganti seluruh isi catatan aktif dengan versi dari AI? Isi sebelumnya akan diganti.')) return;
+    editorStore.updateContent(content);
+    appliedWrites = { ...appliedWrites, [i]: true };
+  }
+
+  async function copyMsg(i: number, content: string) {
+    if (await copyText(content)) {
+      copiedIdx = i;
+      setTimeout(() => (copiedIdx = null), 1500);
+    }
   }
 
   // Saran cepat saat obrolan masih kosong.
@@ -208,22 +252,76 @@
             >
               ✅ Buat task list dari catatan
             </button>
+            <button
+              onclick={() => quick('Tambahkan section baru "Ringkasan" berisi 3 poin utama di akhir catatan ini, lalu perbarui catatannya.')}
+              class="w-full text-left px-3 py-2 rounded-lg bg-slate-900 border border-violet-800/50 text-[11px] text-violet-200 hover:border-violet-500 hover:text-white transition-colors cursor-pointer"
+            >
+              ✍️ Suruh AI menulis ke catatan ini
+            </button>
           </div>
         </div>
       {:else}
         {#each messages as m, i (i)}
-          <div class="flex {m.role === 'user' ? 'justify-end' : 'justify-start'}">
+          {@const parsed = parseWriteBlock(m.content)}
+          {@const isTyping = m.role === 'assistant' && busy && i === messages.length - 1}
+          <div class="flex flex-col group {m.role === 'user' ? 'items-end' : 'items-start'}">
             <div
-              class="max-w-[85%] px-3 py-2 rounded-2xl text-[11.5px] leading-relaxed whitespace-pre-wrap break-words {m.role === 'user'
+              class="max-w-[92%] px-3 py-2 rounded-2xl text-[11.5px] leading-relaxed whitespace-pre-wrap break-words {m.role === 'user'
                 ? 'bg-violet-600 text-white rounded-br-md'
                 : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-md'}"
             >
-              {#if m.role === 'assistant' && busy && i === messages.length - 1}
+              {#if isTyping}
                 <span class="flex items-center space-x-2"><Loader2 class="w-3.5 h-3.5 animate-spin text-violet-400" /> <span>Mengetik…</span></span>
               {:else}
-                {m.content}
+                {#if parsed.prose}{parsed.prose}{/if}
+                {#if m.role === 'assistant' && parsed.write}
+                  <div class="mt-2 rounded-xl border border-violet-700/50 bg-violet-950/50 p-2.5 space-y-2">
+                    <div class="flex items-center space-x-1.5 text-[10.5px] font-semibold text-violet-200">
+                      <PenLine class="w-3.5 h-3.5" />
+                      <span>Siap menulis ke catatan ({parsed.write.length} karakter)</span>
+                    </div>
+                    {#if appliedWrites[i]}
+                      <p class="text-[10.5px] text-emerald-300 flex items-center space-x-1">
+                        <Check class="w-3 h-3" /> Catatan berhasil diperbarui
+                      </p>
+                    {:else}
+                      <div class="flex flex-wrap gap-1.5">
+                        <button
+                          onclick={() => applyWrite(i, parsed.write!)}
+                          class="px-2.5 py-1 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-[10.5px] font-semibold transition-colors cursor-pointer"
+                        >
+                          Ganti Seluruh Catatan
+                        </button>
+                        <button
+                          onclick={() => copyMsg(i, parsed.write!)}
+                          class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-[10.5px] font-medium transition-colors cursor-pointer"
+                        >
+                          Salin Saja
+                        </button>
+                      </div>
+                    {/if}
+                  </div>
+                {/if}
               {/if}
             </div>
+            {#if m.role === 'assistant' && !isTyping}
+              <div class="flex items-center space-x-1 mt-1 ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onclick={() => copyMsg(i, m.content)}
+                  title="Salin pesan"
+                  class="p-1 rounded text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  {#if copiedIdx === i}<Check class="w-3 h-3 text-emerald-400" />{:else}<Copy class="w-3 h-3" />{/if}
+                </button>
+                <button
+                  onclick={() => editorStore.applyAiText(m.content)}
+                  title="Sisipkan pesan ini di posisi kursor / akhir catatan"
+                  class="p-1 rounded text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  <CornerDownRight class="w-3 h-3" />
+                </button>
+              </div>
+            {/if}
           </div>
         {/each}
       {/if}

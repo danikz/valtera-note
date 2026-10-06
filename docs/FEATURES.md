@@ -4,16 +4,16 @@ Tur lengkap fitur Valtera Note dengan screenshot (Light Mode, dirender otomatis 
 
 ---
 
-## 1. 🛠️ Dedicated Developer Tools Suite & SQLite Studio (`v0.1.9`)
+## 1. 🛠️ Rangkaian Developer Tools & SQLite Studio (`v0.1.9`)
 
-Access full-page developer utilities directly via the Titlebar button, Command Palette (`Ctrl+K`), or keyboard shortcuts:
+Akses utilitas developer full-page langsung lewat tombol Titlebar, Command Palette (`Ctrl+K`), atau pintasan keyboard:
 
-- **JSON Formatter & Tree Inspector** (`Ctrl+Shift+J`): Beautify, minify, and inspect JSON payloads with interactive tree navigation or dynamic table grids. Export to **CSV (RFC 4180)** and **Markdown Tables** with 1-click.
+- **JSON Formatter & Tree Inspector** (`Ctrl+Shift+J`): Rapikan, minify, dan inspeksi payload JSON dengan navigasi tree interaktif atau tabel grid dinamis. Ekspor ke **CSV (RFC 4180)** dan **Tabel Markdown** dengan 1-klik.
 - **Pembaca SQLite & Database Explorer (SQLite Studio)** (`Ctrl+Shift+D`): Buka dan jelajahi berkas database SQLite (`.db`, `.sqlite`, `.sqlite3`) dari komputer atau database internal Valtera Note dengan 1-klik. Tampilkan daftar tabel & views, hitung baris, sortir kolom, filter pencarian baris real-time, eksekusi query SQL custom, dan ekspor ke CSV, JSON, atau Markdown Table.
-- **Favicon & Web Icon Package Generator** (`Ctrl+Shift+F`): Drag and drop any image or SVG to generate `favicon.ico` (multi-res 16/32/48), `apple-touch-icon.png`, `android-chrome-192/512`, `manifest.json`, `browserconfig.xml`, and a ready-to-download ZIP archive.
-- **MySQL Password Hash Generator** (`Ctrl+Shift+P`): Compute MySQL Native Password (`mysql_native_password` double-SHA1) and legacy hashes for quick database administration.
-- **Base64 & URL Tools**: Bilateral Base64 encoding/decoding and URL query parameter inspector.
-- **Bulk UUID v4 Generator**: Fast bulk UUID generation with capitalization and format options.
+- **Favicon & Web Icon Package Generator** (`Ctrl+Shift+F`): Drag and drop gambar atau SVG apa pun untuk menghasilkan `favicon.ico` (multi-res 16/32/48), `apple-touch-icon.png`, `android-chrome-192/512`, `manifest.json`, `browserconfig.xml`, dan arsip ZIP siap-unduh.
+- **MySQL Password Hash Generator** (`Ctrl+Shift+P`): Hitung MySQL Native Password (`mysql_native_password` double-SHA1) dan hash legacy untuk administrasi database cepat.
+- **Base64 & URL Tools**: Encoding/decoding Base64 dua arah dan inspeksi parameter query URL.
+- **Bulk UUID v4 Generator**: Pembuatan UUID massal dengan opsi kapitalisasi dan format.
 
 <p align="center">
   <img src="screenshots/preview-tools-light.png" width="92%" alt="Valtera Note Developer Tools Suite - JSON Formatter & Table Grid" />

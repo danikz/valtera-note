@@ -1,60 +1,60 @@
 <div align="center">
 
-<img src="public/logo.png" width="96" height="96" alt="Valtera Note Logo" />
+<img src="public/logo.png" width="96" height="96" alt="Logo Valtera Note" />
 
 # Valtera Note
 
-**Ultra-lightweight desktop text editor, SQL scratchpad, Markdown workspace, Developer Tools suite — now with a privacy-first AI Assistant.**
-*Engineered with Tauri v2 & Rust — Consuming under 40MB of RAM.*
+**Editor teks desktop super-ringan, SQL scratchpad, workspace Markdown, rangkaian Developer Tools — kini dengan AI Assistant yang menjaga privasi.**
+*Dibangun dengan Tauri v2 & Rust — konsumsi RAM di bawah 40MB.*
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Lisensi: MIT](https://img.shields.io/badge/Lisensi-MIT-blue.svg)](LICENSE)
 [![Tauri v2](https://img.shields.io/badge/Tauri-v2.0-24C8D8?logo=tauri&logoColor=white)](https://v2.tauri.app)
 [![Rust](https://img.shields.io/badge/Rust-1.75+-DEA584?logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![Svelte 5](https://img.shields.io/badge/Svelte-v5.0-FF3E00?logo=svelte&logoColor=white)](https://svelte.dev)
-[![RAM Footprint](https://img.shields.io/badge/RAM-~38MB-brightgreen)](#-why-valtera-note)
-[![Latest Release](https://img.shields.io/github/v/release/danikz/valtera-note?color=orange&logo=github)](https://github.com/danikz/valtera-note/releases/latest)
+[![Konsumsi RAM](https://img.shields.io/badge/RAM-~38MB-brightgreen)](#-kenapa-valtera-note)
+[![Rilis Terbaru](https://img.shields.io/github/v/release/danikz/valtera-note?color=orange&logo=github)](https://github.com/danikz/valtera-note/releases/latest)
 
 <br />
 
 <p align="center">
-  <img src="docs/screenshots/preview-hero-light.png" width="95%" alt="Valtera Note Light Hero Preview - Live Markdown Split & Modern Light Mode" />
+  <img src="docs/screenshots/preview-hero-light.png" width="95%" alt="Pratinjau Hero Valtera Note Mode Light - Markdown Split & Light Mode Modern" />
 </p>
 
 </div>
 
 ---
 
-## 📥 Download (Latest)
+## 📥 Unduh (Versi Terbaru)
 
-Grab the official installer for your platform from the **[GitHub Releases Page](https://github.com/danikz/valtera-note/releases/latest)** — Windows `.exe` / `.msi`, macOS `.dmg`, Linux `.deb` / `.AppImage`.
+Ambil installer resmi untuk platformmu dari **[Halaman GitHub Releases](https://github.com/danikz/valtera-note/releases/latest)** — Windows `.exe` / `.msi`, macOS `.dmg`, Linux `.deb` / `.AppImage`.
 
-> 🔄 **Automatic In-App Updates**: Valtera Note ships with a built-in cryptographic auto-updater. When a new version is released, you get an instant notification with a 1-click upgrade.
-
----
-
-## ✨ Highlights
-
-- 🤖 **Built-in AI Assistant** — chat sidebar that reads your active note & selection. Bring your own API key: **Anthropic Claude (native)** or **any OpenAI-compatible endpoint** (OpenAI, OpenRouter, Groq, local Ollama). It can even write back to your notes. → [AI Assistant Guide](docs/AI_ASSISTANT.md)
-- 🔒 **End-to-End Encryption** — notes are encrypted with XChaCha20-Poly1305 (Argon2id key derivation) before touching local disk or the cloud, with a lock screen & auto-unlock via Windows Credential Manager / Keychain.
-- ⚡ **Instant Cold Startup** — boot in `< 250ms`, idle footprint **under 40MB of RAM** (Tauri v2 + Rust, not Electron).
-- 🛠️ **Developer Tools Suite** — JSON Formatter & Tree, SQLite Studio, Favicon Package Generator, MySQL Password Hash, URL & UUID tools. → [Features](docs/FEATURES.md)
-- 📑 **Live Markdown Split** — GitHub Flavored Markdown with synchronized dual-pane scrolling.
-- 🗄️ **SQL Scratchpad** — syntax highlighting, SQL beautifier, local SQLite execution with a result grid.
-- 🌳 **Interactive JSON Tree & Table** — collapsible nodes, click-to-copy paths, CSV/Markdown export.
-- ☁️ **Offline-First + Optional Cloud Sync** — fully functional offline; optional Supabase sync with strict Row Level Security. → [Supabase Setup](docs/SUPABASE_SETUP.md)
-- 🎨 **Dark / Light / System Themes** — 6 editor palettes (Tokyo Night, Dracula, GitHub Light, …) plus a configurable display timezone (24-hour format).
-- 🪟 **Windows Explorer Integration** — open files with 1-click from the context menu.
+> 🔄 **Pembaruan Otomatis In-App**: Valtera Note dilengkapi auto-updater kriptografis. Saat versi baru dirilis, kamu langsung mendapat notifikasi dengan upgrade 1-klik.
 
 ---
 
-## 🤖 AI Assistant (Bring Your Own Key)
+## ✨ Sorotan Fitur
 
-Press **`Ctrl+Shift+A`** (or the ✨ button in the titlebar) to open the AI chat sidebar:
+- 🤖 **AI Assistant bawaan** — sidebar chat yang membaca catatan aktif & teks terpilihmu. Bawa API key sendiri: **Anthropic Claude (native)** atau **endpoint OpenAI-compatible apa pun** (OpenAI, OpenRouter, Groq, Ollama lokal). Bahkan bisa menulis balik ke catatanmu. → [Panduan AI Assistant](docs/AI_ASSISTANT.md)
+- 🔒 **Enkripsi End-to-End** — catatan dienkripsi XChaCha20-Poly1305 (derivasi kunci Argon2id) sebelum menyentuh disk lokal maupun cloud, dilengkapi lock screen & auto-unlock via Windows Credential Manager / Keychain.
+- ⚡ **Startup Dingin Instan** — boot dalam `< 250ms`, konsumsi idle **di bawah 40MB RAM** (Tauri v2 + Rust, bukan Electron).
+- 🛠️ **Rangkaian Developer Tools** — JSON Formatter & Tree, SQLite Studio, Favicon Package Generator, MySQL Password Hash, URL & UUID tools. → [Fitur Lengkap](docs/FEATURES.md)
+- 📑 **Live Markdown Split** — GitHub Flavored Markdown dengan dual-pane tersinkron.
+- 🗄️ **SQL Scratchpad** — syntax highlighting, SQL beautifier, eksekusi SQLite lokal dengan result grid.
+- 🌳 **JSON Tree & Table Interaktif** — node bisa diciutkan, klik-untuk-salin path, ekspor CSV/Markdown.
+- ☁️ **Offline-First + Cloud Sync Opsional** — berfungsi penuh tanpa internet; sinkronisasi Supabase opsional dengan Row Level Security ketat. → [Setup Supabase](docs/SUPABASE_SETUP.md)
+- 🎨 **Tema Gelap / Terang / Sistem** — 6 palet editor (Tokyo Night, Dracula, GitHub Light, …) plus zona waktu tampilan yang bisa diatur (format 24 jam).
+- 🪟 **Integrasi Windows Explorer** — buka file 1-klik langsung dari context menu.
+
+---
+
+## 🤖 AI Assistant (Bawa API Key Sendiri)
+
+Tekan **`Ctrl+Shift+A`** (atau tombol ✨ di titlebar) untuk membuka sidebar chat AI:
 
 - **Provider bebas**: Anthropic Claude (native) atau endpoint OpenAI-compatible apa pun — key & model diatur di *Pengaturan → AI Assistant*, tersimpan hanya di perangkatmu.
-- **Context-aware**: aktifkan "Baca catatan aktif" agar AI mengerti isi catatan yang terbuka, dan "Sertakan teks terpilih" untuk bagian yang kamu blok.
-- **Bisa menulis ke catatan**: minta AI menulis/mengubah isi catatan → terapkan dengan satu klik (konfirmasi dulu, aman).
-- **Quick actions**: Ringkas, Perbaiki Tulisan, Translate, Jelaskan, Commit Message, dan prompt kustom.
+- **Sadar konteks**: aktifkan "Baca catatan aktif" agar AI paham isi catatan yang terbuka, dan "Sertakan teks terpilih" untuk bagian yang kamu blok.
+- **Bisa menulis ke catatan**: minta AI menulis/mengubah isi catatan → terapkan satu klik (dengan konfirmasi, aman).
+- **Aksi cepat**: Ringkas, Perbaiki Tulisan, Terjemahkan, Jelaskan, Commit Message, dan prompt kustom.
 
 > ⚠️ Catatan privasi: teks yang dikirim ke AI keluar dari perangkat sebagai plaintext. Enkripsi E2E melindungi penyimpanan lokal & cloud — bukan permintaan AI. Untuk konten super-sensitif, gunakan provider lokal (Ollama).
 
@@ -62,9 +62,9 @@ Press **`Ctrl+Shift+A`** (or the ✨ button in the titlebar) to open the AI chat
 
 ---
 
-## ☁️ Cloud Sync (Optional — Supabase)
+## ☁️ Cloud Sync (Opsional — Supabase)
 
-Valtera Note is 100% offline-first. For multi-device sync, follow the guided order in-app:
+Valtera Note 100% offline-first. Untuk sinkronisasi multi-perangkat, ikuti urutan terpandu ini di dalam app:
 
 1. **Kredensial Project** — masukkan *Project URL* & *Anon Key* (Pengaturan → Supabase).
 2. **Siapkan Tabel** — jalankan skrip SQL resmi dari SyncModal (Row Level Security ketat: hanya akun yang login bisa mengakses).
@@ -76,7 +76,7 @@ Setelah itu semua catatan tersinkron otomatis (1,5 detik setelah mengetik + pull
 
 ---
 
-## 🔒 Security & End-to-End Encryption
+## 🔒 Keamanan & Enkripsi End-to-End
 
 Catatanmu terenkripsi **zero-knowledge** — bahkan penyedia cloud tidak bisa membacanya.
 
@@ -84,7 +84,7 @@ Catatanmu terenkripsi **zero-knowledge** — bahkan penyedia cloud tidak bisa me
 | :--- | :--- |
 | **Lokal (SQLite)** | Isi catatan disimpan sebagai ciphertext `enc:v1:...` — dienkripsi **sebelum** menyentuh disk. |
 | **Derivasi kunci** | Master password → **Argon2id** (parameter OWASP) → kunci 256-bit. Password itu sendiri tidak pernah disimpan. |
-| **Enkripsi** | **XChaCha20-Poly1305** authenticated encryption per catatan — integritas + kerahasiaan. |
+| **Enkripsi** | **XChaCha20-Poly1305** authenticated encryption per catatan — kerahasiaan + integritas. |
 | **Cloud sync (Supabase)** | Server hanya melihat ciphertext. Dengan RLS ketat, hanya akun login-mu yang bisa mengakses barismu. |
 | **Lock screen** | Konten disembunyikan saat terkunci; "Ingat di Device Ini" menyimpan kunci di OS keystore (Windows Credential Manager / macOS Keychain / Linux Secret Service) — **bukan** passwordnya. |
 
@@ -96,32 +96,32 @@ Catatanmu terenkripsi **zero-knowledge** — bahkan penyedia cloud tidak bisa me
 
 ---
 
-## ⌨️ Keyboard Shortcuts
+## ⌨️ Pintasan Keyboard
 
-| Action / Feature | Shortcut |
+| Aksi / Fitur | Pintasan |
 | :--- | :--- |
 | **AI Chat Sidebar** | `Ctrl + Shift + A` |
-| **Command Palette & Search** | `Ctrl + K` / `Ctrl + P` |
+| **Command Palette & Pencarian** | `Ctrl + K` / `Ctrl + P` |
 | **Pengaturan (Supabase, AI, Tema, Editor)** | `Ctrl + ,` |
 | **Developer Tools (JSON)** | `Ctrl + Shift + J` |
 | **SQLite Studio** | `Ctrl + Shift + D` |
 | **Favicon Generator** | `Ctrl + Shift + F` |
 | **MySQL Password Generator** | `Ctrl + Shift + P` |
 | **Emoji & Icon Picker** | `Ctrl + Shift + E` |
-| **New Note / Open / Save** | `Ctrl + N` / `Ctrl + O` / `Ctrl + S` |
-| **Toggle Sidebar Navigation** | `Ctrl + B` |
+| **Catatan Baru / Buka / Simpan** | `Ctrl + N` / `Ctrl + O` / `Ctrl + S` |
+| **Toggle Sidebar Navigasi** | `Ctrl + B` |
 | **Toggle Markdown Split View** | `Ctrl + \` |
-| **Close Tab / All Tabs** | `Ctrl + W` / `Ctrl + Shift + W` |
-| **Execute SQL Query** | `Ctrl + Enter` / `F5` |
+| **Tutup Tab / Semua Tab** | `Ctrl + W` / `Ctrl + Shift + W` |
+| **Eksekusi Query SQL** | `Ctrl + Enter` / `F5` |
 
 ---
 
-## 🛠️ Building from Source
+## 🛠️ Build dari Source
 
-### Prerequisites
+### Prasyarat
 - [Node.js](https://nodejs.org) (v20+) & [pnpm](https://pnpm.io) (v10+)
 - [Rust](https://www.rust-lang.org) (1.75+)
-- Platform-specific Tauri v2 prerequisites:
+- Prasyarat Tauri v2 per platform:
   - **Windows**: Microsoft C++ Build Tools & WebView2
   - **macOS**: Xcode Command Line Tools
   - **Linux**: `libwebkit2gtk-4.1-dev`, `build-essential`, `curl`, `libssl-dev`, `libayatana-appindicator3-dev`
@@ -131,31 +131,31 @@ Catatanmu terenkripsi **zero-knowledge** — bahkan penyedia cloud tidak bisa me
 git clone https://github.com/danikz/valtera-note.git
 cd valtera-note
 
-# 2. Install dependencies & run development mode
+# 2. Instal dependensi & jalankan mode development
 pnpm install
 pnpm tauri dev
 
-# 3. Compile and build native installers
+# 3. Compile installer native
 pnpm tauri build
 ```
 
 ---
 
-## 📚 Documentation
+## 📚 Dokumentasi
 
-| Document | Description |
+| Dokumen | Isi |
 | :--- | :--- |
-| **[AI Assistant Guide](docs/AI_ASSISTANT.md)** | Setup provider (Claude / OpenAI-compatible / Ollama), chat sidebar, context toggles, write-to-note, troubleshooting. |
-| **[Supabase Setup](docs/SUPABASE_SETUP.md)** | Skrip SQL resmi (RLS ketat), urutan setup, login akun, troubleshooting sync. |
-| **[Features & Previews](docs/FEATURES.md)** | Tur lengkap semua fitur dengan screenshot. |
-| **[Architecture](docs/ARCHITECTURE.md)** | Struktur teknis aplikasi (Tauri + Svelte + SQLite). |
-| **[Database Schema](docs/DATABASE.md)** | Skema SQLite lokal & tabel cloud. |
+| **[Panduan AI Assistant](docs/AI_ASSISTANT.md)** | Setup provider (Claude / OpenAI-compatible / Ollama), chat sidebar, konteks catatan, write-to-note, troubleshooting. |
+| **[Setup Supabase](docs/SUPABASE_SETUP.md)** | Skrip SQL resmi (RLS ketat), urutan setup, login akun, troubleshooting sync. |
+| **[Fitur & Pratinjau](docs/FEATURES.md)** | Tur lengkap semua fitur dengan screenshot. |
+| **[Arsitektur](docs/ARCHITECTURE.md)** | Struktur teknis aplikasi (Tauri + Svelte + SQLite). |
+| **[Skema Database](docs/DATABASE.md)** | Skema SQLite lokal & tabel cloud. |
 | **[Changelog](CHANGELOG.md)** | Riwayat rilis per versi. |
 
-## 📄 License
+## 📄 Lisensi
 
-Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for details.
+Didistribusikan di bawah **Lisensi MIT**. Lihat [`LICENSE`](LICENSE) untuk detailnya.
 
 <div align="center">
-  <sub>Designed & Developed by <b>PT Valtera Teknologi Digital</b></sub>
+  <sub>Dirancang & Dikembangkan oleh <b>PT Valtera Teknologi Digital</b></sub>
 </div>

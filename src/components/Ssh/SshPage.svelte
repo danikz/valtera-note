@@ -17,6 +17,7 @@
   import { listen, type UnlistenFn } from '@tauri-apps/api/event';
   import { ipc } from '../../services/ipc';
   import { copyText } from '../../utils/clipboard';
+  import { sshStore, consumeSshConnectRequest } from '../../stores/sshStore.svelte';
   import '@xterm/xterm/css/xterm.css';
 
   interface SshConnection {
@@ -97,6 +98,19 @@
     unlisteners.forEach((u) => u());
     resizeObserver?.disconnect();
     term?.dispose();
+  });
+
+  // Auto-connect dari menu SSH titlebar (pendingConnectId dikonsumsi sekali).
+  $effect(() => {
+    const pid = sshStore.pendingConnectId;
+    if (!pid || isLoading || connecting) return;
+    const conn = connections.find((c) => c.id === pid);
+    if (conn) {
+      consumeSshConnectRequest();
+      connect(conn);
+    } else if (connections.length > 0) {
+      consumeSshConnectRequest(); // koneksi sudah terhapus — buang permintaan
+    }
   });
 
   async function refreshList() {

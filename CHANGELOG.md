@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.25] - 2026-10-06
+
+### ✨ Fitur Baru: Menu SSH di Titlebar
+- **Menu "SSH" kini ada di titlebar** (di antara Edit dan Tools): akses cepat ke SSH Manager dan seluruh koneksi tersimpan tanpa membuka Pengaturan.
+- **Daftar koneksi dengan status live**: titik hijau + label `● live` untuk sesi yang sedang hidup, lingkaran kosong untuk yang belum terhubung. Daftar di-refresh setiap kali menu dibuka.
+- **Klik = langsung connect**: memilih koneksi di menu membuka halaman SSH Manager dan auto-connect via permintaan yang dikonsumsi setelah daftar termuat (store `pendingConnectId`).
+
+---
+
 ## [0.1.24] - 2026-10-06
 
 ### ✨ Fitur Baru: SSH Manager — Terminal & Kredensial Tersimpan

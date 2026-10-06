@@ -1,97 +1,97 @@
-# 🤖 Panduan AI Assistant — Valtera Note
+# 🤖 AI Assistant Guide — Valtera Note
 
-Valtera Note punya AI Assistant bawaan dengan model **Bawa API Key Sendiri (BYO)**: tidak ada server perantara, tidak ada biaya langganan dari kami — kamu memakai API key sendiri dari provider pilihanmu. Permintaan dikirim **langsung dari backend Rust** ke provider (bebas CORS), dan konfigurasi tersimpan **hanya di perangkat ini**.
+Valtera Note ships with a built-in AI Assistant using a **Bring Your Own Key (BYO)** model: no middleman server, no subscription from us — you use your own API key from the provider of your choice. Requests are sent **directly from the Rust backend** to the provider (no CORS issues), and the configuration is stored **only on this device**.
 
 ---
 
-## 1. Provider yang Didukung
+## 1. Supported Providers
 
-| Provider | Jenis | Base URL | Contoh Model |
+| Provider | Type | Base URL | Example Model |
 | :--- | :--- | :--- | :--- |
 | **Anthropic Claude** | Native Messages API | `https://api.anthropic.com` | `claude-sonnet-4-5` |
 | **OpenAI** | OpenAI-compatible | `https://api.openai.com/v1` | `gpt-4o-mini` |
 | **OpenRouter** | OpenAI-compatible | `https://openrouter.ai/api/v1` | `anthropic/claude-sonnet-4.5` |
 | **Groq** | OpenAI-compatible | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
-| **Ollama (lokal)** | OpenAI-compatible | `http://localhost:11434/v1` | `llama3.1` |
+| **Ollama (local)** | OpenAI-compatible | `http://localhost:11434/v1` | `llama3.1` |
 
-- Semua endpoint yang mengikuti standar **OpenAI-compatible** (`/chat/completions`) didukung otomatis — termasuk LM Studio, Together, dsb.
-- **Ollama/LM Studio** = 100% offline. Cocok untuk konten super-sensitif karena teks tidak pernah keluar dari perangkat.
-- Preset satu klik tersedia di layar pengaturan; cukup isi API key setelahnya.
-
----
-
-## 2. Setup (Sekali Saja)
-
-1. Buka **Pengaturan → AI Assistant** (atau `Ctrl+,`).
-2. Klik salah satu **Preset Cepat** (OpenAI / Anthropic / OpenRouter / Groq / Ollama).
-3. Isi **API Key** dari provider tersebut.
-4. Klik **Test Koneksi** — selain validasi, aplikasi otomatis **memuat daftar model asli provider** dan kolom *Model* akan menampilkan saran dropdown.
-5. Pilih model → **Simpan**. Selesai — indikator hijau muncul di sidebar Pengaturan.
-
-> 💡 Key yang tersimpan tidak akan terhapus bila kamu menyimpan ulang konfigurasi tanpa mengisi kolom key (kosong = pertahankan key lama).
+- Any endpoint following the **OpenAI-compatible** standard (`/chat/completions`) works out of the box — including LM Studio, Together, etc.
+- **Ollama/LM Studio** = 100% offline. Ideal for highly sensitive content, since the text never leaves your device.
+- One-click presets are available in the settings screen; just fill in your API key afterwards.
 
 ---
 
-## 3. AI Chat Sidebar (Ngobrol)
+## 2. Setup (Once)
 
-Buka dengan **`Ctrl+Shift+A`** atau tombol **✨** di pojok kanan titlebar.
+1. Open **Settings → AI Assistant** (or `Ctrl+,`).
+2. Click one of the **Quick Presets** (OpenAI / Anthropic / OpenRouter / Groq / Ollama).
+3. Enter the **API Key** from that provider.
+4. Click **Test Connection** — besides validating, the app automatically **fetches the provider's real model list**, and the *Model* field will show dropdown suggestions.
+5. Pick a model → **Save**. Done — a green indicator appears in the Settings sidebar.
 
-- **Multi-turn**: AI mengingat konteks percakapan selama panel terbuka; tombol 🗑️ untuk mulai ulang.
-- **Baca catatan aktif** (toggle): isi catatan yang sedang terbuka dikirim sebagai konteks — AI tahu tentang apa kamu bicara.
-- **Sertakan teks terpilih** (toggle): blok teks yang kamu seleksi di editor ikut dikirim — ideal untuk bertanya tentang potongan kode/konfigurasi tertentu.
-- **Saran cepat**: ringkas catatan, tinjau potensi masalah, buat task list, atau suruh AI menulis.
-- `Enter` = kirim, `Shift+Enter` = baris baru.
+> 💡 A stored key is not wiped when you re-save the configuration with an empty key field (empty = keep the existing key).
 
 ---
 
-## 4. Menulis ke Catatan (Write-to-Note)
+## 3. AI Chat Sidebar (Chat)
 
-Minta AI mengubah catatan, misalnya:
+Open it with **`Ctrl+Shift+A`** or the **✨** button in the top-right titlebar.
 
-> *"perbaiki typo di catatan ini lalu perbarui"*
-> *"tambahkan section Ringkasan di akhir catatan"*
+- **Multi-turn**: the AI remembers the conversation while the panel is open; the 🗑️ button starts a fresh chat.
+- **Read active note** (toggle): the content of the open note is sent as context — the AI knows what you're talking about.
+- **Include selected text** (toggle): the block you've highlighted in the editor is sent too — perfect for asking about a specific code/config snippet.
+- **Quick prompts**: summarize the note, review for potential issues, build a task list, or have the AI write.
+- `Enter` = send, `Shift+Enter` = new line.
 
-AI akan membalas dengan penjelasan singkat + blok **`valtera-write`** berisi catatan lengkap versi terbaru. Sidebar menampilkan kartu:
+---
 
-- **Ganti Seluruh Catatan** — setelah konfirmasi, isi editor langsung diperbarui (minimal diff, kursor tidak lompat) dan auto-sync cloud berjalan seperti biasa.
-- **Salin Saja** — untuk direview manual terlebih dahulu.
+## 4. Writing to Notes (Write-to-Note)
 
-Setelah diterapkan muncul tanda ✅ *Catatan berhasil diperbarui*.
+Ask the AI to modify the note, for example:
 
-> Protokol ini berbasis instruksi sistem sehingga **bekerja di semua provider** — termasuk model kecil tanpa dukungan tool-calling.
+> *"fix the typos in this note and update it"*
+> *"add a Summary section at the end of the note"*
 
-### Aksi Cepat di Editor (Ctrl+Shift+A → atau menu Edit)
+The AI replies with a short explanation + a **`valtera-write`** block containing the complete updated note. The sidebar shows a card:
 
-Selain chat, ada aksi satu-klik yang bekerja pada **teks terpilih** (atau seluruh catatan bila tidak ada seleksi):
+- **Replace Entire Note** — after confirmation, the editor content is updated in place (minimal diff, no cursor jump) and cloud auto-sync runs as usual.
+- **Copy Only** — to review it manually first.
 
-| Aksi | Hasil |
+Once applied you'll see ✅ *Note updated*.
+
+> This protocol relies on system instructions, so it **works with every provider** — including small models without tool-calling support.
+
+### Quick Actions in the Editor (Ctrl+Shift+A → or the Edit menu)
+
+Besides chat, there are one-click actions that operate on the **selected text** (or the whole note if nothing is selected):
+
+| Action | Result |
 | :--- | :--- |
-| **Ringkas** | Poin-poin ringkasan |
-| **Perbaiki Tulisan** | Ejaan & tata bahasa diperbaiki |
-| **→ English / → Indonesia** | Terjemahan |
-| **Jelaskan** | Penjelasan bahasa sederhana |
-| **Commit Msg** | Satu baris conventional commit |
-| **Prompt kustom** | Instruksi bebas |
+| **Summarize** | Compact bullet-point summary |
+| **Improve Writing** | Fixed spelling & grammar |
+| **→ English / → Indonesia** | Translation |
+| **Explain** | Plain-language explanation |
+| **Commit Msg** | A single conventional-commit line |
+| **Custom prompt** | Free-form instructions |
 
-Hasil bisa **disalin**, **mengganti seleksi**, atau **disisipkan di kursor**.
+Results can be **copied**, **replace the selection**, or be **inserted at the cursor**.
 
 ---
 
-## 5. Privasi
+## 5. Privacy
 
-- API key & konfigurasi AI tersimpan **hanya di database lokal perangkat ini**.
-- Permintaan dikirim langsung aplikasi → provider; **tanpa server perantara**.
-- ⚠️ **Penting**: teks yang dikirim ke AI keluar dari perangkat sebagai **plaintext** — enkripsi E2E Valtera Note melindungi penyimpanan lokal & cloud sync, bukan permintaan AI. Untuk konten paling sensitif, gunakan **Ollama lokal**.
+- The API key & AI configuration are stored **only in this device's local database**.
+- Requests go straight from the app to the provider — **no middleman server**.
+- ⚠️ **Important**: text sent to the AI leaves your device as **plaintext** — Valtera Note's E2E encryption protects local storage & cloud sync, not AI requests. For the most sensitive content, use a **local Ollama** provider.
 
 ---
 
 ## 6. Troubleshooting
 
-| Masalah | Penyebab & Solusi |
+| Problem | Cause & Fix |
 | :--- | :--- |
-| `missing required key baseUrl` | Bug versi < 0.1.19 — update aplikasi (argumen kini dual-case). |
-| `HTTP 401` saat test koneksi | API key salah/kedaluwarsa — periksa kembali key. |
-| `HTTP 404` saat test koneksi | Base URL salah — OpenAI perlu akhiran `/v1`, Anthropic tidak. |
-| Respon kosong / model not found | Nama model salah ketik — gunakan daftar model dari **Test Koneksi** (OpenRouter memakai format `vendor/model`). |
-| `daftar model gagal dimuat` | Beberapa endpoint kompatibel tidak menyediakan `GET /models` — ketik nama model manual, fitur chat tetap berjalan. |
-| AI menulis di luar blok / tidak membuat blok | Tekan kembali permintaan dengan kata "perbarui catatan" — protokol memerlukan instruksi yang jelas untuk menulis. |
+| `missing required key baseUrl` | Bug in versions < 0.1.19 — update the app (arguments are now dual-cased). |
+| `HTTP 401` on test connection | Wrong/expired API key — double-check the key. |
+| `HTTP 404` on test connection | Wrong Base URL — OpenAI needs the `/v1` suffix, Anthropic does not. |
+| Empty response / model not found | Typo in the model name — use the model list from **Test Connection** (OpenRouter uses the `vendor/model` format). |
+| `model list failed to load` | Some compatible endpoints don't provide `GET /models` — type the model name manually; chat still works. |
+| AI writes outside the block / no block at all | Re-run the request with the word "update the note" — the protocol needs a clear instruction to write. |

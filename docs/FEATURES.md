@@ -1,19 +1,19 @@
-# ✨ Fitur & Pratinjau — Valtera Note
+# ✨ Features & Previews — Valtera Note
 
-Tur lengkap fitur Valtera Note dengan screenshot (Light Mode, dirender otomatis via Playwright).
+A full tour of Valtera Note's features with screenshots (Light Mode, rendered automatically via Playwright).
 
 ---
 
-## 1. 🛠️ Rangkaian Developer Tools & SQLite Studio (`v0.1.9`)
+## 1. 🛠️ Dedicated Developer Tools Suite & SQLite Studio (`v0.1.9`)
 
-Akses utilitas developer full-page langsung lewat tombol Titlebar, Command Palette (`Ctrl+K`), atau pintasan keyboard:
+Access full-page developer utilities directly via the Titlebar button, Command Palette (`Ctrl+K`), or keyboard shortcuts:
 
-- **JSON Formatter & Tree Inspector** (`Ctrl+Shift+J`): Rapikan, minify, dan inspeksi payload JSON dengan navigasi tree interaktif atau tabel grid dinamis. Ekspor ke **CSV (RFC 4180)** dan **Tabel Markdown** dengan 1-klik.
-- **Pembaca SQLite & Database Explorer (SQLite Studio)** (`Ctrl+Shift+D`): Buka dan jelajahi berkas database SQLite (`.db`, `.sqlite`, `.sqlite3`) dari komputer atau database internal Valtera Note dengan 1-klik. Tampilkan daftar tabel & views, hitung baris, sortir kolom, filter pencarian baris real-time, eksekusi query SQL custom, dan ekspor ke CSV, JSON, atau Markdown Table.
-- **Favicon & Web Icon Package Generator** (`Ctrl+Shift+F`): Drag and drop gambar atau SVG apa pun untuk menghasilkan `favicon.ico` (multi-res 16/32/48), `apple-touch-icon.png`, `android-chrome-192/512`, `manifest.json`, `browserconfig.xml`, dan arsip ZIP siap-unduh.
-- **MySQL Password Hash Generator** (`Ctrl+Shift+P`): Hitung MySQL Native Password (`mysql_native_password` double-SHA1) dan hash legacy untuk administrasi database cepat.
-- **Base64 & URL Tools**: Encoding/decoding Base64 dua arah dan inspeksi parameter query URL.
-- **Bulk UUID v4 Generator**: Pembuatan UUID massal dengan opsi kapitalisasi dan format.
+- **JSON Formatter & Tree Inspector** (`Ctrl+Shift+J`): Beautify, minify, and inspect JSON payloads with interactive tree navigation or dynamic table grids. Export to **CSV (RFC 4180)** and **Markdown Tables** with 1 click.
+- **SQLite Reader & Database Explorer (SQLite Studio)** (`Ctrl+Shift+D`): Open and browse SQLite database files (`.db`, `.sqlite`, `.sqlite3`) from your computer or Valtera Note's internal database with 1 click. List tables & views, count rows, sort columns, real-time row search filtering, run custom SQL queries, and export to CSV, JSON, or Markdown Table.
+- **Favicon & Web Icon Package Generator** (`Ctrl+Shift+F`): Drag and drop any image or SVG to generate `favicon.ico` (multi-res 16/32/48), `apple-touch-icon.png`, `android-chrome-192/512`, `manifest.json`, `browserconfig.xml`, and a ready-to-download ZIP archive.
+- **MySQL Password Hash Generator** (`Ctrl+Shift+P`): Compute MySQL Native Password (`mysql_native_password` double-SHA1) and legacy hashes for quick database administration.
+- **Base64 & URL Tools**: Bilateral Base64 encoding/decoding and URL query parameter inspector.
+- **Bulk UUID v4 Generator**: Fast bulk UUID generation with capitalization and format options.
 
 <p align="center">
   <img src="screenshots/preview-tools-light.png" width="92%" alt="Valtera Note Developer Tools Suite - JSON Formatter & Table Grid" />
@@ -23,32 +23,32 @@ Akses utilitas developer full-page langsung lewat tombol Titlebar, Command Palet
 
 ## 2. 🤖 AI Assistant & Chat Sidebar (`v0.1.18+`)
 
-Chat dengan AI langsung di dalam editor:
+Chat with an AI right inside your editor:
 
-- **Provider bebas (BYO key)**: Anthropic Claude (native), OpenAI, OpenRouter, Groq, atau Ollama lokal. Key tersimpan hanya di perangkat.
-- **Context-aware**: AI membaca catatan aktif dan/atau teks yang kamu seleksi di editor.
-- **Write-to-note**: minta AI menulis/mengubah isi catatan — terapkan dengan satu klik.
-- **Quick actions**: Ringkas, Perbaiki Tulisan, Translate, Jelaskan, Commit Message, prompt kustom.
+- **Any provider (BYO key)**: Anthropic Claude (native), OpenAI, OpenRouter, Groq, or local Ollama. The key is stored only on your device.
+- **Context-aware**: the AI reads the active note and/or the text you've selected in the editor.
+- **Write-to-note**: ask the AI to write or edit the note's content — apply it with one click.
+- **Quick actions**: Summarize, Improve Writing, Translate, Explain, Commit Message, custom prompts.
 
 <p align="center">
-  <em>AI Chat Sidebar — konteks catatan aktif & teks terpilih</em>
+  <em>AI Chat Sidebar — active note & selection context</em>
 </p>
 
-📖 Panduan lengkap: **[AI_ASSISTANT.md](AI_ASSISTANT.md)**
+📖 Full guide: **[AI_ASSISTANT.md](AI_ASSISTANT.md)**
 
 ---
 
 ## 3. 🔒 End-to-End Encryption & Lock Screen (`v0.1.11+`)
 
-- Konten catatan dienkripsi **XChaCha20-Poly1305** (kunci diturunkan dari master password via **Argon2id**, parameter OWASP) sebelum disimpan ke SQLite lokal maupun disinkronkan ke Supabase.
-- **Lock Screen** muncul saat app dibuka; opsi "Ingat di Device Ini" menyimpan kunci di **Windows Credential Manager** (macOS Keychain / Linux Secret Service) untuk auto-unlock.
-- Cloud sync memakai **Row Level Security ketat** — hanya akun yang login yang bisa mengakses tabelnya.
+- Note contents are encrypted with **XChaCha20-Poly1305** (key derived from the master password via **Argon2id**, OWASP parameters) before being stored in the local SQLite database or synced to Supabase.
+- A **Lock Screen** appears when the app opens; "Remember on this Device" stores the key in the **Windows Credential Manager** (macOS Keychain / Linux Secret Service) for auto-unlock.
+- Cloud sync uses **strict Row Level Security** — only your logged-in account can access its rows.
 
-**Batas yang jujur** (over-explain daripada over-promise):
+**Honest limits** (we'd rather over-explain than over-promise):
 
-- Lupa master password = catatan **tidak bisa dibaca selamanya** — tidak ada pintu pemulihan, by design.
-- **Judul** catatan & nama folder tetap plaintext di cloud (hanya isinya yang terenkripsi sebagai `enc:v1:...`).
-- Teks yang dikirim ke **AI Assistant** keluar dari perangkat sebagai plaintext — gunakan provider lokal (Ollama) untuk konten super-sensitif. Lihat [AI_ASSISTANT.md](AI_ASSISTANT.md).
+- Losing your master password means the notes are **permanently unreadable** — no recovery backdoor, by design.
+- Note **titles** & folder names stay plaintext in the cloud (only contents are encrypted as `enc:v1:...`).
+- Text sent to the **AI Assistant** leaves your device as plaintext — use a local provider (Ollama) for highly sensitive content. See [AI_ASSISTANT.md](AI_ASSISTANT.md).
 
 ---
 
@@ -74,13 +74,13 @@ Write documentation with dual-pane real-time rendering. Type `:` to trigger inli
 
 ## 6. ⚙️ Unified Settings Workspace & Multi-Theme (`Ctrl+,`)
 
-Pusat konfigurasi terpadu dengan sidebar navigasi yang rapi dan elegan:
+A unified configuration center with a clean, elegant navigation sidebar:
 
-- **Supabase Cloud Sync**: Kredensial → Status Tabel → Akun, dengan urutan setup bernomor, skrip SQL resmi (RLS ketat), dan auto-setup 1-klik.
-- **AI Assistant**: provider (Claude / OpenAI-compatible / Ollama), API key, dan model dengan daftar model otomatis dari provider.
-- **Tampilan & Tema (Dark / Light / System)**: 6 palet tema koding (*Valtera Slate*, *Tokyo Night*, *Dracula*, *Forest Emerald*, *Nordic Frost*, *GitHub Light*) dengan pratinjau langsung CodeMirror, plus **zona waktu tampilan** yang bisa diatur (format 24 jam).
-- **Preferensi Tipografi Editor**: ukuran font dinamis, jenis font koding (*JetBrains Mono, Fira Code, Cascadia Code, Menlo*), ukuran indentasi tab, dan jeda auto-save.
-- **Tentang & Pembaruan**: informasi sistem dan pemeriksa pembaruan rilis 1-klik.
+- **Supabase Cloud Sync**: Credentials → Table Status → Account, with numbered setup steps, the official SQL script (strict RLS), and 1-click auto-setup.
+- **AI Assistant**: provider (Claude / OpenAI-compatible / Ollama), API key, and model with an automatic model list fetched from the provider.
+- **Appearance & Theme (Dark / Light / System)**: 6 coding palettes (*Valtera Slate*, *Tokyo Night*, *Dracula*, *Forest Emerald*, *Nordic Frost*, *GitHub Light*) with a live CodeMirror preview, plus a **configurable display timezone** (24-hour format).
+- **Editor Typography Preferences**: dynamic font size, coding fonts (*JetBrains Mono, Fira Code, Cascadia Code, Menlo*), tab indent size, and auto-save delay.
+- **About & Updates**: system information and a 1-click release checker.
 
 <p align="center">
   <img src="screenshots/preview-settings-light.png" width="92%" alt="Valtera Note Unified Settings Workspace" />

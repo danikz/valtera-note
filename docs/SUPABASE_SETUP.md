@@ -1,25 +1,25 @@
 # Supabase Cloud Sync Guide — Valtera Note
 
-Valtera Note dirancang dengan arsitektur **Local-First, Cloud-Synced**: aplikasi bekerja 100% offline menggunakan SQLite lokal, dan dapat disinkronkan ke **Supabase** untuk akses multi-perangkat.
+Valtera Note is designed as **Local-First, Cloud-Synced**: the app works 100% offline on a local SQLite database, and can sync to **Supabase** for multi-device access.
 
-Sinkronisasi menggunakan **Row Level Security (RLS) ketat** — hanya akun yang login yang bisa membaca & menulis tabel catatanmu. Anon key hanya dipakai sebagai penanda project, bukan pintu akses data.
+Sync uses **strict Row Level Security (RLS)** — only your logged-in account can read & write your notes table. The anon key serves merely as a project identifier, never as a door to your data.
 
 ---
 
-## 1. Urutan Setup (Ikuti Berurutan)
+## 1. Setup Order (Follow In Order)
 
-### Langkah 1 — Kredensial Project
+### Step 1 — Project Credentials
 
-1. Buka [Supabase Dashboard](https://supabase.com/dashboard) ➡️ pilih Project ➡️ **Project Settings → API**.
-2. Salin **Project URL** (contoh: `https://xyzproject.supabase.co`) dan **anon public key** (`eyJhbGciOiJIUzI1Ni...`).
-3. Buka **Valtera Note** ➡️ **Pengaturan → Supabase Cloud** (atau tombol ☁️ di titlebar) ➡️ masukkan keduanya ➡️ **Connect & Sync**.
+1. Open the [Supabase Dashboard](https://supabase.com/dashboard) ➡️ pick your Project ➡️ **Project Settings → API**.
+2. Copy the **Project URL** (e.g. `https://xyzproject.supabase.co`) and the **anon public key** (`eyJhbGciOiJIUzI1Ni...`).
+3. Open **Valtera Note** ➡️ **Settings → Supabase Cloud** (or the ☁️ button in the titlebar) ➡️ enter both ➡️ **Connect & Sync**.
 
-### Langkah 2 — Siapkan Tabel `notes`
+### Step 2 — Prepare the `notes` Table
 
-Masih di Supabase Dashboard, buka **SQL Editor**, jalankan skrip resmi berikut (skrip yang sama tersedia di app melalui **SyncModal → Copy Skrip SQL**):
+Still in the Supabase Dashboard, open the **SQL Editor** and run the official script below (the same script is available in the app via **Sync Modal → Copy SQL Script**):
 
 ```sql
--- 1. Buat tabel notes (dengan user_id untuk per-user Row Level Security)
+-- 1. Create the notes table (with user_id for per-user Row Level Security)
 create table if not exists public.notes (
     id uuid default gen_random_uuid() primary key,
     user_id uuid default auth.uid(),
@@ -33,15 +33,15 @@ create table if not exists public.notes (
     updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- 2. Migrasi tabel dari versi app lama
+-- 2. Migrate tables created by older app versions
 alter table public.notes add column if not exists folder text;
 alter table public.notes add column if not exists user_id uuid default auth.uid();
 
--- 3. Index untuk query sinkronisasi
+-- 3. Index for sync queries
 create index if not exists idx_notes_updated_at on public.notes(updated_at desc);
 
--- 4. Kunci tabel hanya untuk pemilik akun yang login.
---    WAJIB login di app setelah ini — tanpa sesi login, sync tidak bisa menulis.
+-- 4. Lock the table to the logged-in owner only.
+--    You MUST sign in inside the app after this — without a session, sync cannot write.
 alter table public.notes enable row level security;
 
 revoke all on public.notes from anon;
@@ -59,45 +59,45 @@ using (auth.uid() = user_id or user_id is null)
 with check (auth.uid() = user_id or user_id is null);
 ```
 
-> Skrip ini **mencabut semua akses anon** — siapa pun yang hanya memegang anon key tidak bisa membaca atau menulis tabelmu. Baris lama ber-`user_id` NULL tetap dapat diperbarui oleh pemilik akun setelah login.
+> This script **revokes all anonymous access** — anyone holding just the anon key cannot read or write your table. Legacy rows with a NULL `user_id` can still be updated by the account owner after login.
 
-### Langkah 3 — Masuk / Daftar Akun
+### Step 3 — Sign Up / Sign In
 
-1. Di **Valtera Note**, buka **Pengaturan → Supabase Cloud → Akun Supabase**.
-2. Klik **Daftar Akun Baru** (buat password baru, minimal 8 karakter) atau **Masuk** bila sudah pernah daftar.
-3. Jika diminta konfirmasi email, buka inbox dan klik tautan konfirmasi — atau matikan *Confirm email* di **Authentication → Sign In / Providers → Email** agar langsung dapat sesi.
-4. Status berubah menjadi **"Masuk: emailmu"** — sesi ditahan otomatis dengan refresh token.
+1. In **Valtera Note**, open **Settings → Supabase Cloud → Supabase Account**.
+2. Click **Register New Account** (create a new password, min. 8 characters) or **Sign In** if you already registered.
+3. If email confirmation is required, open your inbox and click the confirmation link — or disable *Confirm email* under **Authentication → Sign In / Providers → Email** to get a session instantly.
+4. The status changes to **"Signed in: your@email"** — the session is kept alive with a refresh token.
 
-Setelah ketiga langkah selesai, semua catatan tersinkron **otomatis**: 1,5 detik setelah mengetik (debounce) + pull berkala tiap 30 detik. Note lama yang pernah gagal ter-push akan pulih sendiri dalam satu siklus sync.
+Once all three steps are done, notes sync **automatically**: 1.5s after typing (debounce) plus a 30s background pull. Old notes that previously failed to push heal themselves within one sync cycle.
 
 ---
 
-## 2. Cara Kerja Sinkronisasi
+## 2. How Sync Works
 
-| Mekanisme | Keterangan |
+| Mechanism | Description |
 | :--- | :--- |
-| Push per-note (debounce 1,5 detik) | Setiap catatan yang diedit langsung dikirim (upsert) dengan konten terenkripsi E2E (`enc:v1:...`). |
-| Sync penuh tiap 30 detik | Pull catatan dari cloud + push catatan lokal yang belum ada di cloud (self-healing). |
-| Hapus | Tombstone lokal (`deleted_note_ids`) + hard-delete remote; note yang dihapus tidak akan dihidupkan kembali. |
-| Konflik | konten selalu E2E-encrypted (`enc:v1:...`) — server hanya menyimpan ciphertext. |
+| Per-note push (1.5s debounce) | Every edited note is pushed (upsert) immediately, with E2E-encrypted content (`enc:v1:...`). |
+| Full sync every 30s | Pulls notes from the cloud + pushes local notes missing from the cloud (self-healing). |
+| Deletion | Local tombstones (`deleted_note_ids`) + remote hard delete; deleted notes are never resurrected. |
+| Conflicts | Content is always E2E-encrypted (`enc:v1:...`) — the server only stores ciphertext. |
 
 ---
 
 ## 3. Troubleshooting
 
-| Masalah | Penyebab & Solusi |
+| Problem | Cause & Fix |
 | :--- | :--- |
-| `Invalid login credentials` saat Masuk | Email belum dikonfirmasi (klik tautan dari inbox) atau password salah. Jalur cepat: matikan *Confirm email*, hapus user di dashboard, lalu **Daftar Akun Baru** dari app. |
-| `permission denied for table notes` / sync gagal menulis | Skrip SQL ketat sudah dijalankan tapi app **belum login** — selesaikan Langkah 3. |
-| `new row violates row-level security` | Kamu login dengan akun berbeda dari yang membuat baris — pastikan login konsisten di semua perangkat. |
-| Catatan ada di app tapi tidak di cloud (v0.1.12 ke bawah) | Bug sudah diperbaiki di v0.1.13+: note lokal yang ID-nya belum ada di cloud di-push otomatis dalam ≤30 detik. |
-| Dashboard menampilkan jumlah baris berbeda | Table Editor Supabase tidak auto-refresh — klik tombol refresh. Pastikan juga project yang dibuka sama dengan yang tercantum di app. |
-| Ganti project Supabase | Sejak v0.1.14 sesi lama otomatis dibersihkan saat URL berubah — cukup login ulang ke project baru. |
+| `Invalid login credentials` on Sign In | Email not confirmed (click the inbox link) or wrong password. Fast path: disable *Confirm email*, delete the user in the dashboard, then **Register New Account** from the app. |
+| `permission denied for table notes` / sync can't write | The strict SQL script ran but the app **isn't signed in** — complete Step 3. |
+| `new row violates row-level security` | You're signed in with a different account than the one that created the rows — keep logins consistent across devices. |
+| Notes exist in the app but not in the cloud (≤ v0.1.12) | Fixed in v0.1.13+: local notes whose IDs are missing from the cloud are pushed automatically within 30s. |
+| Dashboard shows a different row count | The Supabase Table Editor doesn't auto-refresh — click its refresh button. Also make sure the open project matches the one configured in the app. |
+| Switching Supabase projects | Since v0.1.14 the old session is cleared automatically when the URL changes — just sign in to the new project. |
 
 ---
 
-## 4. Catatan Keamanan
+## 4. Security Notes
 
-- **Jangan pakai `service_role` key** di aplikasi client — key itu melewati RLS sepenuhnya.
-- Isi catatan tersimpan di cloud sebagai **ciphertext E2E** (`enc:v1:...`); server Supabase-mu tidak bisa membacanya. Judul catatan tersimpan apa adanya.
-- Skrip ketat (Langkah 2) wajib dijalankan — versi lama dokumentasi pernah menyertakan policy permisif `using (true)` yang membuka tabel ke siapa pun dengan anon key.
+- **Never use the `service_role` key** in a client application — it bypasses RLS entirely.
+- Note contents are stored in the cloud as **E2E ciphertext** (`enc:v1:...`); your Supabase server cannot read them. Note titles are stored as-is.
+- The strict script (Step 2) is mandatory — older versions of this documentation shipped a permissive `using (true)` policy that opened the table to anyone holding the anon key.

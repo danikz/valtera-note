@@ -513,10 +513,11 @@
                       tabindex="0"
                       onclick={() => handleSelect(originalIndex)}
                       onkeydown={(e) => { if (e.key === 'Enter') handleSelect(originalIndex); }}
-                      class="group w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs cursor-pointer transition-all border
-                      {isActive 
-                        ? 'bg-blue-600/20 text-blue-200 border-blue-500/40 font-medium' 
+                      class="group w-full flex items-center justify-between h-9 px-2 rounded-md text-xs cursor-pointer transition-all border
+                      {isActive
+                        ? 'bg-blue-600/20 text-blue-200 border-blue-500/40 font-medium'
                         : 'text-slate-300 border-transparent hover:bg-slate-800/60 hover:text-white'}"
+                      title={tab.file_path || tab.title}
                     >
                       <div class="flex items-center space-x-1.5 truncate flex-1 min-w-0 pr-1">
                         <IconComponent class="w-3.5 h-3.5 flex-shrink-0 {isActive ? 'text-blue-400' : 'text-slate-500'}" />
@@ -540,55 +541,55 @@
                         {/if}
                       </div>
 
-                      <div class="flex items-center space-x-1 flex-shrink-0">
-                        <!-- Cloud Synced Badge / Manual Sync -->
-                        {#if tab.supabase_id}
-                          <span title="Tersinkronisasi di Supabase Cloud">
-                            <Cloud class="w-3 h-3 text-emerald-400" />
-                          </span>
-                        {:else if editorStore.supabaseConfig.is_configured}
-                          <button
-                            onclick={(e) => {
-                              e.stopPropagation();
-                              editorStore.syncSingleTab(tab);
-                            }}
-                            class="p-0.5 rounded hover:bg-slate-700 text-slate-500 hover:text-emerald-400 transition-colors"
-                            title="Catatan belum di cloud. Klik untuk sinkronkan ke Supabase Cloud"
-                          >
-                            <Cloud class="w-3 h-3 text-slate-500 hover:text-emerald-400" />
-                          </button>
-                        {/if}
-
-                        <!-- Dirty Indicator (Unsaved) -->
-                        {#if tab.is_dirty}
-                          <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" title="Unsaved changes"></span>
-                        {/if}
+                      <div class="flex items-center justify-end gap-0.5 flex-shrink-0 w-[104px]">
+                        <!-- Status slot (lebar tetap agar kolom sejajar antar row) -->
+                        <div class="flex items-center justify-end w-8 flex-shrink-0">
+                          {#if tab.is_dirty}
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse mr-1.5" title="Unsaved changes"></span>
+                          {/if}
+                          {#if tab.supabase_id}
+                            <span title="Tersinkronisasi di Supabase Cloud">
+                              <Cloud class="w-3 h-3 text-emerald-400" />
+                            </span>
+                          {:else if editorStore.supabaseConfig.is_configured}
+                            <button
+                              onclick={(e) => {
+                                e.stopPropagation();
+                                editorStore.syncSingleTab(tab);
+                              }}
+                              class="w-4 h-4 flex items-center justify-center rounded hover:bg-slate-700 text-slate-500 hover:text-emerald-400 transition-colors"
+                              title="Catatan belum di cloud. Klik untuk sinkronkan ke Supabase Cloud"
+                            >
+                              <Cloud class="w-3 h-3 text-slate-500 hover:text-emerald-400" />
+                            </button>
+                          {/if}
+                        </div>
 
                         <!-- Move to Folder Menu Trigger -->
-                        <button 
+                        <button
                           onclick={(e) => {
                             e.stopPropagation();
                             noteMovingIndex = noteMovingIndex === originalIndex ? null : originalIndex;
                           }}
-                          class="p-0.5 rounded hover:bg-slate-700/80 text-slate-500 hover:text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                          class="w-4 h-4 flex items-center justify-center rounded hover:bg-slate-700/80 text-slate-500 hover:text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity"
                           title="Pindahkan ke folder lain..."
                         >
                           <FolderInput class="w-2.5 h-2.5" />
                         </button>
 
                         <!-- Rename Note Button -->
-                        <button 
+                        <button
                           onclick={(e) => startRenamingTab(e, originalIndex, tab.title)}
-                          class="p-0.5 rounded hover:bg-slate-700/80 text-slate-500 hover:text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                          class="w-4 h-4 flex items-center justify-center rounded hover:bg-slate-700/80 text-slate-500 hover:text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity"
                           title="Rename note"
                         >
                           <Edit2 class="w-2.5 h-2.5" />
                         </button>
 
                         <!-- Delete Note Button (Permanent) -->
-                        <button 
+                        <button
                           onclick={(e) => promptDeleteNote(e, originalIndex, tab.title, Boolean(tab.supabase_id))}
-                          class="p-0.5 rounded hover:bg-red-900/60 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                          class="w-4 h-4 flex items-center justify-center rounded hover:bg-red-900/60 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
                           title="Hapus Catatan Permanen"
                         >
                           <Trash2 class="w-2.5 h-2.5" />
@@ -596,13 +597,15 @@
 
                         <!-- Close Tab Button (if tab is open) -->
                         {#if tab.is_open !== false}
-                          <button 
+                          <button
                             onclick={(e) => handleClose(e, originalIndex)}
-                            class="p-0.5 rounded hover:bg-slate-700/80 text-slate-500 hover:text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                            class="w-4 h-4 flex items-center justify-center rounded hover:bg-slate-700/80 text-slate-500 hover:text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity"
                             title="Tutup Tab"
                           >
                             <X class="w-3 h-3" />
                           </button>
+                        {:else}
+                          <span class="w-4 h-4" aria-hidden="true"></span>
                         {/if}
                       </div>
                     </div>
@@ -686,10 +689,11 @@
             tabindex="0"
             onclick={() => handleSelect(originalIndex)}
             onkeydown={(e) => { if (e.key === 'Enter') handleSelect(originalIndex); }}
-            class="group w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs cursor-pointer transition-all border mb-0.5
-            {isActive 
-              ? 'bg-blue-600/20 text-blue-200 border-blue-500/40 font-medium' 
+            class="group w-full flex items-center justify-between h-9 px-2.5 rounded-md text-xs cursor-pointer transition-all border mb-0.5
+            {isActive
+              ? 'bg-blue-600/20 text-blue-200 border-blue-500/40 font-medium'
               : 'text-slate-300 border-transparent hover:bg-slate-800/60 hover:text-white'}"
+            title={tab.file_path || tab.folder || tab.title}
           >
             <div class="flex items-center space-x-2 truncate flex-1 min-w-0 pr-1">
               <IconComponent class="w-3.5 h-3.5 flex-shrink-0 {isActive ? 'text-blue-400' : 'text-slate-500'}" />
@@ -720,52 +724,56 @@
               {/if}
             </div>
 
-            <div class="flex items-center space-x-1 flex-shrink-0">
-              {#if tab.supabase_id}
-                <span title="Tersinkronisasi di Supabase Cloud">
-                  <Cloud class="w-3 h-3 text-emerald-400" />
-                </span>
-              {:else if editorStore.supabaseConfig.is_configured}
-                <button
-                  onclick={(e) => {
-                    e.stopPropagation();
-                    editorStore.syncSingleTab(tab);
-                  }}
-                  class="p-0.5 rounded hover:bg-slate-700 text-slate-500 hover:text-emerald-400 transition-colors"
-                  title="Catatan belum di cloud. Klik untuk sinkronkan ke Supabase Cloud"
-                >
-                  <Cloud class="w-3 h-3 text-slate-500 hover:text-emerald-400" />
-                </button>
-              {/if}
+            <div class="flex items-center justify-end gap-0.5 flex-shrink-0 w-[104px]">
+              <!-- Status slot (lebar tetap agar kolom sejajar antar row) -->
+              <div class="flex items-center justify-end w-8 flex-shrink-0">
+                {#if tab.is_dirty}
+                  <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse mr-1.5" title="Unsaved changes"></span>
+                {/if}
+                {#if tab.supabase_id}
+                  <span title="Tersinkronisasi di Supabase Cloud">
+                    <Cloud class="w-3 h-3 text-emerald-400" />
+                  </span>
+                {:else if editorStore.supabaseConfig.is_configured}
+                  <button
+                    onclick={(e) => {
+                      e.stopPropagation();
+                      editorStore.syncSingleTab(tab);
+                    }}
+                    class="w-4 h-4 flex items-center justify-center rounded hover:bg-slate-700 text-slate-500 hover:text-emerald-400 transition-colors"
+                    title="Catatan belum di cloud. Klik untuk sinkronkan ke Supabase Cloud"
+                  >
+                    <Cloud class="w-3 h-3 text-slate-500 hover:text-emerald-400" />
+                  </button>
+                {/if}
+              </div>
 
-              {#if tab.is_dirty}
-                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" title="Unsaved changes"></span>
-              {/if}
-
-              <button 
+              <button
                 onclick={(e) => startRenamingTab(e, originalIndex, tab.title)}
-                class="p-0.5 rounded hover:bg-slate-700/80 text-slate-500 hover:text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                class="w-4 h-4 flex items-center justify-center rounded hover:bg-slate-700/80 text-slate-500 hover:text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity"
                 title="Rename note"
               >
                 <Edit2 class="w-2.5 h-2.5" />
               </button>
 
-              <button 
+              <button
                 onclick={(e) => promptDeleteNote(e, originalIndex, tab.title, Boolean(tab.supabase_id))}
-                class="p-0.5 rounded hover:bg-red-900/60 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                class="w-4 h-4 flex items-center justify-center rounded hover:bg-red-900/60 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
                 title="Hapus Catatan Permanen"
               >
                 <Trash2 class="w-2.5 h-2.5" />
               </button>
 
               {#if tab.is_open !== false}
-                <button 
+                <button
                   onclick={(e) => handleClose(e, originalIndex)}
-                  class="p-0.5 rounded hover:bg-slate-700/80 text-slate-500 hover:text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                  class="w-4 h-4 flex items-center justify-center rounded hover:bg-slate-700/80 text-slate-500 hover:text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity"
                   title="Tutup Tab"
                 >
                   <X class="w-3 h-3" />
                 </button>
+              {:else}
+                <span class="w-4 h-4" aria-hidden="true"></span>
               {/if}
             </div>
           </div>

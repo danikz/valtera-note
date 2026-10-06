@@ -301,10 +301,15 @@ export const ipc = {
     }
   },
 
-  async aiComplete(system: string, user: string, maxTokens?: number): Promise<string> {
+  async aiComplete(
+    system: string,
+    user: string,
+    maxTokens?: number,
+    history?: Array<{ role: string; content: string }>
+  ): Promise<string> {
     if (isTauri) {
       return await invoke<string>('ai_complete', {
-        request: { system, user, max_tokens: maxTokens }
+        request: { system, user, max_tokens: maxTokens, history: history ?? [] }
       });
     }
     throw new Error('AI Assistant hanya tersedia di aplikasi desktop.');

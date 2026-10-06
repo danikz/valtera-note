@@ -74,11 +74,20 @@ pub async fn ai_save_config(
 }
 
 #[derive(Deserialize)]
+pub struct AiMessage {
+    pub role: String,
+    pub content: String,
+}
+
+#[derive(Deserialize)]
 pub struct AiRequest {
     pub system: String,
     pub user: String,
     #[serde(default)]
     pub max_tokens: Option<u32>,
+    /// Riwayat giliran sebelumnya (tanpa pesan user terbaru) untuk chat multi-turn.
+    #[serde(default)]
+    pub history: Vec<AiMessage>,
 }
 
 async fn call_ai(
@@ -89,6 +98,7 @@ async fn call_ai(
     system: &str,
     user: &str,
     max_tokens: u32,
+    history: &[AiMessage],
 ) -> Result<String, String> {
     if api_key.trim().is_empty() {
         return Err("API key AI belum diatur (Pengaturan → AI Assistant)".to_string());
@@ -109,11 +119,16 @@ async fn call_ai(
     let res = match kind {
         "anthropic" => {
             let url = format!("{}/v1/messages", base);
+            let mut msgs: Vec<serde_json::Value> = history
+                .iter()
+                .map(|m| serde_json::json!({ "role": m.role, "content": m.content }))
+                .collect();
+            msgs.push(serde_json::json!({ "role": "user", "content": user }));
             let body = serde_json::json!({
                 "model": model,
                 "max_tokens": max_tokens,
                 "system": system,
-                "messages": [{ "role": "user", "content": user }]
+                "messages": msgs
             });
             client
                 .post(&url)
@@ -128,12 +143,14 @@ async fn call_ai(
         _ => {
             // OpenAI-compatible: OpenAI, OpenRouter, Groq, Ollama (/v1), dll.
             let url = format!("{}/chat/completions", base);
+            let mut messages = vec![serde_json::json!({ "role": "system", "content": system })];
+            for m in history {
+                messages.push(serde_json::json!({ "role": m.role, "content": m.content }));
+            }
+            messages.push(serde_json::json!({ "role": "user", "content": user }));
             let body = serde_json::json!({
                 "model": model,
-                "messages": [
-                    { "role": "system", "content": system },
-                    { "role": "user", "content": user }
-                ]
+                "messages": messages
             });
             client
                 .post(&url)
@@ -202,6 +219,7 @@ pub async fn ai_complete(
         &request.system,
         &request.user,
         max_tokens,
+        &request.history,
     )
     .await
 }
@@ -221,6 +239,7 @@ pub async fn ai_test_connection(db: State<'_, Arc<DatabaseManager>>) -> Result<S
         "You are a connectivity test. Reply with exactly: OK",
         "ping",
         32,
+        &[],
     )
     .await
 }

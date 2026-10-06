@@ -42,6 +42,8 @@
     onOpenCommandPalette,
     onOpenEmojiPicker,
     onOpenAiModal,
+    isAiSidebarOpen,
+    onToggleAiSidebar,
     onOpenTool,
     onOpenAbout,
     onOpenSettings,
@@ -56,6 +58,8 @@
     onOpenCommandPalette: () => void; 
     onOpenEmojiPicker?: () => void;
     onOpenAiModal?: () => void;
+    isAiSidebarOpen?: boolean;
+    onToggleAiSidebar?: () => void;
     onOpenTool?: (tool: ToolType) => void;
     onOpenAbout?: () => void;
     onOpenSettings?: (tab?: 'supabase' | 'appearance' | 'editor' | 'ai' | 'about') => void;
@@ -604,6 +608,18 @@
 
     <!-- Window Management Buttons (Windows 11 / Modern Desktop Frameless Controls) -->
     <div class="flex items-center h-full ml-1 border-l border-slate-800/80">
+      {#if onToggleAiSidebar}
+        <button
+          onclick={onToggleAiSidebar}
+          title="AI Chat (Ctrl+Shift+A)"
+          aria-label="Toggle AI Chat"
+          class="h-full w-11 flex items-center justify-center transition-colors duration-150 cursor-pointer {isAiSidebarOpen
+            ? 'text-violet-200 bg-violet-600/30'
+            : 'text-slate-400 hover:text-white hover:bg-slate-600/70'} window-ctrl-btn"
+        >
+          <Sparkles class="w-3.5 h-3.5" />
+        </button>
+      {/if}
       <button
         onclick={handleMinimize}
         class="h-full w-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-600/70 transition-colors duration-150 cursor-pointer window-ctrl-btn"

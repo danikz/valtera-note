@@ -4,7 +4,7 @@
 
 # Valtera Note
 
-**Ultra-lightweight desktop text editor, SQL scratchpad, Markdown workspace, and Developer Tools suite.**  
+**Ultra-lightweight desktop text editor, SQL scratchpad, Markdown workspace, Developer Tools suite — now with a privacy-first AI Assistant.**
 *Engineered with Tauri v2 & Rust — Consuming under 40MB of RAM.*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -12,7 +12,7 @@
 [![Rust](https://img.shields.io/badge/Rust-1.75+-DEA584?logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![Svelte 5](https://img.shields.io/badge/Svelte-v5.0-FF3E00?logo=svelte&logoColor=white)](https://svelte.dev)
 [![RAM Footprint](https://img.shields.io/badge/RAM-~38MB-brightgreen)](#-why-valtera-note)
-[![Latest Release](https://img.shields.io/github/v/release/danikz/valtera-note?color=orange&logo=github)](https://github.com/danikz/valtera-note/releases)
+[![Latest Release](https://img.shields.io/github/v/release/danikz/valtera-note?color=orange&logo=github)](https://github.com/danikz/valtera-note/releases/latest)
 
 <br />
 
@@ -20,143 +20,79 @@
   <img src="docs/screenshots/preview-hero-light.png" width="95%" alt="Valtera Note Light Hero Preview - Live Markdown Split & Modern Light Mode" />
 </p>
 
-<p align="center">
-  <a href="docs/index.html"><strong>🌐 Buka Halaman Dokumentasi & Showcase Fitur Interaktif (docs/index.html) →</strong></a>
-</p>
-
 </div>
 
 ---
 
-## 📥 Download & Installation (v0.1.10)
+## 📥 Download (Latest)
 
-Download the official installers directly from the **[GitHub Releases Page](https://github.com/danikz/valtera-note/releases/latest)**:
+Grab the official installer for your platform from the **[GitHub Releases Page](https://github.com/danikz/valtera-note/releases/latest)** — Windows `.exe` / `.msi`, macOS `.dmg`, Linux `.deb` / `.AppImage`.
 
-| Platform | Architecture / Format | Installer File |
-| :--- | :--- | :--- |
-| **Windows 10 / 11** | `.exe` (Standard Setup) | [**Valtera Note_0.1.10_x64-setup.exe**](https://github.com/danikz/valtera-note/releases/latest) |
-| **Windows (Enterprise)** | `.msi` (WiX Installer) | [**Valtera Note_0.1.10_x64_en-US.msi**](https://github.com/danikz/valtera-note/releases/latest) |
-| **macOS (Apple Silicon & Intel)** | `.dmg` (Universal Binary) | [**Valtera Note_0.1.10_universal.dmg**](https://github.com/danikz/valtera-note/releases/latest) |
-| **Linux (Ubuntu / Debian)** | `.deb` (amd64) | [**valtera-note_0.1.10_amd64.deb**](https://github.com/danikz/valtera-note/releases/latest) |
-| **Linux (Universal)** | `.AppImage` (x86_64) | [**valtera-note_0.1.10_amd64.AppImage**](https://github.com/danikz/valtera-note/releases/latest) |
-
-> 🔄 **Automatic In-App Updates**: Valtera Note comes with a built-in cryptographic auto-updater. When a new version is released, you will receive an instant notification with 1-click upgrade.
+> 🔄 **Automatic In-App Updates**: Valtera Note ships with a built-in cryptographic auto-updater. When a new version is released, you get an instant notification with a 1-click upgrade.
 
 ---
 
-## 💡 Why Valtera Note?
+## ✨ Highlights
 
-Most modern editors (VS Code, Obsidian, Notion) are built on **Electron**, consuming **400MB to 1GB+ of RAM** just to edit a quick text file or format JSON. Classic Notepad is lightweight but lacks tabs, live viewers, syntax highlighting, and modern developer utilities.
-
-- ⚡ **Instant Cold Startup**: Boot in `< 250ms` and idle memory footprint **under 40MB of RAM**.
-- 🛠️ **Built-in Developer Tools Suite**: JSON Formatter, Favicon Package Generator, MySQL Password, URL & UUID tools directly in-app.
-- 📑 **Live Markdown Split**: GitHub Flavored Markdown (GFM) with synchronized dual-pane scrolling.
-- 🗄️ **SQL Scratchpad**: Syntax highlighting, query beautifier, and local SQLite execution with result grid.
-- ✨ **Inline Emoji & Icon Autocomplete**: Type `:rocket:`, `:star:`, `:check:` directly in the editor buffer.
-- 🌳 **Interactive JSON Tree & Table**: Collapsible nodes, type badges, click-to-copy paths, and CSV/Markdown export.
-- ☁️ **Offline-First & Cloud Sync**: 100% functional without internet; optional Supabase cloud sync for multi-device workflows.
-- 🪟 **Windows Explorer Integration**: Open files with 1-click directly from the Windows context menu.
-
----
-
-## ✨ Features & Previews (Light Mode)
-
-### 1. 🛠️ Dedicated Developer Tools Suite & SQLite Studio (v0.1.9)
-Access full-page developer utilities directly via the Titlebar button, Command Palette (`Ctrl+K`), or keyboard shortcuts:
-- **JSON Formatter & Tree Inspector** (`Ctrl+Shift+J`): Beautify, minify, and inspect JSON payloads with interactive tree navigation or dynamic table grids. Export to **CSV (RFC 4180)** and **Markdown Tables** with 1-click.
-- **Pembaca SQLite & Database Explorer (SQLite Studio)** (`Ctrl+Shift+D`): Buka dan jelajahi berkas database SQLite (`.db`, `.sqlite`, `.sqlite3`) dari komputer atau database internal Valtera Note dengan 1-klik. Tampilkan daftar tabel & views, hitung baris, sortir kolom, filter pencarian baris real-time, eksekusi query SQL custom, dan ekspor ke CSV, JSON, atau Markdown Table.
-- **Favicon & Web Icon Package Generator** (`Ctrl+Shift+F`): Drag and drop any image or SVG to generate `favicon.ico` (multi-res 16/32/48), `apple-touch-icon.png`, `android-chrome-192/512`, `manifest.json`, `browserconfig.xml`, and a ready-to-download ZIP archive.
-- **MySQL Password Hash Generator** (`Ctrl+Shift+P`): Compute MySQL Native Password (`mysql_native_password` double-SHA1) and legacy hashes for quick database administration.
-- **Base64 & URL Tools**: Bilateral Base64 encoding/decoding and URL query parameter inspector.
-- **Bulk UUID v4 Generator**: Fast bulk UUID generation with capitalization and format options.
-
-<p align="center">
-  <img src="docs/screenshots/preview-tools-light.png" width="92%" alt="Valtera Note Developer Tools Suite - JSON Formatter & Table Grid" />
-</p>
+- 🤖 **Built-in AI Assistant** — chat sidebar that reads your active note & selection. Bring your own API key: **Anthropic Claude (native)** or **any OpenAI-compatible endpoint** (OpenAI, OpenRouter, Groq, local Ollama). It can even write back to your notes. → [AI Assistant Guide](docs/AI_ASSISTANT.md)
+- 🔒 **End-to-End Encryption** — notes are encrypted with XChaCha20-Poly1305 (Argon2id key derivation) before touching local disk or the cloud, with a lock screen & auto-unlock via Windows Credential Manager / Keychain.
+- ⚡ **Instant Cold Startup** — boot in `< 250ms`, idle footprint **under 40MB of RAM** (Tauri v2 + Rust, not Electron).
+- 🛠️ **Developer Tools Suite** — JSON Formatter & Tree, SQLite Studio, Favicon Package Generator, MySQL Password Hash, URL & UUID tools. → [Features](docs/FEATURES.md)
+- 📑 **Live Markdown Split** — GitHub Flavored Markdown with synchronized dual-pane scrolling.
+- 🗄️ **SQL Scratchpad** — syntax highlighting, SQL beautifier, local SQLite execution with a result grid.
+- 🌳 **Interactive JSON Tree & Table** — collapsible nodes, click-to-copy paths, CSV/Markdown export.
+- ☁️ **Offline-First + Optional Cloud Sync** — fully functional offline; optional Supabase sync with strict Row Level Security. → [Supabase Setup](docs/SUPABASE_SETUP.md)
+- 🎨 **Dark / Light / System Themes** — 6 editor palettes (Tokyo Night, Dracula, GitHub Light, …) plus a configurable display timezone (24-hour format).
+- 🪟 **Windows Explorer Integration** — open files with 1-click from the context menu.
 
 ---
 
-### 2. 🎨 Favicon & Web Icon Package Generator (`Ctrl+Shift+F`)
-Generate a complete web-standards favicon package from a single image or SVG file with live platform preview simulation (Browser tabs, iOS Web Clip, Android PWA, Windows 10/11 tiles, Google SERP):
+## 🤖 AI Assistant (Bring Your Own Key)
 
-<p align="center">
-  <img src="docs/screenshots/preview-favicon-light.png" width="92%" alt="Valtera Note Favicon Package Generator" />
-</p>
+Press **`Ctrl+Shift+A`** (or the ✨ button in the titlebar) to open the AI chat sidebar:
 
----
+- **Provider bebas**: Anthropic Claude (native) atau endpoint OpenAI-compatible apa pun — key & model diatur di *Pengaturan → AI Assistant*, tersimpan hanya di perangkatmu.
+- **Context-aware**: aktifkan "Baca catatan aktif" agar AI mengerti isi catatan yang terbuka, dan "Sertakan teks terpilih" untuk bagian yang kamu blok.
+- **Bisa menulis ke catatan**: minta AI menulis/mengubah isi catatan → terapkan dengan satu klik (konfirmasi dulu, aman).
+- **Quick actions**: Ringkas, Perbaiki Tulisan, Translate, Jelaskan, Commit Message, dan prompt kustom.
 
-### 3. 🗄️ SQL Scratchpad & Local SQLite Execution
-Run queries against local SQLite databases, format messy SQL code, and explore query results in a responsive data grid viewer:
+> ⚠️ Catatan privasi: teks yang dikirim ke AI keluar dari perangkat sebagai plaintext. Enkripsi E2E melindungi penyimpanan lokal & cloud — bukan permintaan AI. Untuk konten super-sensitif, gunakan provider lokal (Ollama).
 
-<p align="center">
-  <img src="docs/screenshots/preview-sql-light.png" width="92%" alt="Valtera Note SQL Scratchpad Preview in Light Mode" />
-</p>
+📖 Panduan lengkap (setup provider, troubleshooting, contoh perintah): **[docs/AI_ASSISTANT.md](docs/AI_ASSISTANT.md)**
 
 ---
 
-### 4. 📑 Live Markdown Split & Inline Emoji Autocomplete
-Write documentation with dual-pane real-time rendering. Type `:` to trigger inline emoji autocomplete (`:rocket:`, `:star:`, `:check:`, `:warn:`, `:db:`), or press `Ctrl+Shift+E` for the visual emoji picker modal:
+## ☁️ Cloud Sync (Optional — Supabase)
 
-<p align="center">
-  <img src="docs/screenshots/preview-hero-light.png" width="92%" alt="Valtera Note Markdown Split and Inline Emoji Autocomplete" />
-</p>
+Valtera Note is 100% offline-first. For multi-device sync, follow the guided order in-app:
 
----
+1. **Kredensial Project** — masukkan *Project URL* & *Anon Key* (Pengaturan → Supabase).
+2. **Siapkan Tabel** — jalankan skrip SQL resmi dari SyncModal (Row Level Security ketat: hanya akun yang login bisa mengakses).
+3. **Masuk / Daftar Akun** — sync berjalan sebagai identitasmu, sesi ditahan otomatis.
 
-### 5. ⚙️ Unified Settings Workspace & Multi-Theme (`Ctrl+,`)
-Pusat konfigurasi terpadu dengan sidebar navigasi yang rapi dan elegan:
-- **Supabase Cloud Sync & Kredensial**: Masukkan Project URL & Anon Key, uji koneksi secara real-time, buat skema tabel otomatis dengan DDL migrasi, dan sinkronisasi manual/otomatis.
-- **Tampilan & Tema (Dark / Light / System)**: Beralih mulus antara Mode Gelap, Mode Terang profesional, dan Ikuti Tema Sistem OS. Dilengkapi 6 palet tema koding: *Valtera Slate*, *Tokyo Night*, *Dracula*, *Forest Emerald*, *Nordic Frost*, dan *GitHub Light* dengan pratinjau langsung CodeMirror.
-- **Preferensi Tipografi Editor**: Ubah ukuran font secara dinamis, pilih jenis font koding (*JetBrains Mono, Fira Code, Cascadia Code, Menlo*), ukuran indentasi tab (2 / 4 spasi), dan jeda auto-save.
-- **Tentang & Pembaruan**: Informasi sistem dan pemeriksa pembaruan rilis 1-klik.
+Setelah itu semua catatan tersinkron otomatis (1,5 detik setelah mengetik + pull berkala 30 detik).
 
-<p align="center">
-  <img src="docs/screenshots/preview-settings-light.png" width="92%" alt="Valtera Note Unified Settings Workspace - Supabase Credentials, Multi-Theme, and Dark/Light Mode" />
-</p>
+📖 Panduan lengkap termasuk skrip SQL & troubleshooting: **[docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md)**
 
 ---
 
-### 6. 🌐 Interactive Feature Documentation & Showcase Page
-Valtera Note includes a dedicated, responsive feature showcase page located at [`docs/index.html`](docs/index.html):
+## ⌨️ Keyboard Shortcuts
 
-<p align="center">
-  <img src="docs/screenshots/preview-showcase-light.png" width="92%" alt="Valtera Note Interactive Feature Showcase Page" />
-</p>
-
----
-
-## ⌨️ Keyboard Shortcuts Cheat Sheet
-
-| Action / Feature | Shortcut | Category |
-| :--- | :--- | :--- |
-| **Buka Pengaturan (Settings: Supabase, Tema & Editor)** | `Ctrl + ,` | Global *(v0.1.7)* |
-| **Command Palette & Search** | `Ctrl + K` / `Ctrl + P` | Global |
-| **Pembaca SQLite (SQLite Studio & Explorer)** | `Ctrl + Shift + D` | Tools *(v0.1.9)* |
-| **Developer Tools (JSON Formatter & Table)** | `Ctrl + Shift + J` | Tools *(v0.1.7)* |
-| **Favicon & Web Icon Package Generator** | `Ctrl + Shift + F` | Tools *(v0.1.7)* |
-| **MySQL Password Hash Generator** | `Ctrl + Shift + P` | Tools *(v0.1.7)* |
-| **Visual Emoji & Icon Picker Modal** | `Ctrl + Shift + E` | Editor *(v0.1.6)* |
-| **Close All Open Tabs** | `Ctrl + Shift + W` | Workspace *(v0.1.6)* |
-| **Close Active Tab** | `Ctrl + W` | Workspace |
-| **New Note / Tab** | `Ctrl + N` | File |
-| **Open File** | `Ctrl + O` | File |
-| **Save Document & Cloud Sync** | `Ctrl + S` | File |
-| **Toggle Sidebar Navigation** | `Ctrl + B` | View |
-| **Toggle Markdown Split View** | `Ctrl + \` | View |
-| **Execute SQL Query** | `Ctrl + Enter` / `F5` | Database |
-| **Format SQL / JSON** | `Ctrl + Shift + F` | Editor |
-| **Supabase Cloud Sync Settings** | `Ctrl + ,` | Cloud / Settings |
-
----
-
-## ☁️ Supabase Cloud Sync (Optional)
-
-Valtera Note is 100% offline-first. Notes are stored locally in SQLite with instant persistence. If you want multi-device synchronization:
-
-1. Create a free project at [supabase.com](https://supabase.com).
-2. Open **Valtera Note** ➔ Click **Cloud Sync (☁️)** in the Titlebar or press `Ctrl+Shift+U`.
-3. Enter your **Project URL** & **Anon Key**, then sign up or log in.
-4. Click **Run Auto-Setup Table** to provision the `notes` table schema automatically.
+| Action / Feature | Shortcut |
+| :--- | :--- |
+| **AI Chat Sidebar** | `Ctrl + Shift + A` |
+| **Command Palette & Search** | `Ctrl + K` / `Ctrl + P` |
+| **Pengaturan (Supabase, AI, Tema, Editor)** | `Ctrl + ,` |
+| **Developer Tools (JSON)** | `Ctrl + Shift + J` |
+| **SQLite Studio** | `Ctrl + Shift + D` |
+| **Favicon Generator** | `Ctrl + Shift + F` |
+| **MySQL Password Generator** | `Ctrl + Shift + P` |
+| **Emoji & Icon Picker** | `Ctrl + Shift + E` |
+| **New Note / Open / Save** | `Ctrl + N` / `Ctrl + O` / `Ctrl + S` |
+| **Toggle Sidebar Navigation** | `Ctrl + B` |
+| **Toggle Markdown Split View** | `Ctrl + \` |
+| **Close Tab / All Tabs** | `Ctrl + W` / `Ctrl + Shift + W` |
+| **Execute SQL Query** | `Ctrl + Enter` / `F5` |
 
 ---
 
@@ -185,18 +121,16 @@ pnpm tauri build
 
 ---
 
-## 📸 Automated Screenshot Capture with Playwright
+## 📚 Documentation
 
-Screenshots in this repository are automatically captured in high-resolution Light Mode using Playwright:
-
-```bash
-# Run the automated Playwright light mode screenshot pipeline
-node scripts/capture-light-screenshots.mjs
-```
-
-The output images are saved directly to `docs/screenshots/` at 2x device scale for high-DPI displays.
-
----
+| Document | Description |
+| :--- | :--- |
+| **[AI Assistant Guide](docs/AI_ASSISTANT.md)** | Setup provider (Claude / OpenAI-compatible / Ollama), chat sidebar, context toggles, write-to-note, troubleshooting. |
+| **[Supabase Setup](docs/SUPABASE_SETUP.md)** | Skrip SQL resmi (RLS ketat), urutan setup, login akun, troubleshooting sync. |
+| **[Features & Previews](docs/FEATURES.md)** | Tur lengkap semua fitur dengan screenshot. |
+| **[Architecture](docs/ARCHITECTURE.md)** | Struktur teknis aplikasi (Tauri + Svelte + SQLite). |
+| **[Database Schema](docs/DATABASE.md)** | Skema SQLite lokal & tabel cloud. |
+| **[Changelog](CHANGELOG.md)** | Riwayat rilis per versi. |
 
 ## 📄 License
 

@@ -1,6 +1,6 @@
-# 🤖 AI Assistant Guide — Valtera Note
+# 🤖 Panduan AI Assistant — Valtera Note
 
-Valtera Note punya AI Assistant bawaan dengan model **Bring Your Own Key (BYO)**: tidak ada server perantara, tidak ada biaya langganan dari kami — kamu memakai API key sendiri dari provider pilihanmu. Permintaan dikirim **langsung dari backend Rust** ke provider (bebas CORS), dan konfigurasi tersimpan **hanya di perangkat ini**.
+Valtera Note punya AI Assistant bawaan dengan model **Bawa API Key Sendiri (BYO)**: tidak ada server perantara, tidak ada biaya langganan dari kami — kamu memakai API key sendiri dari provider pilihanmu. Permintaan dikirim **langsung dari backend Rust** ke provider (bebas CORS), dan konfigurasi tersimpan **hanya di perangkat ini**.
 
 ---
 
@@ -60,7 +60,7 @@ Setelah diterapkan muncul tanda ✅ *Catatan berhasil diperbarui*.
 
 > Protokol ini berbasis instruksi sistem sehingga **bekerja di semua provider** — termasuk model kecil tanpa dukungan tool-calling.
 
-### Aksi Cepat di Editor (`Ctrl+Shift+A` → atau menu Edit)
+### Aksi Cepat di Editor (Ctrl+Shift+A → atau menu Edit)
 
 Selain chat, ada aksi satu-klik yang bekerja pada **teks terpilih** (atau seluruh catatan bila tidak ada seleksi):
 

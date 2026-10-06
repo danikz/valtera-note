@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.22] - 2026-10-06
+
+### 🎨 Perbaikan: Window Controls Seperti Native Windows 11
+- **Hover kini memenuhi seluruh area tombol** (44×36px, setinggi titlebar) — sebelumnya hanya kotak kecil di sekitar icon. Akar masalah: wrapper "Quick Action Groups" di titlebar tidak punya tinggi sehingga rantai `h-full` tombol patah dan tombol ikut ukuran isi (~26px) mengambang di tengah.
+- Wrapper kini `h-full self-stretch` dan keempat tombol (AI, Minimize, Maximize/Restore, Close) memakai `self-stretch w-11` dengan tinggi seragam, icon tetap presisi di tengah (flex center).
+- Close button tetap hover merah khas Windows, tombol lain hover abu; area klik = area visual. Tidak ada perubahan layout titlebar, icon, atau konfigurasi `decorations: false`.
+
+---
+
 ## [0.1.21] - 2026-10-06
 
 ### ✨ Fitur Baru: AI Chat Sidebar — Ngobrol Langsung dengan AI

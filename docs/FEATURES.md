@@ -1,4 +1,4 @@
-# ✨ Features & Previews — Valtera Note
+# ✨ Fitur & Pratinjau — Valtera Note
 
 Tur lengkap fitur Valtera Note dengan screenshot (Light Mode, dirender otomatis via Playwright).
 

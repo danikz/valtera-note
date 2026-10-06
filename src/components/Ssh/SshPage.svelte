@@ -16,6 +16,7 @@
   import { FitAddon } from '@xterm/addon-fit';
   import { listen, type UnlistenFn } from '@tauri-apps/api/event';
   import { ipc } from '../../services/ipc';
+  import { copyText } from '../../utils/clipboard';
   import '@xterm/xterm/css/xterm.css';
 
   interface SshConnection {
@@ -188,11 +189,13 @@
     });
     fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
+    term.attachCustomKeyEventHandler(customKeyHandler);
     term.open(terminalEl);
     fitAddon.fit();
     term.onData((data) => {
       if (activeId) ipc.sshWrite(activeId, data);
     });
+    terminalEl.addEventListener('contextmenu', openCtxMenu);
     resizeObserver = new ResizeObserver(() => {
       if (!fitAddon || !activeId) return;
       try {
@@ -270,6 +273,70 @@
     ensureTerminal();
     fitAddon?.fit();
     term!.focus();
+  }
+
+  // ===== Paste & clipboard terminal =====
+
+  // Clipboard Windows pakai CRLF; terminal mengharapkan CR per baris.
+  function normalizePaste(text: string): string {
+    return text.replace(/\r\n/g, '\r').replace(/\n/g, '\r');
+  }
+
+  async function sendPaste(text: string) {
+    if (!text || !activeId) return;
+    const normalized = normalizePaste(text);
+    const lineCount = normalized.split('\r').length;
+    if (
+      lineCount > 3 &&
+      !confirm(`Tempel ${lineCount} baris ke terminal?\nBaris akan langsung dieksekusi satu per satu (kecuali shell mendukung bracketed paste).`)
+    ) {
+      return;
+    }
+    const CHUNK = 4096;
+    for (let i = 0; i < normalized.length; i += CHUNK) {
+      await ipc.sshWrite(activeId, normalized.slice(i, i + CHUNK));
+      if (i + CHUNK < normalized.length) await new Promise((r) => setTimeout(r, 20));
+    }
+  }
+
+  // Ctrl+C cerdas: ada seleksi = salin, tanpa seleksi = SIGINT.
+  // Ctrl+Shift+V = paste eksplisit via clipboard API.
+  function customKeyHandler(e: KeyboardEvent): boolean {
+    const ctrl = e.ctrlKey || e.metaKey;
+    if (e.type !== 'keydown') return true;
+    if (ctrl && e.shiftKey && e.key.toLowerCase() === 'v') {
+      navigator.clipboard
+        .readText()
+        .then((t) => sendPaste(t))
+        .catch(() => {});
+      return false;
+    }
+    if (ctrl && !e.shiftKey && e.key.toLowerCase() === 'c' && term?.hasSelection()) {
+      copyText(term.getSelection());
+      return false;
+    }
+    return true;
+  }
+
+  // Menu konteks klik-kanan di terminal.
+  let ctxMenu = $state<{ x: number; y: number } | null>(null);
+
+  function openCtxMenu(e: MouseEvent) {
+    if (!activeId) return;
+    e.preventDefault();
+    ctxMenu = { x: Math.min(e.clientX, window.innerWidth - 180), y: Math.min(e.clientY, window.innerHeight - 160) };
+  }
+
+  async function ctxPaste() {
+    ctxMenu = null;
+    const text = await navigator.clipboard.readText().catch(() => '');
+    await sendPaste(text);
+  }
+
+  async function ctxCopy() {
+    if (!term?.hasSelection()) return;
+    ctxMenu = null;
+    await copyText(term.getSelection());
   }
 </script>
 
@@ -401,8 +468,41 @@
               Lepas tampilan (sesi tetap hidup)
             </button>
           </div>
-          <div class="flex-1 min-h-0 p-1 bg-[#0b0f19]">
+          <div class="flex-1 min-h-0 p-1 bg-[#0b0f19] relative">
             <div bind:this={terminalEl} class="h-full w-full"></div>
+            {#if ctxMenu}
+              <div
+                class="fixed z-50 min-w-[150px] py-1 rounded-lg bg-slate-900 border border-slate-700 shadow-2xl text-xs text-slate-200"
+                style="left: {ctxMenu.x}px; top: {ctxMenu.y}px;"
+              >
+                <button
+                  onclick={ctxCopy}
+                  disabled={!term?.hasSelection()}
+                  class="w-full px-3 py-1.5 text-left hover:bg-slate-800 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Salin (Ctrl+Shift+C)
+                </button>
+                <button
+                  onclick={ctxPaste}
+                  class="w-full px-3 py-1.5 text-left hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  Tempel (Ctrl+Shift+V / klik kanan)
+                </button>
+                <div class="my-1 border-t border-slate-800"></div>
+                <button
+                  onclick={() => { term?.selectAll(); ctxMenu = null; }}
+                  class="w-full px-3 py-1.5 text-left hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  Pilih Semua
+                </button>
+                <button
+                  onclick={() => { term?.clear(); ctxMenu = null; }}
+                  class="w-full px-3 py-1.5 text-left hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  Bersihkan Layar
+                </button>
+              </div>
+            {/if}
           </div>
         {:else}
           <!-- Form koneksi -->
@@ -559,6 +659,8 @@
     </div>
   {/if}
 </div>
+
+<svelte:window onclick={() => (ctxMenu = null)} onkeydown={() => (ctxMenu = null)} />
 
 {#if connecting}
   <div class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">

@@ -44,6 +44,12 @@ Chat dengan AI langsung di dalam editor:
 - **Lock Screen** muncul saat app dibuka; opsi "Ingat di Device Ini" menyimpan kunci di **Windows Credential Manager** (macOS Keychain / Linux Secret Service) untuk auto-unlock.
 - Cloud sync memakai **Row Level Security ketat** — hanya akun yang login yang bisa mengakses tabelnya.
 
+**Batas yang jujur** (over-explain daripada over-promise):
+
+- Lupa master password = catatan **tidak bisa dibaca selamanya** — tidak ada pintu pemulihan, by design.
+- **Judul** catatan & nama folder tetap plaintext di cloud (hanya isinya yang terenkripsi sebagai `enc:v1:...`).
+- Teks yang dikirim ke **AI Assistant** keluar dari perangkat sebagai plaintext — gunakan provider lokal (Ollama) untuk konten super-sensitif. Lihat [AI_ASSISTANT.md](AI_ASSISTANT.md).
+
 ---
 
 ## 4. 🗄️ SQL Scratchpad & Local SQLite Execution

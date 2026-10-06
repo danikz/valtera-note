@@ -508,7 +508,7 @@
   </button>
 
   <!-- Right: Quick Action Groups, Supabase Sync Status & Window Buttons -->
-  <div class="flex items-center space-x-1.5 pointer-events-auto flex-shrink-0">
+  <div class="flex items-center space-x-1.5 pointer-events-auto flex-shrink-0 h-full self-stretch">
     <!-- Group: File Operations (New, Open, Save) -->
     <div class="flex items-center bg-slate-950/60 border border-slate-800/80 rounded-md p-0.5 space-x-0.5">
       <button 
@@ -607,13 +607,13 @@
     </button>
 
     <!-- Window Management Buttons (Windows 11 / Modern Desktop Frameless Controls) -->
-    <div class="flex items-center h-full ml-1 border-l border-slate-800/80">
+    <div class="flex items-stretch h-full self-stretch ml-1 border-l border-slate-800/80">
       {#if onToggleAiSidebar}
         <button
           onclick={onToggleAiSidebar}
           title="AI Chat (Ctrl+Shift+A)"
           aria-label="Toggle AI Chat"
-          class="h-full w-11 flex items-center justify-center transition-colors duration-150 cursor-pointer {isAiSidebarOpen
+          class="self-stretch w-11 flex items-center justify-center transition-colors duration-150 cursor-pointer {isAiSidebarOpen
             ? 'text-violet-200 bg-violet-600/30'
             : 'text-slate-400 hover:text-white hover:bg-slate-600/70'} window-ctrl-btn"
         >
@@ -622,7 +622,7 @@
       {/if}
       <button
         onclick={handleMinimize}
-        class="h-full w-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-600/70 transition-colors duration-150 cursor-pointer window-ctrl-btn"
+        class="self-stretch w-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-600/70 transition-colors duration-150 cursor-pointer window-ctrl-btn"
         title="Minimize"
         aria-label="Minimize"
       >
@@ -631,7 +631,7 @@
 
       <button
         onclick={handleToggleMaximize}
-        class="h-full w-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-600/70 transition-colors duration-150 cursor-pointer window-ctrl-btn"
+        class="self-stretch w-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-600/70 transition-colors duration-150 cursor-pointer window-ctrl-btn"
         title={isMaximized ? "Restore Down" : "Maximize"}
         aria-label={isMaximized ? "Restore Down" : "Maximize"}
       >
@@ -649,7 +649,7 @@
 
       <button
         onclick={handleClose}
-        class="h-full w-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500 transition-colors duration-150 cursor-pointer window-close-btn"
+        class="self-stretch w-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500 transition-colors duration-150 cursor-pointer window-close-btn"
         title="Close"
         aria-label="Close"
       >

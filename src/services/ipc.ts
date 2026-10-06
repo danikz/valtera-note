@@ -288,7 +288,16 @@ export const ipc = {
 
   async aiSaveConfig(kind: string, baseUrl: string, apiKey: string | null, model: string): Promise<void> {
     if (isTauri) {
-      await invoke('ai_save_config', { kind, base_url: baseUrl, api_key: apiKey, model });
+      // Tauri v2 mencocokkan argumen JS (camelCase) ke param Rust (snake_case);
+      // kedua ejaan dikirim defensif mengikuti pola command lain.
+      await invoke('ai_save_config', {
+        kind,
+        baseUrl,
+        base_url: baseUrl,
+        apiKey: apiKey ?? undefined,
+        api_key: apiKey ?? undefined,
+        model
+      });
     }
   },
 

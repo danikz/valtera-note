@@ -53,3 +53,6 @@ pnpm-debug.log*
 .agents/
 .claude/
 .cursor/
+
+# Local code-graph index (tool cache)
+.codegraph/

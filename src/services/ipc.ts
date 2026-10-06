@@ -317,6 +317,13 @@ export const ipc = {
     throw new Error('AI Assistant hanya tersedia di aplikasi desktop.');
   },
 
+  async aiListModels(): Promise<string[]> {
+    if (isTauri) {
+      return await invoke<string[]>('ai_list_models');
+    }
+    return [];
+  },
+
   async checkSupabaseTable(url: string, anonKey: string, accessToken?: string): Promise<boolean> {
     const cleanUrl = url.trim().replace(/\/+$/, '');
     const cleanKey = anonKey.trim();

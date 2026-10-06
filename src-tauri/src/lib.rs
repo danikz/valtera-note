@@ -100,6 +100,7 @@ pub fn run() {
             commands::ai::ai_save_config,
             commands::ai::ai_complete,
             commands::ai::ai_test_connection,
+            commands::ai::ai_list_models,
             commands::supabase::test_supabase_connection,
             commands::supabase::check_supabase_table,
             commands::supabase::auto_create_supabase_table,

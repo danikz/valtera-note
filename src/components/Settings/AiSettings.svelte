@@ -66,6 +66,8 @@
   let isLoading = $state(true);
   let isSaving = $state(false);
   let isTesting = $state(false);
+  let isLoadingModels = $state(false);
+  let models = $state<string[]>([]);
   let statusMessage = $state<{ text: string; type: 'success' | 'error' } | null>(null);
 
   onMount(async () => {
@@ -86,6 +88,18 @@
     kind = p.kind;
     baseUrl = p.base_url;
     model = p.model;
+    models = []; // daftar model project lama tidak berlaku
+  }
+
+  async function loadModels(): Promise<number> {
+    isLoadingModels = true;
+    try {
+      const list = await ipc.aiListModels();
+      models = list;
+      return list.length;
+    } finally {
+      isLoadingModels = false;
+    }
   }
 
   async function handleSave() {
@@ -110,7 +124,14 @@
     try {
       await handleSave();
       await ipc.aiTestConnection();
-      statusMessage = { text: 'Koneksi berhasil — provider merespons dengan benar.', type: 'success' };
+      let suffix = '';
+      try {
+        const n = await loadModels();
+        suffix = n > 0 ? ` — ${n} model tersedia, klik kolom Model untuk memilih.` : '';
+      } catch (e: any) {
+        suffix = ` — daftar model gagal dimuat: ${typeof e === 'string' ? e : e?.message || ''}`;
+      }
+      statusMessage = { text: `Koneksi berhasil${suffix}`, type: 'success' };
     } catch (err: any) {
       statusMessage = { text: typeof err === 'string' ? err : err?.message || String(err), type: 'error' };
     } finally {
@@ -218,9 +239,25 @@
       <input
         type="text"
         bind:value={model}
+        list="ai-model-datalist"
         placeholder={kind === 'anthropic' ? 'claude-sonnet-4-5' : 'gpt-4o-mini'}
         class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-violet-500 font-mono transition-colors"
       />
+      <datalist id="ai-model-datalist">
+        {#each models as m (m)}
+          <option value={m} />
+        {/each}
+      </datalist>
+      {#if models.length > 0}
+        <p class="text-[10px] text-emerald-400">
+          {models.length} model dimuat dari provider — mulai mengetik untuk melihat saran.
+        </p>
+      {:else if isLoadingModels}
+        <p class="text-[10px] text-slate-500 flex items-center space-x-1">
+          <Loader2 class="w-3 h-3 animate-spin" />
+          <span>Memuat daftar model…</span>
+        </p>
+      {/if}
     </div>
 
     <!-- Actions -->

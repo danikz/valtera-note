@@ -30,6 +30,7 @@
   import AboutModal from './components/About/AboutModal.svelte';
   import EmojiPickerModal from './components/Emoji/EmojiPickerModal.svelte';
   import AiModal from './components/Ai/AiModal.svelte';
+  import AiSidebar from './components/Ai/AiSidebar.svelte';
   import ToolsWorkspace, { type ToolType } from './components/Tools/ToolsWorkspace.svelte';
   import SettingsWorkspace, { type SettingsTab } from './components/Settings/SettingsWorkspace.svelte';
   import LockScreen from './components/Auth/LockScreen.svelte';
@@ -43,6 +44,7 @@
   let isCommandPaletteOpen = $state(false);
   let isEmojiPickerOpen = $state(false);
   let isAiModalOpen = $state(false);
+  let isAiSidebarOpen = $state(false);
   let isAboutModalOpen = $state(false);
   let currentView = $state<'notes' | 'tools' | 'settings'>('notes');
   let activeTool = $state<ToolType>('json');
@@ -141,10 +143,10 @@
       e.preventDefault();
       isEmojiPickerOpen = !isEmojiPickerOpen;
     }
-    // Ctrl+Shift+A -> AI Assistant
+    // Ctrl+Shift+A -> AI Chat Sidebar
     else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'a') {
       e.preventDefault();
-      isAiModalOpen = !isAiModalOpen;
+      isAiSidebarOpen = !isAiSidebarOpen;
     }
     // Ctrl+Shift+J -> Toggle JSON Formatter & Viewer Full Page
     else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'j') {
@@ -282,6 +284,8 @@
     onOpenCommandPalette={() => (isCommandPaletteOpen = true)}
     onOpenEmojiPicker={() => (isEmojiPickerOpen = true)}
     onOpenAiModal={() => (isAiModalOpen = true)}
+    isAiSidebarOpen={isAiSidebarOpen}
+    onToggleAiSidebar={() => (isAiSidebarOpen = !isAiSidebarOpen)}
     onOpenTool={handleOpenTool}
     onOpenAbout={() => handleOpenSettings('about')}
     onOpenSettings={handleOpenSettings}
@@ -493,6 +497,13 @@
         {/if}
       </div>
     </div>
+
+    <!-- AI Chat Sidebar (Right Dock) -->
+    <AiSidebar
+      isOpen={isAiSidebarOpen}
+      onClose={() => (isAiSidebarOpen = false)}
+      onOpenSettings={() => handleOpenSettings('ai')}
+    />
   </div>
 
   <!-- Bottom Status Bar -->

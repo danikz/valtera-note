@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.21] - 2026-10-06
+
+### ✨ Fitur Baru: AI Chat Sidebar — Ngobrol Langsung dengan AI
+- **Panel chat di sisi kanan editor** (dock 360px): bisa di-show/hide lewat tombol ✨ di titlebar atau **Ctrl+Shift+A**. Riwayat obrolan dipertahankan selama panel dibuka-tutup; tombol hapus untuk mulai ulang.
+- **AI membaca file yang dipilih**: toggle "Baca catatan aktif" mengirim isi catatan yang sedang terbuka sebagai konteks (judul + konten), dan toggle "Teks terpilih" menyertakan blok teks yang kamu blok di editor — AI tahu persis bagian mana yang dibicarakan.
+- **Chat multi-turn sejati**: riwayat giliran dikirim sebagai messages array ke provider (bukan dijebol jadi satu prompt) — didukung OpenAI-compatible dan Anthropic.
+- Saran prompt cepat saat obrolan kosong (ringkas catatan, tinjau masalah, buat task list), Enter untuk kirim / Shift+Enter baris baru, dan indikator "Mengetik…".
+
+---
+
 ## [0.1.20] - 2026-10-06
 
 ### ✨ AI Assistant: Daftar Model Otomatis dari Provider

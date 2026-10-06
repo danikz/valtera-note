@@ -34,7 +34,7 @@
   } from 'lucide-svelte';
   import { APP_VERSION } from '../../constants/app';
 
-  export type ToolType = 'json' | 'sqlite' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid';
+  export type ToolType = 'json' | 'sqlite' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid' | 'ssh';
 
   let { 
     onOpenSyncModal, 

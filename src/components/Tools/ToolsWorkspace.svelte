@@ -10,7 +10,8 @@
     Lock,
     Sparkles,
     Sliders,
-    Image as ImageIcon
+    Image as ImageIcon,
+    Terminal as TerminalIcon
   } from 'lucide-svelte';
   import JsonToolPage from './JsonToolPage.svelte';
   import FaviconToolPage from './FaviconToolPage.svelte';
@@ -19,8 +20,9 @@
   import UrlToolPage from './UrlToolPage.svelte';
   import UuidToolPage from './UuidToolPage.svelte';
   import SqliteToolPage from './SqliteToolPage.svelte';
+  import SshPage from '../Ssh/SshPage.svelte';
 
-  export type ToolType = 'json' | 'sqlite' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid';
+  export type ToolType = 'json' | 'sqlite' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid' | 'ssh';
 
   let { 
     activeTool = 'json',
@@ -46,6 +48,12 @@
       icon: Database, 
       iconColor: 'text-indigo-400',
       shortcut: 'Ctrl+Shift+D'
+    },
+    {
+      id: 'ssh',
+      label: 'SSH Manager',
+      icon: TerminalIcon,
+      iconColor: 'text-emerald-400'
     },
     { 
       id: 'favicon', 
@@ -161,6 +169,8 @@
       <JsonToolPage onBack={onBack} showBackButton={false} />
     {:else if activeTool === 'sqlite'}
       <SqliteToolPage onBack={onBack} showBackButton={false} />
+    {:else if activeTool === 'ssh'}
+      <SshPage />
     {:else if activeTool === 'favicon'}
       <FaviconToolPage onBack={onBack} />
     {:else if activeTool === 'mysql-password'}

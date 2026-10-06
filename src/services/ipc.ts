@@ -329,6 +329,70 @@ export const ipc = {
     return [];
   },
 
+  // ===== SSH Manager (kredensial E2E + sesi interaktif) =====
+  async sshConnList(): Promise<Array<{ id: string; label: string; payload: string; updated_at: string }>> {
+    if (isTauri) {
+      return await invoke('ssh_conn_list');
+    }
+    return [];
+  },
+
+  async sshConnSave(id: string, label: string, payload: string): Promise<void> {
+    if (isTauri) {
+      await invoke('ssh_conn_save', { id, label, payload });
+    }
+  },
+
+  async sshConnDelete(id: string): Promise<void> {
+    if (isTauri) {
+      await invoke('ssh_conn_delete', { id });
+    }
+  },
+
+  async sshConnect(params: {
+    id: string;
+    label: string;
+    host: string;
+    port: number;
+    username: string;
+    authType: string;
+    password?: string | null;
+    privateKey?: string | null;
+    passphrase?: string | null;
+    cols: number;
+    rows: number;
+  }): Promise<string> {
+    if (isTauri) {
+      return await invoke<string>('ssh_connect', { params });
+    }
+    throw new Error('SSH hanya tersedia di aplikasi desktop.');
+  },
+
+  async sshWrite(id: string, data: string): Promise<void> {
+    if (isTauri) {
+      await invoke('ssh_write', { id, data });
+    }
+  },
+
+  async sshResize(id: string, cols: number, rows: number): Promise<void> {
+    if (isTauri) {
+      await invoke('ssh_resize', { id, cols, rows });
+    }
+  },
+
+  async sshDisconnect(id: string): Promise<void> {
+    if (isTauri) {
+      await invoke('ssh_disconnect', { id });
+    }
+  },
+
+  async sshActiveSessions(): Promise<string[]> {
+    if (isTauri) {
+      return await invoke<string[]>('ssh_active_sessions');
+    }
+    return [];
+  },
+
   async checkSupabaseTable(url: string, anonKey: string, accessToken?: string): Promise<boolean> {
     const cleanUrl = url.trim().replace(/\/+$/, '');
     const cleanKey = anonKey.trim();

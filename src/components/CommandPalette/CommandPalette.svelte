@@ -16,6 +16,7 @@
     Edit3, 
     Database,
     PanelLeft,
+    Terminal as TerminalIcon,
     Trash2,
     ArrowUpCircle,
     Smile,
@@ -35,7 +36,7 @@
   } from 'lucide-svelte';
   import { themeStore } from '../../stores/themeStore.svelte';
 
-  export type ToolType = 'json' | 'sqlite' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid';
+  export type ToolType = 'json' | 'sqlite' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid' | 'ssh';
 
   let { 
     isOpen, 
@@ -274,6 +275,12 @@
       shortcut: 'Ctrl+Shift+D',
       icon: Database,
       action: () => { if (onOpenTool) onOpenTool('sqlite'); }
+    },
+    {
+      id: 'tool-ssh',
+      title: 'Buka SSH Manager — Terminal & Kredensial Tersimpan',
+      icon: TerminalIcon,
+      action: () => { if (onOpenTool) onOpenTool('ssh'); }
     },
     {
       id: 'tool-json',

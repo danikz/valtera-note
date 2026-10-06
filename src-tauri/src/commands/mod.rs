@@ -2,6 +2,7 @@ pub mod ai;
 pub mod crypto;
 pub mod db;
 pub mod fs;
+pub mod ssh;
 pub mod sql;
 pub mod supabase;
 
@@ -9,5 +10,6 @@ pub use ai::*;
 pub use crypto::*;
 pub use db::*;
 pub use fs::*;
+pub use ssh::*;
 pub use sql::*;
 pub use supabase::*;

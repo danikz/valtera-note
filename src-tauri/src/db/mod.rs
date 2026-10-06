@@ -63,8 +63,15 @@ impl DatabaseManager {
 
     fn run_migrations(&self) -> Result<(), String> {
         let conn = self.conn.lock().map_err(|e| e.to_string())?;
-        
+
         conn.execute_batch("
+            CREATE TABLE IF NOT EXISTS ssh_connections (
+                id TEXT PRIMARY KEY,
+                label TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
             CREATE TABLE IF NOT EXISTS workspaces (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 supabase_id TEXT UNIQUE,
@@ -178,6 +185,11 @@ impl DatabaseManager {
         }
 
         Ok(())
+    }
+
+    /// Akses koneksi SQLite untuk modul lain (mis. command SSH).
+    pub fn get_conn(&self) -> std::sync::MutexGuard<'_, rusqlite::Connection> {
+        self.conn.lock().expect("db lock poisoned")
     }
 
     pub fn get_setting(&self, key: &str) -> Result<Option<String>, String> {

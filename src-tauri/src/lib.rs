@@ -1,5 +1,6 @@
 pub mod commands;
 pub mod crypto;
+pub mod ssh;
 pub mod db;
 pub mod models;
 pub mod services;
@@ -63,6 +64,7 @@ pub fn run() {
             Ok(())
         })
         .manage(db)
+        .manage(crate::ssh::SshManager::default())
         .manage(keys)
         .invoke_handler(tauri::generate_handler![
             // File operations
@@ -101,6 +103,14 @@ pub fn run() {
             commands::ai::ai_complete,
             commands::ai::ai_test_connection,
             commands::ai::ai_list_models,
+            commands::ssh::ssh_conn_list,
+            commands::ssh::ssh_conn_save,
+            commands::ssh::ssh_conn_delete,
+            commands::ssh::ssh_connect,
+            commands::ssh::ssh_write,
+            commands::ssh::ssh_resize,
+            commands::ssh::ssh_disconnect,
+            commands::ssh::ssh_active_sessions,
             commands::supabase::test_supabase_connection,
             commands::supabase::check_supabase_table,
             commands::supabase::auto_create_supabase_table,

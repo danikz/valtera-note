@@ -76,6 +76,26 @@ Setelah itu semua catatan tersinkron otomatis (1,5 detik setelah mengetik + pull
 
 ---
 
+## 🔒 Security & End-to-End Encryption
+
+Catatanmu terenkripsi **zero-knowledge** — bahkan penyedia cloud tidak bisa membacanya.
+
+| Lapisan | Yang terjadi |
+| :--- | :--- |
+| **Lokal (SQLite)** | Isi catatan disimpan sebagai ciphertext `enc:v1:...` — dienkripsi **sebelum** menyentuh disk. |
+| **Derivasi kunci** | Master password → **Argon2id** (parameter OWASP) → kunci 256-bit. Password itu sendiri tidak pernah disimpan. |
+| **Enkripsi** | **XChaCha20-Poly1305** authenticated encryption per catatan — integritas + kerahasiaan. |
+| **Cloud sync (Supabase)** | Server hanya melihat ciphertext. Dengan RLS ketat, hanya akun login-mu yang bisa mengakses barismu. |
+| **Lock screen** | Konten disembunyikan saat terkunci; "Ingat di Device Ini" menyimpan kunci di OS keystore (Windows Credential Manager / macOS Keychain / Linux Secret Service) — **bukan** passwordnya. |
+
+**Batas yang jujur** (kami memilih over-explain daripada over-promise):
+
+- Lupa master password = catatan **tidak bisa dibaca selamanya** — sengaja tidak ada pintu pemulihan.
+- **Judul** catatan & nama folder tetap plaintext di cloud (hanya isinya yang terenkripsi).
+- Teks yang dikirim ke **AI Assistant** keluar sebagai plaintext — gunakan provider lokal (Ollama) untuk konten paling sensitif.
+
+---
+
 ## ⌨️ Keyboard Shortcuts
 
 | Action / Feature | Shortcut |

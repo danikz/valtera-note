@@ -74,3 +74,48 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+
+  build-android:
+    permissions:
+      contents: write
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.35.7
+          channel: stable
+          cache: true
+
+      - name: Build Android APKs
+        working-directory: mobile
+        run: flutter build apk --release --split-per-abi
+
+      - name: Read app version
+        id: appver
+        run: echo "version=$(node -p "require('./src-tauri/tauri.conf.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Rename APKs
+        working-directory: mobile/build/app/outputs/flutter-apk
+        run: |
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            mv "app-$abi-release.apk" "Valtera-Note-${{ steps.appver.outputs.version }}-android-$abi.apk"
+          done
+
+      - name: Upload APKs to release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.appver.outputs.version }}
+          name: 'Valtera Note v${{ steps.appver.outputs.version }}'
+          files: mobile/build/app/outputs/flutter-apk/*.apk

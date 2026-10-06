@@ -111,10 +111,6 @@ jobs:
             mv "app-$abi-release.apk" "Valtera-Note-${{ steps.appver.outputs.version }}-android-$abi.apk"
           done
 
-      - name: Upload APKs to release
-        uses: softprops/action-gh-release@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Wait for release & upload APKs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

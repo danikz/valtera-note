@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.23] - 2026-10-06
+
+### ✨ AI Chat Kini Bisa MENULIS ke Catatan
+- **Protokol `valtera-write`**: saat diminta menulis/mengubah/menambah isi catatan, AI menghasilkan versi lengkap catatan di dalam blok `valtera-write`, dan sidebar menampilkan kartu **"Ganti Seluruh Catatan"** (dengan konfirmasi) + **"Salin Saja"** — setelah diterapkan muncul konfirmasi "Catatan berhasil diperbarui".
+- Bekerja di **semua provider** tanpa perlu dukungan tool-calling (protokol berbasis instruksi sistem), termasuk model kecil di Groq/Ollama.
+- Pesan assistant kini punya aksi cepat saat hover: **Salin** dan **Sisipkan di kursor/akhir catatan**.
+- Saran chip baru: "✍️ Suruh AI menulis ke catatan ini".
+
+---
+
 ## [0.1.22] - 2026-10-06
 
 ### 🎨 Perbaikan: Window Controls Seperti Native Windows 11

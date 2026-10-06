@@ -224,3 +224,66 @@ pub async fn ai_test_connection(db: State<'_, Arc<DatabaseManager>>) -> Result<S
     )
     .await
 }
+
+/// Ambil daftar model dari provider: OpenAI-compatible pakai GET /models,
+/// Anthropic pakai GET /v1/models. Dikembalikan terurut.
+#[tauri::command]
+pub async fn ai_list_models(db: State<'_, Arc<DatabaseManager>>) -> Result<Vec<String>, String> {
+    let db = Arc::clone(&db);
+    let (kind, base_url, api_key, _model) =
+        tokio::task::spawn_blocking(move || read_config(&db))
+            .await
+            .map_err(|e| e.to_string())?;
+
+    if api_key.trim().is_empty() {
+        return Err("API key AI belum diatur (Pengaturan → AI Assistant)".to_string());
+    }
+    if base_url.trim().is_empty() {
+        return Err("Base URL AI belum diatur (Pengaturan → AI Assistant)".to_string());
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("Gagal membuat HTTP client: {}", e))?;
+    let base = base_url.trim().trim_end_matches('/');
+
+    let res = match kind.as_str() {
+        "anthropic" => client
+            .get(format!("{}/v1/models", base))
+            .header("x-api-key", api_key.trim())
+            .header("anthropic-version", "2023-06-01")
+            .send()
+            .await
+            .map_err(|e| format!("Request gagal: {}", e))?,
+        _ => client
+            .get(format!("{}/models", base))
+            .header("Authorization", format!("Bearer {}", api_key.trim()))
+            .send()
+            .await
+            .map_err(|e| format!("Request gagal: {}", e))?,
+    };
+
+    let status = res.status();
+    let text = res.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(format!("HTTP {}: {}", status.as_u16(), text));
+    }
+
+    let v: serde_json::Value =
+        serde_json::from_str(&text).map_err(|e| format!("Respon tidak valid: {}", e))?;
+    let mut models: Vec<String> = v["data"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|m| m["id"].as_str())
+                .map(|s| s.to_string())
+                .collect()
+        })
+        .unwrap_or_default();
+    if models.is_empty() {
+        return Err(format!("Provider tidak mengembalikan daftar model: {}", text));
+    }
+    models.sort();
+    Ok(models)
+}

@@ -115,7 +115,22 @@ jobs:
         uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ steps.appver.outputs.version }}
-          name: 'Valtera Note v${{ steps.appver.outputs.version }}'
-          files: mobile/build/app/outputs/flutter-apk/*.apk
+      - name: Wait for release & upload APKs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.appver.outputs.version }}
+        run: |
+          # Release dibuat oleh job build-tauri yang paralel — tunggu sampai ada.
+          for i in $(seq 1 40); do
+            if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+              echo "Release v$VERSION ditemukan."
+              break
+            fi
+            echo "Menunggu release v$VERSION... (percobaan $i/40)"
+            sleep 30
+          done
+          gh release upload "v$VERSION" \
+            "mobile/build/app/outputs/flutter-apk/Valtera-Note-$VERSION-android-arm64-v8a.apk" \
+            "mobile/build/app/outputs/flutter-apk/Valtera-Note-$VERSION-android-armeabi-v7a.apk" \
+            "mobile/build/app/outputs/flutter-apk/Valtera-Note-$VERSION-android-x86_64.apk" \
+            --repo "$GITHUB_REPOSITORY" --clobber

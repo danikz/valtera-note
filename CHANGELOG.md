@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.20] - 2026-10-06
+
+### ✨ AI Assistant: Daftar Model Otomatis dari Provider
+- **Test Koneksi kini sekaligus memuat daftar model** langsung dari provider (OpenAI-compatible: `GET /models`, Anthropic: `GET /v1/models`) dan menampilkan jumlahnya di status.
+- Kolom **Model** kini punya saran dropdown (datalist) berisi model asli provider — tetap bisa ketik manual untuk model yang belum terdaftar.
+
+---
+
+## [0.1.19] - 2026-10-06
+
+### 🐛 Perbaikan: Gagal Menyimpan Konfigurasi AI
+- `ai_save_config` menolak argumen `base_url`/`api_key` karena Tauri v2 mencocokkan argumen JS dalam camelCase (`baseUrl`/`apiKey`). Kini kedua ejaan dikirim, mengikuti pola defensif command lain.
+
+---
+
 ## [0.1.18] - 2026-10-05
 
 ### ✨ Fitur Baru: AI Assistant (BYO API Key, Provider Bebas)

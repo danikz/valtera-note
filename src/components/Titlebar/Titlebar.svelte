@@ -3,6 +3,8 @@
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { open, save } from '@tauri-apps/plugin-dialog';
   import { editorStore } from '../../stores/editorStore.svelte';
+  import { ipc } from '../../services/ipc';
+  import { requestSshConnect } from '../../stores/sshStore.svelte';
   import { 
     Plus, 
     FolderOpen, 
@@ -25,6 +27,8 @@
     Globe,
     Key,
     Layers,
+    Terminal as TerminalIcon,
+    Loader2,
     Database,
     Download,
     LogOut,
@@ -70,15 +74,33 @@
     activeTool?: ToolType;
   } = $props();
 
-  let openMenu = $state<'file' | 'edit' | 'tools' | 'help' | null>(null);
+  let openMenu = $state<'file' | 'edit' | 'ssh' | 'tools' | 'help' | null>(null);
 
-  function handleMenuClick(menu: 'file' | 'edit' | 'tools' | 'help') {
-    openMenu = openMenu === menu ? null : menu;
+  // Daftar koneksi untuk menu SSH — dimuat saat menu dibuka.
+  let sshMenuConnections = $state<Array<{ id: string; label: string }>>([]);
+  let sshMenuActiveIds = $state<string[]>([]);
+  let sshMenuLoaded = $state(false);
+
+  async function loadSshMenu() {
+    try {
+      const [conns, active] = await Promise.all([ipc.sshConnList(), ipc.sshActiveSessions()]);
+      sshMenuConnections = conns.map((c) => ({ id: c.id, label: c.label }));
+      sshMenuActiveIds = active;
+      sshMenuLoaded = true;
+    } catch (e) {
+      console.warn('Gagal memuat menu SSH:', e);
+    }
   }
 
-  function handleMenuHover(menu: 'file' | 'edit' | 'tools' | 'help') {
-    if (openMenu !== null) {
+  function handleMenuClick(menu: 'file' | 'edit' | 'ssh' | 'tools' | 'help') {
+    openMenu = openMenu === menu ? null : menu;
+    if (openMenu === 'ssh') loadSshMenu();
+  }
+
+  function handleMenuHover(menu: 'file' | 'edit' | 'ssh' | 'tools' | 'help') {
+    if (openMenu && openMenu !== menu) {
       openMenu = menu;
+      if (menu === 'ssh') loadSshMenu();
     }
   }
 
@@ -343,6 +365,59 @@
             <button onclick={() => { editorStore.setSplitMode('preview-only'); closeMenu(); }} class="w-full px-3 py-1.5 flex items-center space-x-2 hover:bg-slate-800 text-left cursor-pointer transition-colors whitespace-nowrap">
               <span>Reader Mode (Preview Only)</span>
             </button>
+          </div>
+        {/if}
+      </div>
+
+      <!-- SSH Menu -->
+      <div class="relative">
+        <button
+          onclick={(e) => { e.stopPropagation(); handleMenuClick('ssh'); }}
+          onmouseenter={() => handleMenuHover('ssh')}
+          class="px-2 py-0.5 rounded text-xs transition-colors cursor-pointer {openMenu === 'ssh' ? 'bg-slate-800 text-white font-medium' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'}"
+        >
+          SSH
+        </button>
+
+        {#if openMenu === 'ssh'}
+          <div
+            class="absolute top-full left-0 mt-1 w-max min-w-[280px] bg-slate-900 border border-slate-800 rounded-xl shadow-2xl py-1.5 z-50 text-xs text-slate-200 animate-in fade-in duration-100 whitespace-nowrap"
+            onclick={(e) => e.stopPropagation()}
+            role="menu"
+            tabindex="-1"
+          >
+            <button onclick={() => { if (onOpenTool) onOpenTool('ssh'); closeMenu(); }} class="w-full px-3.5 py-1.5 flex items-center space-x-2 hover:bg-slate-800 text-left cursor-pointer transition-colors">
+              <span class="flex items-center space-x-2 whitespace-nowrap"><TerminalIcon class="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" /><span>SSH Manager (Kredensial Tersimpan)</span></span>
+            </button>
+
+            <div class="my-1 border-t border-slate-800"></div>
+
+            {#if !sshMenuLoaded}
+              <div class="px-3.5 py-2 text-[11px] text-slate-500 flex items-center space-x-2">
+                <Loader2 class="w-3 h-3 animate-spin" /><span>Memuat koneksi…</span>
+              </div>
+            {:else if sshMenuConnections.length === 0}
+              <div class="px-3.5 py-2 text-[11px] text-slate-500 leading-relaxed">
+                Belum ada koneksi tersimpan.<br />Buka SSH Manager untuk menyimpan kredensial (terenkripsi E2E).
+              </div>
+            {:else}
+              {#each sshMenuConnections as conn (conn.id)}
+                {@const isActive = sshMenuActiveIds.includes(conn.id)}
+                <button
+                  onclick={() => { requestSshConnect(conn.id); if (onOpenTool) onOpenTool('ssh'); closeMenu(); }}
+                  class="w-full px-3.5 py-1.5 flex items-center justify-between hover:bg-slate-800 text-left cursor-pointer transition-colors"
+                  title={isActive ? 'Sesi sedang hidup — klik untuk membuka terminalnya' : 'Klik untuk langsung terhubung'}
+                >
+                  <span class="flex items-center space-x-2 whitespace-nowrap">
+                    <span class="w-1.5 h-1.5 rounded-full flex-shrink-0 {isActive ? 'bg-emerald-400' : 'border border-slate-500'}"></span>
+                    <span class="truncate">{conn.label}</span>
+                  </span>
+                  {#if isActive}
+                    <span class="text-[9.5px] font-mono text-emerald-400 ml-4 flex-shrink-0">● live</span>
+                  {/if}
+                </button>
+              {/each}
+            {/if}
           </div>
         {/if}
       </div>

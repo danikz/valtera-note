@@ -22,7 +22,8 @@
     Download,
     FileText,
     SlidersHorizontal,
-    Filter
+    Filter,
+    ClipboardList
   } from 'lucide-svelte';
   import JsonTreeNode from '../Viewer/JsonTreeNode.svelte';
   import { editorStore } from '../../stores/editorStore.svelte';
@@ -32,9 +33,10 @@
   // Primary state
   let rawInput = $state('');
   let indentSpaces = $state<number>(2);
-  let viewMode = $state<'code' | 'tree' | 'table' | 'csv'>('tree');
+  let viewMode = $state<'code' | 'tree' | 'table' | 'csv' | 'form'>('tree');
   let searchTreeQuery = $state('');
   let searchTableQuery = $state('');
+  let searchFormQuery = $state('');
   let flattenNested = $state<boolean>(false);
   let csvDelimiter = $state<',' | ';' | '\t'>(',');
   let includeCsvHeader = $state<boolean>(true);
@@ -371,6 +373,128 @@
     return lines.join('\r\n');
   });
 
+  // ===== Field Form: enumerasi semua leaf field JSON ala form submit =====
+
+  interface FormField {
+    path: string;   // user.email / items[0].qty (notasi form submit)
+    type: string;   // string | number | boolean | null | object | array
+    value: string;  // preview nilai
+    input: 'text' | 'number' | 'checkbox' | 'textarea';
+  }
+
+  let formFields = $derived.by<FormField[]>(() => {
+    if (!parseResult.isValid || parseResult.data == null) return [];
+    const fields: FormField[] = [];
+    const MAX_FIELDS = 500;
+
+    function typeOf(node: any): string {
+      if (node === null) return 'null';
+      if (Array.isArray(node)) return `array(${node.length})`;
+      if (typeof node === 'object') {
+        const n = Object.keys(node).length;
+        return `object(${n})`;
+      }
+      return typeof node;
+    }
+
+    function preview(node: any): string {
+      if (node === null) return 'null';
+      if (typeof node === 'object') return JSON.stringify(node);
+      return String(node);
+    }
+
+    function walk(node: any, path: string): void {
+      if (fields.length >= MAX_FIELDS) return;
+      if (node !== null && typeof node === 'object') {
+        if (Array.isArray(node) && node.length === 0) {
+          fields.push({ path: path + '[]', type: 'array(0)', value: '[]', input: 'text' });
+          return;
+        }
+        if (!Array.isArray(node) && Object.keys(node).length === 0) {
+          fields.push({ path, type: 'object(0)', value: '{}', input: 'text' });
+          return;
+        }
+        const entries: [string, any][] = Array.isArray(node)
+          ? node.map((item, i) => [String(i), item])
+          : Object.entries(node);
+        const limit = Math.min(entries.length, Array.isArray(node) ? 3 : entries.length);
+        for (let i = 0; i < limit; i++) {
+          const [key, value] = entries[i];
+          walk(value, path ? (Array.isArray(node) ? `${path}[${key}]` : `${path}.${key}`) : key);
+        }
+        if (entries.length > limit) {
+          fields.push({
+            path: `${path}[${entries.length - 1}]`,
+            type: '…',
+            value: `${entries.length - limit} elemen lain tersembunyi`,
+            input: 'text'
+          });
+        }
+        return;
+      }
+      const t = typeOf(node);
+      const isLong = typeof node === 'string' && node.length > 60;
+      fields.push({
+        path,
+        type: t,
+        value: preview(node),
+        input: t === 'number' ? 'number' : t === 'boolean' ? 'checkbox' : isLong ? 'textarea' : 'text'
+      });
+    }
+
+    walk(parseResult.data, '');
+    return fields;
+  });
+
+  let filteredFormFields = $derived.by(() => {
+    const query = searchFormQuery.trim().toLowerCase();
+    if (!query) return formFields;
+    return formFields.filter((f) => f.path.toLowerCase().includes(query) || f.value.toLowerCase().includes(query));
+  });
+
+  // Generator HTML <form>: tiap leaf field jadi input dengan name = path submit.
+  let formHtml = $derived.by(() => {
+    if (!formFields.length) return '';
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const lines: string[] = ['<form action="/submit" method="POST">'];
+    for (const f of formFields) {
+      if (f.type === '…') continue;
+      const name = esc(f.path);
+      const typeLabel = esc(f.type);
+      if (f.input === 'checkbox') {
+        lines.push(`  <label><input type="checkbox" name="${name}" value="${esc(f.value)}"> ${name} <small>(${typeLabel})</small></label>`);
+      } else if (f.input === 'textarea') {
+        lines.push(`  <label>${name} <small>(${typeLabel})</small><br><textarea name="${name}" rows="3">${esc(f.value)}</textarea></label>`);
+      } else {
+        lines.push(`  <label>${name} <small>(${typeLabel})</small><br><input type="${f.input}" name="${name}" value="${esc(f.value)}"></label>`);
+      }
+    }
+    lines.push('  <button type="submit">Kirim</button>');
+    lines.push('</form>');
+    return lines.join('\n');
+  });
+
+  function handleCopyFormHtml() {
+    if (!formHtml) return;
+    copyText(formHtml).then((ok) => {
+      showToast(ok ? 'HTML form tersalin ke clipboard!' : 'Gagal menyalin HTML form');
+    });
+  }
+
+  function handleCopyFormFields() {
+    if (!formFields.length) return;
+    const text = formFields.map((f) => `${f.path} (${f.type}) = ${f.value}`).join('\n');
+    copyText(text).then((ok) => {
+      showToast(ok ? 'Daftar field tersalin!' : 'Gagal menyalin daftar field');
+    });
+  }
+
+  function handleExportFormToNewTab() {
+    if (!formHtml) return;
+    editorStore.addTab('Form_Submit.html', 'html', formHtml);
+    showToast('HTML form dibuka di tab catatan baru');
+  }
+
   // GitHub Flavored Markdown Table Generator
   let markdownTableOutput = $derived.by(() => {
     if (!tableData.headers.length || !tableData.rows.length) return '';
@@ -675,7 +799,20 @@
             {/if}
           </button>
 
-          <button 
+          <button
+            onclick={() => (viewMode = 'form')}
+            class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer flex items-center space-x-1.5 {viewMode === 'form' ? 'bg-blue-600 text-white font-semibold shadow-xs' : 'text-slate-400 hover:text-slate-200'}"
+          >
+            <ClipboardList class="w-3.5 h-3.5" />
+            <span>Form Submit</span>
+            {#if formFields.length > 0}
+              <span class="ml-1 px-1 py-0.2 rounded text-[10px] font-mono {viewMode === 'form' ? 'bg-blue-700 text-blue-100' : 'bg-slate-800 text-slate-400'}">
+                {formFields.length}
+              </span>
+            {/if}
+          </button>
+
+          <button
             onclick={() => (viewMode = 'csv')}
             class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer flex items-center space-x-1.5 {viewMode === 'csv' ? 'bg-blue-600 text-white font-semibold shadow-xs' : 'text-slate-400 hover:text-slate-200'}"
           >
@@ -753,8 +890,39 @@
             <span>Ke Tab Catatan</span>
           </button>
 
+        {:else if viewMode === 'form'}
+          <button
+            onclick={handleCopyFormFields}
+            disabled={!formFields.length}
+            class="px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-[11px] font-medium flex items-center space-x-1 transition-colors cursor-pointer disabled:opacity-30"
+            title="Salin daftar field (path + tipe + nilai)"
+          >
+            <Copy class="w-3 h-3 text-emerald-400" />
+            <span class="hidden sm:inline">Salin Field</span>
+          </button>
+
+          <button
+            onclick={handleCopyFormHtml}
+            disabled={!formHtml}
+            class="px-2.5 py-1 rounded-md bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-[11px] font-semibold flex items-center space-x-1 cursor-pointer transition-colors disabled:opacity-30 shadow-xs"
+            title="Salin kode HTML form yang menghasilkan JSON ini"
+          >
+            <Copy class="w-3 h-3 text-emerald-400" />
+            <span>Salin HTML Form</span>
+          </button>
+
+          <button
+            onclick={handleExportFormToNewTab}
+            disabled={!formHtml}
+            class="hidden lg:flex items-center space-x-1 px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-medium transition-colors cursor-pointer disabled:opacity-30"
+            title="Buka HTML form di tab catatan baru"
+          >
+            <ExternalLink class="w-3 h-3 text-slate-400" />
+            <span>Ke Tab Catatan</span>
+          </button>
+
         {:else if viewMode === 'csv'}
-          <button 
+          <button
             onclick={handleCopyCsv}
             disabled={!csvOutput}
             class="px-2.5 py-1 rounded-md bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-[11px] font-semibold flex items-center space-x-1 cursor-pointer transition-colors disabled:opacity-30 shadow-xs"
@@ -988,6 +1156,94 @@
                 <span class="text-blue-400">Difilter: "{searchTableQuery}"</span>
               {/if}
             </div>
+          </div>
+
+        <!-- ============================================== -->
+        <!-- VIEW: FORM SUBMIT FIELDS                       -->
+        <!-- ============================================== -->
+        {:else if viewMode === 'form'}
+          <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Search bar -->
+            <div class="h-11 px-3 bg-slate-900/50 border-b border-slate-800 flex items-center gap-2 flex-shrink-0">
+              <div class="relative flex-1 max-w-xs">
+                <Search class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  bind:value={searchFormQuery}
+                  placeholder="Cari field / nilai…"
+                  class="w-full pl-8 pr-2 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500/60"
+                />
+              </div>
+              <span class="text-[11px] text-slate-500 font-mono">
+                {filteredFormFields.length} dari {formFields.length} field • notasi form submit (name attribute)
+              </span>
+            </div>
+
+            {#if formFields.length === 0}
+              <div class="flex-1 flex items-center justify-center p-8 text-center">
+                <div class="max-w-md space-y-2">
+                  <ClipboardList class="w-8 h-8 text-slate-600 mx-auto" />
+                  <p class="text-xs text-slate-400 leading-relaxed">
+                    Tempel JSON di panel kiri, lalu semua field submit-nya akan terdaftar di sini:
+                    <strong class="text-slate-200">path bertingkat</strong> (name attribute form),
+                    <strong class="text-slate-200">tipe</strong>, dan <strong class="text-slate-200">nilainya</strong> —
+                    plus kode HTML <code class="font-mono">&lt;form&gt;</code> yang siap dipakai.
+                  </p>
+                </div>
+              </div>
+            {:else}
+              <div class="flex-1 grid grid-cols-1 lg:grid-cols-2 overflow-hidden gap-px bg-slate-800/50">
+                <!-- Kiri: daftar field -->
+                <div class="flex flex-col overflow-hidden bg-slate-950">
+                  <div class="flex-1 overflow-auto">
+                    <table class="w-full text-xs">
+                      <thead class="sticky top-0 bg-slate-900/95 backdrop-blur z-10">
+                        <tr class="text-left text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+                          <th class="px-3 py-2 font-semibold">Field (name)</th>
+                          <th class="px-2 py-2 font-semibold w-24">Tipe</th>
+                          <th class="px-3 py-2 font-semibold">Nilai</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {#each filteredFormFields as f (f.path)}
+                          <tr class="border-b border-slate-800/60 hover:bg-slate-900/60">
+                            <td class="px-3 py-1.5 font-mono text-[11px] text-blue-300 break-all">{f.path}</td>
+                            <td class="px-2 py-1.5">
+                              <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono border {f.type === 'string' ? 'bg-slate-800 text-slate-300 border-slate-700' : f.type === 'number' ? 'bg-cyan-950/40 text-cyan-300 border-cyan-800/50' : f.type === 'boolean' ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/50' : f.type === 'null' ? 'bg-slate-900 text-slate-500 border-slate-800' : 'bg-blue-950/40 text-blue-300 border-blue-800/50'}">
+                                {f.type}
+                              </span>
+                            </td>
+                            <td class="px-3 py-1.5 text-slate-300 max-w-[280px]"><span class="break-all line-clamp-2">{f.value}</span></td>
+                          </tr>
+                        {/each}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="h-8 px-3 bg-slate-900/60 border-t border-slate-800 flex items-center text-[11px] text-slate-400 font-mono flex-shrink-0">
+                    {#if searchFormQuery}
+                      <span class="text-blue-400">Difilter: "{searchFormQuery}"</span>
+                    {:else}
+                      <span>{formFields.length} field submit terdeteksi</span>
+                    {/if}
+                  </div>
+                </div>
+
+                <!-- Kanan: generated HTML form -->
+                <div class="flex flex-col overflow-hidden bg-slate-950">
+                  <div class="px-3 py-1.5 bg-slate-900/60 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Generated HTML Form</span>
+                    <button
+                      onclick={handleCopyFormHtml}
+                      disabled={!formHtml}
+                      class="text-[10.5px] text-emerald-400 hover:text-emerald-300 font-medium cursor-pointer transition-colors disabled:opacity-40"
+                    >
+                      Salin
+                    </button>
+                  </div>
+                  <pre class="flex-1 overflow-auto p-3 text-[10.5px] leading-relaxed font-mono text-slate-300 whitespace-pre">{formHtml}</pre>
+                </div>
+              </div>
+            {/if}
           </div>
 
         <!-- ============================================== -->

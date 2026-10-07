@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.28] - 2026-10-07
+
+### 🐛 Perbaikan: Terminal Blank Saat Kembali ke Sesi SSH
+- **Replay buffer 128 KB per sesi di Rust**: output sesi direkam terus-menerus (termasuk saat halaman SSH tidak dibuka), sehingga tab yang di-attach ulang tidak lagi tampil blank hitam.
+- **Buka ulang halaman SSH kini melanjutkan layar**: prompt, output command terakhir, dan frame aplikasi full-screen dipulihkan dari buffer saat kembali dari halaman lain atau pindah tab.
+- **Urutan output terjaga**: data live ditahan sebentar selama replay dituliskan, dan race prompt awal yang kadang hilang saat connect pertama ikut tertambal.
+
+---
+
 ## [0.1.27] - 2026-10-07
 
 ### ✨ Fitur Baru: Tab SSH ala Browser

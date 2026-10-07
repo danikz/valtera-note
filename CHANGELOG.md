@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.32] - 2026-10-07
+
+### ✨ Fitur Baru: Drag & Drop Antar Workspace SSH
+- **Pindahkan koneksi ke workspace cukup dengan drag & drop**: tarik koneksi dari daftar, lepas di header workspace tujuan (menyala hijau saat terlewati). Lepas di "Tanpa Workspace" untuk mengeluarkannya dari grup.
+- Perpindahan ikut tersinkron ke cloud (workspace menumpang di payload E2E); klik-2x connect, edit, dan hapus tetap bekerja normal.
+
+### ✨ Fitur Baru: View "Form Submit" di Tools JSON
+- **Daftar semua field submit dari JSON**: path bertingkat notasi form (`user.email`, `items[0].qty`), tipe data, dan nilai contoh — dengan pencarian.
+- **Generator HTML `<form>` otomatis**: string → text input, angka → number, boolean → checkbox, string panjang → textarea, semua dengan `name` sesuai path. Bisa disalin atau dibuka di tab catatan.
+- Aksi cepat: Salin Field (daftar path+tipe+nilai), Salin HTML Form, Ke Tab Catatan. Array dienumerasi sampai 3 elemen dengan penanda "N elemen lain" (cap 500 field).
+
+---
+
 ## [0.1.31] - 2026-10-07
 
 ### ✨ Fitur Baru: Tombol Buat Workspace di SSH Manager

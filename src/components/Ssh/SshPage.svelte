@@ -65,6 +65,10 @@
   let creatingWorkspace = $state(false);
   let newWorkspaceName = $state('');
 
+  // Drag & drop koneksi antar workspace.
+  let dragConnId = $state<string | null>(null);
+  let dragOverWs = $state<string | null>(null);
+
   const WS_LIST_KEY = 'valtera_ssh_workspaces';
 
   function loadCustomWorkspaces() {
@@ -282,6 +286,27 @@
   function deleteWorkspace(name: string) {
     customWorkspaces = customWorkspaces.filter((w) => w !== name);
     persistCustomWorkspaces();
+  }
+
+  // Pindahkan koneksi ke workspace (atau keluar dari workspace bila wsName kosong):
+  // workspace menumpang di payload E2E, jadi cukup timpa field-nya lalu simpan + sync.
+  async function moveConnToWorkspace(connId: string, wsName: string) {
+    const conn = connections.find((c) => c.id === connId);
+    if (!conn) return;
+    const current = (connWorkspaces[connId] ?? '').trim();
+    const target = wsName.trim();
+    if (current === target) return;
+    try {
+      const payload: SshPayload = JSON.parse(await ipc.decryptContent(conn.payload));
+      if (target) payload.workspace = target;
+      else delete payload.workspace;
+      const encrypted = await ipc.encryptContent(JSON.stringify(payload));
+      await ipc.sshConnSave(connId, conn.label, encrypted);
+      await refreshList();
+      if (e2eState === 'ready') syncSshConnections().catch(() => {});
+    } catch (e: any) {
+      connectError = typeof e === 'string' ? e : e?.message || String(e);
+    }
   }
 
   function closeForm() {
@@ -725,13 +750,23 @@
 
   {#snippet connectionRow(conn: SshConnection)}
     {@const tab = tabs.find((t) => t.sessionId === conn.id)}
-    <div class="rounded-lg border px-2.5 py-2 transition-colors {tab && !tab.closed ? 'border-emerald-600/40 bg-emerald-950/10' : selectedConnId === conn.id ? 'border-emerald-500/60 bg-slate-900' : editingId === conn.id ? 'border-emerald-600/60 bg-emerald-950/20' : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'}">
+    <div
+      role="listitem"
+      draggable="true"
+      ondragstart={(e) => {
+        dragConnId = conn.id;
+        e.dataTransfer?.setData('text/plain', conn.id);
+        e.dataTransfer!.effectAllowed = 'move';
+      }}
+      ondragend={() => { dragConnId = null; dragOverWs = null; }}
+      class="rounded-lg border px-2.5 py-2 transition-colors cursor-grab active:cursor-grabbing {dragConnId === conn.id ? 'opacity-40' : ''} {tab && !tab.closed ? 'border-emerald-600/40 bg-emerald-950/10' : selectedConnId === conn.id ? 'border-emerald-500/60 bg-slate-900' : editingId === conn.id ? 'border-emerald-600/60 bg-emerald-950/20' : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'}"
+    >
       <div class="flex items-center justify-between">
         <button
           onclick={() => (selectedConnId = conn.id)}
           ondblclick={() => connect(conn)}
           disabled={connectingId !== null}
-          title="Klik 2x untuk connect"
+          title="Klik 2x untuk connect — drag ke workspace untuk pindahkan"
           class="flex-1 text-left cursor-pointer min-w-0"
         >
           <p class="text-xs font-semibold text-slate-200 truncate">{conn.label}</p>
@@ -768,10 +803,28 @@
             </p>
           {:else if hasWorkspaces}
             {#each workspaceGroups as g (g.name || '__ungrouped')}
-              <div>
+              <div
+                role="group"
+                ondragover={(e) => {
+                  if (!dragConnId) return;
+                  e.preventDefault();
+                  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+                  dragOverWs = g.name;
+                }}
+                ondragleave={() => { if (dragOverWs === g.name) dragOverWs = null; }}
+                ondrop={(e) => {
+                  e.preventDefault();
+                  const id = dragConnId;
+                  dragConnId = null;
+                  dragOverWs = null;
+                  if (id) moveConnToWorkspace(id, g.name);
+                }}
+              >
                 <button
                   onclick={() => (collapsedGroups[g.name] = !collapsedGroups[g.name])}
-                  class="w-full flex items-center gap-1.5 px-1.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors cursor-pointer"
+                  class="w-full flex items-center gap-1.5 px-1.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer {dragOverWs === g.name && dragConnId
+                    ? 'bg-emerald-950/40 ring-1 ring-emerald-500/60 text-emerald-200'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'}"
                   title={collapsedGroups[g.name] ? 'Buka grup' : 'Tutup grup'}
                 >
                   <ChevronDown class="w-3 h-3 flex-shrink-0 transition-transform {collapsedGroups[g.name] ? '-rotate-90' : ''}" />

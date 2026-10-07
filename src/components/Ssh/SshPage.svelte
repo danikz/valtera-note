@@ -6,6 +6,7 @@
     Trash2,
     Loader2,
     Plug,
+    Pencil,
     Eye,
     EyeOff,
     Lock,
@@ -68,6 +69,7 @@
   // Tab & terminal
   let tabs = $state<SshTab[]>([]);
   let activeTabId = $state<string | null>(null);
+  let selectedConnId = $state<string | null>(null);
   let showForm = $state(false);
   let connectingId = $state<string | null>(null);
   let connectError = $state('');
@@ -179,14 +181,28 @@
     showForm = false;
   }
 
-  function editConnection(conn: SshConnection) {
+  async function editConnection(conn: SshConnection) {
     editingId = conn.id;
     label = conn.label;
-    // payload terenkripsi hanya didekripsi saat connect — form edit mengisi
-    // ulang data dari user (label saja yang di-prefill, sesuai keamanan).
-    host = '';
-    username = '';
-    formError = '';
+    password = '';
+    privateKey = '';
+    passphrase = '';
+    // Host/port/username bukan rahasia — di-prefill agar edit nyaman.
+    // Secret dibiarkan kosong: kosong = pertahankan yang tersimpan, hanya
+    // didekrip di memori saat uji & simpan.
+    try {
+      const stored: SshPayload = JSON.parse(await ipc.decryptContent(conn.payload));
+      host = stored.host;
+      port = stored.port ?? 22;
+      username = stored.username;
+      authType = stored.authType ?? 'password';
+      formError = '';
+    } catch {
+      host = '';
+      port = 22;
+      username = '';
+      formError = 'Gagal membaca kredensial tersimpan.';
+    }
     showForm = true;
   }
 
@@ -206,17 +222,44 @@
     }
     isSaving = true;
     try {
-      const payloadObj: SshPayload = {
-        host: host.trim(),
-        port,
-        username: username.trim(),
-        authType,
-        ...(password ? { password } : {}),
-        ...(privateKey ? { privateKey } : {}),
-        ...(passphrase ? { passphrase } : {})
-      };
-      const payload = await ipc.encryptContent(JSON.stringify(payloadObj));
       const id = editingId ?? crypto.randomUUID();
+
+      // Saat edit, field secret yang dikosongkan berarti tetap pakai yang tersimpan.
+      let creds: SshPayload;
+      if (editingId) {
+        const conn = connections.find((c) => c.id === editingId);
+        if (!conn) throw new Error('Koneksi tidak ditemukan.');
+        const stored: SshPayload = JSON.parse(await ipc.decryptContent(conn.payload));
+        creds = {
+          host: host.trim(),
+          port,
+          username: username.trim(),
+          authType,
+          ...(password || stored.password ? { password: password || stored.password } : {}),
+          ...(privateKey || stored.privateKey ? { privateKey: privateKey || stored.privateKey } : {}),
+          ...(passphrase || stored.passphrase ? { passphrase: passphrase || stored.passphrase } : {})
+        };
+      } else {
+        creds = {
+          host: host.trim(),
+          port,
+          username: username.trim(),
+          authType,
+          ...(password ? { password } : {}),
+          ...(privateKey ? { privateKey } : {}),
+          ...(passphrase ? { passphrase } : {})
+        };
+      }
+
+      // Sesi yang masih hidup memakai kredensial lama — putuskan dulu supaya
+      // pengujian benar-benar memverifikasi kredensial yang baru diisi.
+      if (tabs.some((t) => t.sessionId === id)) await closeTab(id);
+
+      // Uji koneksi sungguhan dulu: gagal = error di form, kredensial TIDAK disimpan.
+      await openSessionAndTab(id, label.trim(), creds);
+
+      // Koneksi terbukti hidup → baru simpan kredensialnya (E2E).
+      const payload = await ipc.encryptContent(JSON.stringify(creds));
       await ipc.sshConnSave(id, label.trim(), payload);
       await refreshList();
       resetForm();
@@ -256,33 +299,44 @@
       }
       const plain = await ipc.decryptContent(conn.payload);
       const payload: SshPayload = JSON.parse(plain);
-      const at = activeTerm();
-      const cols = at?.cols ?? 80;
-      const rows = at?.rows ?? 24;
-      const sessionId = await ipc.sshConnect({
-        id: conn.id,
-        label: conn.label,
-        host: payload.host,
-        port: payload.port,
-        username: payload.username,
-        authType: payload.authType,
-        password: payload.password ?? null,
-        privateKey: payload.privateKey ?? null,
-        passphrase: payload.passphrase ?? null,
-        cols,
-        rows
-      });
-      tabs.push({ sessionId, label: conn.label, closed: false, unread: false });
-      activeTabId = sessionId;
-      showForm = false;
-      await tick();
-      fitActive();
-      terms.get(sessionId)?.term.focus();
+      await openSessionAndTab(conn.id, conn.label, payload);
     } catch (e: any) {
       connectError = typeof e === 'string' ? e : e?.message || String(e);
     } finally {
       connectingId = null;
     }
+  }
+
+  // Connect sungguhan + buka/aktifkan tab-nya. Dipakai alur connect dari
+  // daftar koneksi maupun alur "uji & simpan" dari form.
+  async function openSessionAndTab(id: string, labelText: string, creds: SshPayload): Promise<string> {
+    const at = activeTerm();
+    const cols = at?.cols ?? 80;
+    const rows = at?.rows ?? 24;
+    const sessionId = await ipc.sshConnect({
+      id,
+      label: labelText,
+      host: creds.host,
+      port: creds.port,
+      username: creds.username,
+      authType: creds.authType,
+      password: creds.password ?? null,
+      privateKey: creds.privateKey ?? null,
+      passphrase: creds.passphrase ?? null,
+      cols,
+      rows
+    });
+    if (tabs.some((t) => t.sessionId === sessionId)) {
+      await activateTab(sessionId); // Rust re-attach — tab sudah ada
+      return sessionId;
+    }
+    tabs.push({ sessionId, label: labelText, closed: false, unread: false });
+    activeTabId = sessionId;
+    showForm = false;
+    await tick();
+    fitActive();
+    terms.get(sessionId)?.term.focus();
+    return sessionId;
   }
 
   async function activateTab(sessionId: string) {
@@ -511,25 +565,27 @@
           {:else}
             {#each connections as conn (conn.id)}
               {@const tab = tabs.find((t) => t.sessionId === conn.id)}
-              <div class="rounded-lg border px-2.5 py-2 transition-colors {tab && !tab.closed ? 'border-emerald-600/40 bg-emerald-950/10' : editingId === conn.id ? 'border-emerald-600/60 bg-emerald-950/20' : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'}">
+              <div class="rounded-lg border px-2.5 py-2 transition-colors {tab && !tab.closed ? 'border-emerald-600/40 bg-emerald-950/10' : selectedConnId === conn.id ? 'border-emerald-500/60 bg-slate-900' : editingId === conn.id ? 'border-emerald-600/60 bg-emerald-950/20' : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'}">
                 <div class="flex items-center justify-between">
                   <button
-                    onclick={() => connect(conn)}
+                    onclick={() => (selectedConnId = conn.id)}
+                    ondblclick={() => connect(conn)}
                     disabled={connectingId !== null}
+                    title="Klik 2x untuk connect"
                     class="flex-1 text-left cursor-pointer min-w-0"
                   >
                     <p class="text-xs font-semibold text-slate-200 truncate">{conn.label}</p>
                     <p class="text-[10px] text-slate-500 truncate">
-                      {#if connectingId === conn.id}Menghubungkan…{:else if tab && !tab.closed}● aktif — klik untuk beralih{:else}Klik untuk connect{/if}
+                      {#if connectingId === conn.id}Menghubungkan…{:else if tab && !tab.closed}● aktif — klik 2x untuk buka{:else}Klik 2x untuk connect{/if}
                     </p>
                   </button>
                   <div class="flex items-center space-x-0.5 flex-shrink-0 ml-1">
                     <button
                       onclick={() => editConnection(conn)}
-                      title="Ubah label"
+                      title="Edit koneksi"
                       class="p-1 rounded text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
                     >
-                      <Eye class="w-3 h-3" />
+                      <Pencil class="w-3 h-3" />
                     </button>
                     <button
                       onclick={() => deleteConnection(conn)}
@@ -763,7 +819,7 @@
                   class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold transition-colors cursor-pointer"
                 >
                   {#if isSaving}<Loader2 class="w-3.5 h-3.5 inline animate-spin mr-1" />{/if}
-                  {editingId ? 'Perbarui Koneksi' : 'Simpan Koneksi'}
+                  {editingId ? 'Uji & Perbarui Koneksi' : 'Uji & Simpan Koneksi'}
                 </button>
                 {#if editingId || tabs.length > 0}
                   <button
@@ -778,8 +834,9 @@
               <p class="text-[10.5px] text-slate-500 flex items-start space-x-1.5 leading-relaxed pt-1">
                 <Lock class="w-3 h-3 flex-shrink-0 mt-0.5 text-emerald-500/70" />
                 <span>
-                  Kredensial dienkripsi dengan kunci master password (E2E) sebelum disimpan.
-                  Sinkronisasi cloud via tabel <code class="font-mono">ssh_connections</code> menyimpan ciphertext saja.
+                  Kredensial diuji dengan connect sungguhan dulu — kalau gagal, tidak ada yang disimpan.
+                  Setelah terbukti tersambung, kredensial dienkripsi dengan kunci master password (E2E);
+                  sinkronisasi cloud via tabel <code class="font-mono">ssh_connections</code> hanya menyimpan ciphertext.
                 </span>
               </p>
             </div>

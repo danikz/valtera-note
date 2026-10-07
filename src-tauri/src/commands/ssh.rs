@@ -4,7 +4,10 @@ use serde::Serialize;
 use tauri::{AppHandle, State};
 
 use crate::db::DatabaseManager;
-use crate::ssh::{disconnect_session, open_session, resize_session, write_to_session, SshConnectParams, SshManager};
+use crate::ssh::{
+    disconnect_session, open_session, replay_session, resize_session, write_to_session,
+    SshConnectParams, SshManager,
+};
 
 // ===== Manajemen kredensial tersimpan (E2E: payload dienkripsi frontend) =====
 
@@ -110,6 +113,12 @@ pub async fn ssh_resize(
     manager: State<'_, SshManager>,
 ) -> Result<(), String> {
     resize_session(&manager, &id, cols, rows).await
+}
+
+/// Isi layar terakhir sesi untuk terminal yang baru di-attach ulang.
+#[tauri::command]
+pub async fn ssh_replay(id: String, manager: State<'_, SshManager>) -> Result<String, String> {
+    replay_session(&manager, &id).await
 }
 
 #[tauri::command]

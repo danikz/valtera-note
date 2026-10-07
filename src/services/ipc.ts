@@ -380,6 +380,13 @@ export const ipc = {
     }
   },
 
+  async sshReplay(id: string): Promise<string> {
+    if (isTauri) {
+      return await invoke<string>('ssh_replay', { id });
+    }
+    return '';
+  },
+
   async sshDisconnect(id: string): Promise<void> {
     if (isTauri) {
       await invoke('ssh_disconnect', { id });

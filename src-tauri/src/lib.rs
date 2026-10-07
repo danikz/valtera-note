@@ -108,6 +108,7 @@ pub fn run() {
             commands::ssh::ssh_conn_delete,
             commands::ssh::ssh_connect,
             commands::ssh::ssh_write,
+            commands::ssh::ssh_replay,
             commands::ssh::ssh_resize,
             commands::ssh::ssh_disconnect,
             commands::ssh::ssh_active_sessions,

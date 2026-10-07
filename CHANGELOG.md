@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.26] - 2026-10-07
+
+### 🐛 Perbaikan: Koneksi SSH Gagal Terhubung
+- **Fix error "missing field auth_type"**: koneksi SSH gagal karena mismatch penamaan field antara frontend (`authType`, `privateKey`, `passphrase`) dan command Rust `ssh_connect` yang menuntut snake_case. Struct params kini menerima camelCase via serde `rename_all`.
+- **Auth private key kembali berfungsi penuh**: dampak dari mismatch yang sama, `privateKey` dan `passphrase` sebelumnya diam-diam terkirim sebagai kosong saat koneksi metode key.
+- **Build lokal lebih stabil**: versi `@tauri-apps/api` di-pin 2.12.1 agar sejajar dengan crate `tauri`, sehingga Tauri CLI tidak lagi menolak build karena version mismatch.
+
+---
+
 ## [0.1.25] - 2026-10-06
 
 ### ✨ Fitur Baru: Menu SSH di Titlebar

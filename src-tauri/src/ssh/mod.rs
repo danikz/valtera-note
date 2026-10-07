@@ -3,15 +3,50 @@
 //! sudah terdekripsi di sisi frontend (E2E tetap berlaku di penyimpanan).
 
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex as StdMutex};
 
 use russh::client::{self, Handle};
 use tauri::{AppHandle, Emitter};
 use tokio::sync::Mutex;
 
+/// Ring buffer output terakhir per sesi (raw PTY bytes, termasuk escape
+/// sequence). Dipakai untuk mengembalikan isi layar saat terminal di-attach
+/// ulang — mis. setelah halaman SSH ditinggalkan dan dibuka lagi — karena
+/// shell tidak mengirim ulang prompt/layar dengan sendirinya.
+pub struct ReplayBuffer {
+    data: StdMutex<Vec<u8>>,
+    cap: usize,
+}
+
+impl ReplayBuffer {
+    fn new(cap: usize) -> Self {
+        Self {
+            data: StdMutex::new(Vec::with_capacity(4096)),
+            cap,
+        }
+    }
+
+    fn push(&self, bytes: &[u8]) {
+        if bytes.is_empty() {
+            return;
+        }
+        let mut buf = self.data.lock().unwrap();
+        buf.extend_from_slice(bytes);
+        if buf.len() > self.cap {
+            let excess = buf.len() - self.cap;
+            buf.drain(..excess);
+        }
+    }
+
+    fn snapshot(&self) -> Vec<u8> {
+        self.data.lock().unwrap().clone()
+    }
+}
+
 pub struct ClientHandler {
     app: AppHandle,
     session_id: String,
+    replay: Arc<ReplayBuffer>,
 }
 
 #[async_trait::async_trait]
@@ -33,6 +68,7 @@ impl client::Handler for ClientHandler {
         data: &[u8],
         _session: &mut client::Session,
     ) -> Result<(), Self::Error> {
+        self.replay.push(data);
         let _ = self.app.emit(
             "ssh-data",
             serde_json::json!({ "id": self.session_id, "data": String::from_utf8_lossy(data) }),
@@ -47,6 +83,7 @@ impl client::Handler for ClientHandler {
         data: &[u8],
         _session: &mut client::Session,
     ) -> Result<(), Self::Error> {
+        self.replay.push(data);
         let _ = self.app.emit(
             "ssh-data",
             serde_json::json!({ "id": self.session_id, "data": String::from_utf8_lossy(data) }),
@@ -71,6 +108,7 @@ pub struct ActiveSession {
     pub handle: Handle<ClientHandler>,
     pub channel: russh::Channel<russh::client::Msg>,
     pub label: String,
+    pub replay: Arc<ReplayBuffer>,
 }
 
 #[derive(Default)]
@@ -124,9 +162,11 @@ pub async fn open_session(
 
     let config = Arc::new(client::Config::default());
     let addr = (p.host.clone(), p.port);
+    let replay = Arc::new(ReplayBuffer::new(128 * 1024));
     let handler = ClientHandler {
         app: app.clone(),
         session_id: p.id.clone(),
+        replay: Arc::clone(&replay),
     };
 
     let mut handle: Handle<ClientHandler> =
@@ -179,6 +219,7 @@ pub async fn open_session(
             handle,
             channel,
             label: p.label.clone(),
+            replay,
         },
     );
     let _ = app.emit(
@@ -215,6 +256,16 @@ pub async fn resize_session(
         .window_change(cols, rows, 0, 0)
         .await
         .map_err(|e| format!("Gagal resize: {}", e))
+}
+
+/// Isi layar terakhir sesi (hasil replay buffer) untuk di-write ke terminal
+/// yang baru di-attach. String lossy konsisten dengan jalur event ssh-data.
+pub async fn replay_session(manager: &SshManager, id: &str) -> Result<String, String> {
+    let sessions = manager.sessions.lock().await;
+    let session = sessions
+        .get(id)
+        .ok_or_else(|| "Sesi tidak ditemukan / sudah tertutup".to_string())?;
+    Ok(String::from_utf8_lossy(&session.replay.snapshot()).into_owned())
 }
 
 pub async fn disconnect_session(

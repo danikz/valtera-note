@@ -74,7 +74,12 @@
   let unlisteners: UnlistenFn[] = [];
 
   // Instance terminal per sesi — tidak perlu reaktif, cukup diakses via Map.
-  const terms = new Map<string, { term: Terminal; fitAddon: FitAddon }>();
+  // `ready` false sampai replay selesai ditulis; data live yang datang lebih
+  // cepat ditahan di `queue` agar urutan output tetap benar.
+  const terms = new Map<
+    string,
+    { term: Terminal; fitAddon: FitAddon; ready: boolean; queue: string[] }
+  >();
 
   function activeTerm(): Terminal | null {
     return activeTabId ? (terms.get(activeTabId)?.term ?? null) : null;
@@ -88,7 +93,8 @@
       await listen<{ id: string; data: string }>('ssh-data', (e) => {
         const entry = terms.get(e.payload.id);
         if (entry) {
-          entry.term.write(e.payload.data);
+          if (entry.ready) entry.term.write(e.payload.data);
+          else entry.queue.push(e.payload.data);
           if (e.payload.id !== activeTabId) markUnread(e.payload.id);
         }
       })
@@ -340,6 +346,8 @@
 
   // Svelte action: satu node div per tab; terminal dibuat saat node mount
   // dan dibuang saat tab ditutup / halaman ditinggalkan (sesi tetap di Rust).
+  // Terminal baru dimulai kosong — isi layar terakhir sesi dipulihkan dari
+  // replay buffer Rust supaya attach ulang terasa melanjutkan, bukan blank.
   function mountTerminal(el: HTMLDivElement, sessionId: string) {
     const term = new Terminal({
       fontFamily: 'ui-monospace, "Cascadia Mono", Consolas, monospace',
@@ -356,12 +364,29 @@
       ipc.sshWrite(sessionId, data);
     });
     el.addEventListener('contextmenu', openCtxMenu);
-    terms.set(sessionId, { term, fitAddon });
+    const entry = { term, fitAddon, ready: false, queue: [] as string[] };
+    terms.set(sessionId, entry);
+    ipc
+      .sshReplay(sessionId)
+      .then((replay) => {
+        if (replay && !entry.ready) term.write(replay);
+      })
+      .catch(() => {})
+      .finally(() => {
+        entry.ready = true;
+        for (const chunk of entry.queue) term.write(chunk);
+        entry.queue.length = 0;
+      });
     return {
       destroy() {
         el.removeEventListener('contextmenu', openCtxMenu);
-        term.dispose();
-        terms.delete(sessionId);
+        // closeTab/connect mungkin sudah membuang & menghapus entry —
+        // jangan dispose dua kali terminal yang sama.
+        const entry = terms.get(sessionId);
+        if (entry && entry.term === term) {
+          term.dispose();
+          terms.delete(sessionId);
+        }
       }
     };
   }

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.27] - 2026-10-07
+
+### ✨ Fitur Baru: Tab SSH ala Browser
+- **Setiap koneksi SSH terbuka sebagai tab**: pindah antar sesi semudah pindah tab browser — instance terminal per tab tetap hidup, scrollback tidak pernah hilang saat berpindah.
+- **Output tab background tetap terekam** dan ditandai titik kuning (unread) ala browser, jadi tidak ada lagi output yang hilang saat sesi tidak sedang dilihat.
+- **Tombol X di tab = putuskan sesi**; sesi yang ditutup dari sisi server tampil dengan titik abu-abu dan status `[Sesi ditutup]`.
+- **"Lepas tampilan" & chip "Sesi Aktif" dihapus** — digantikan sepenuhnya oleh tab; kembali ke halaman SSH mengembalikan sesi yang masih hidup sebagai tab.
+- **Form koneksi kini overlay** di atas terminal — membuka/menutup formulir tidak membuang tab yang sedang terbuka.
+
+---
+
 ## [0.1.26] - 2026-10-07
 
 ### 🐛 Perbaikan: Koneksi SSH Gagal Terhubung

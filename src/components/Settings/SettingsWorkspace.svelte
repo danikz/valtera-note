@@ -148,7 +148,33 @@ using (auth.uid() = user_id or user_id is null)
 with check (auth.uid() = user_id);
 
 -- Catatan: baris lama (user_id kosong) tetap terlihat setelah login.
--- Isi pemiliknya dengan: update public.notes set user_id = '<uuid-akun-anda>';`;
+-- Isi pemiliknya dengan: update public.notes set user_id = '<uuid-akun-anda>';
+
+-- 5. Tabel kredensial SSH (payload ciphertext E2E — server hanya menyimpan enkripsi)
+create table if not exists public.ssh_connections (
+    id uuid primary key,
+    user_id uuid default auth.uid(),
+    label text not null default '',
+    payload text not null default '',
+    is_deleted boolean not null default false,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+create index if not exists idx_ssh_connections_updated_at on public.ssh_connections(updated_at desc);
+
+alter table public.ssh_connections enable row level security;
+
+revoke all on public.ssh_connections from anon;
+
+drop policy if exists "Owner full access" on public.ssh_connections;
+
+create policy "Owner full access"
+on public.ssh_connections
+for all
+to authenticated
+using (auth.uid() = user_id or user_id is null)
+with check (auth.uid() = user_id);`;
 
   function getProjectRef(): string | null {
     try {

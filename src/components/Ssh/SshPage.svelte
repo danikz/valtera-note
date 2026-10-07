@@ -11,6 +11,10 @@
     EyeOff,
     Lock,
     AlertTriangle,
+    Building2,
+    ChevronDown,
+    Cloud,
+    RefreshCw,
     X
   } from 'lucide-svelte';
   import { Terminal } from '@xterm/xterm';
@@ -18,7 +22,7 @@
   import { listen, type UnlistenFn } from '@tauri-apps/api/event';
   import { ipc } from '../../services/ipc';
   import { copyText } from '../../utils/clipboard';
-  import { sshStore, consumeSshConnectRequest } from '../../stores/sshStore.svelte';
+  import { sshStore, consumeSshConnectRequest, sshSyncState, syncSshConnections, rememberSshDeletedId } from '../../stores/sshStore.svelte';
   import '@xterm/xterm/css/xterm.css';
 
   interface SshConnection {
@@ -36,6 +40,7 @@
     password?: string;
     privateKey?: string;
     passphrase?: string;
+    workspace?: string; // pengelompokan (perusahaan/lokasi) — ikut payload E2E
   }
 
   // Satu tab = satu sesi hidup = satu instance terminal sendiri.
@@ -52,12 +57,17 @@
   let isLoading = $state(true);
   let e2eState = $state<'none' | 'locked' | 'ready'>('ready');
 
+  // Workspace per koneksi (connId -> nama) — dibaca dari payload terenkripsi.
+  let connWorkspaces = $state<Record<string, string>>({});
+  let collapsedGroups = $state<Record<string, boolean>>({});
+
   // Form
   let editingId = $state<string | null>(null);
   let label = $state('');
   let host = $state('');
   let port = $state(22);
   let username = $state('');
+  let workspace = $state('');
   let authType = $state<'password' | 'key'>('password');
   let password = $state('');
   let privateKey = $state('');
@@ -87,10 +97,43 @@
     return activeTabId ? (terms.get(activeTabId)?.term ?? null) : null;
   }
 
+  // Pengelompokan koneksi per workspace (nama terurut; tanpa-workspace paling bawah).
+  const workspaceGroups = $derived.by(() => {
+    const named = new Map<string, SshConnection[]>();
+    const ungrouped: SshConnection[] = [];
+    for (const c of connections) {
+      const ws = (connWorkspaces[c.id] ?? '').trim();
+      if (ws) {
+        if (!named.has(ws)) named.set(ws, []);
+        named.get(ws)!.push(c);
+      } else {
+        ungrouped.push(c);
+      }
+    }
+    const groups = [...named.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([name, items]) => ({ name, items }));
+    if (ungrouped.length > 0) groups.push({ name: '', items: ungrouped });
+    return groups;
+  });
+  const hasWorkspaces = $derived(connections.some((c) => (connWorkspaces[c.id] ?? '').trim() !== ''));
+  const workspaceNames = $derived(
+    [...new Set(connections.map((c) => (connWorkspaces[c.id] ?? '').trim()).filter(Boolean))].sort((a, b) =>
+      a.localeCompare(b)
+    )
+  );
+
   onMount(async () => {
     e2eState = await ipc.e2eStatus();
     await refreshList();
     await restoreTabs();
+    // Sinkron ke cloud (pull koneksi perangkat lain + push yang belum terkirim),
+    // lalu muat ulang daftar karena sync bisa menambah koneksi baru.
+    if (e2eState === 'ready') {
+      syncSshConnections()
+        .then(() => refreshList())
+        .catch(() => {});
+    }
     unlisteners.push(
       await listen<{ id: string; data: string }>('ssh-data', (e) => {
         const entry = terms.get(e.payload.id);
@@ -136,6 +179,17 @@
     isLoading = true;
     try {
       connections = await ipc.sshConnList();
+      // Workspace dibaca dari payload terenkripsi masing-masing koneksi.
+      const map: Record<string, string> = {};
+      for (const c of connections) {
+        try {
+          const p: SshPayload = JSON.parse(await ipc.decryptContent(c.payload));
+          map[c.id] = (p.workspace ?? '').trim();
+        } catch {
+          map[c.id] = '';
+        }
+      }
+      connWorkspaces = map;
     } catch (e) {
       console.warn('Gagal memuat koneksi SSH:', e);
     } finally {
@@ -168,6 +222,7 @@
     host = '';
     port = 22;
     username = '';
+    workspace = '';
     authType = 'password';
     password = '';
     privateKey = '';
@@ -195,6 +250,7 @@
       host = stored.host;
       port = stored.port ?? 22;
       username = stored.username;
+      workspace = stored.workspace ?? '';
       authType = stored.authType ?? 'password';
       formError = '';
     } catch {
@@ -225,6 +281,7 @@
       const id = editingId ?? crypto.randomUUID();
 
       // Saat edit, field secret yang dikosongkan berarti tetap pakai yang tersimpan.
+      // Workspace bukan rahasia dan selalu mengikuti nilai form (kosong = hapus).
       let creds: SshPayload;
       if (editingId) {
         const conn = connections.find((c) => c.id === editingId);
@@ -237,7 +294,8 @@
           authType,
           ...(password || stored.password ? { password: password || stored.password } : {}),
           ...(privateKey || stored.privateKey ? { privateKey: privateKey || stored.privateKey } : {}),
-          ...(passphrase || stored.passphrase ? { passphrase: passphrase || stored.passphrase } : {})
+          ...(passphrase || stored.passphrase ? { passphrase: passphrase || stored.passphrase } : {}),
+          ...(workspace.trim() ? { workspace: workspace.trim() } : {})
         };
       } else {
         creds = {
@@ -247,7 +305,8 @@
           authType,
           ...(password ? { password } : {}),
           ...(privateKey ? { privateKey } : {}),
-          ...(passphrase ? { passphrase } : {})
+          ...(passphrase ? { passphrase } : {}),
+          ...(workspace.trim() ? { workspace: workspace.trim() } : {})
         };
       }
 
@@ -264,6 +323,7 @@
       await refreshList();
       resetForm();
       showForm = false;
+      if (e2eState === 'ready') syncSshConnections().catch(() => {});
     } catch (e: any) {
       formError = typeof e === 'string' ? e : e?.message || String(e);
     } finally {
@@ -273,9 +333,12 @@
 
   async function deleteConnection(conn: SshConnection) {
     if (!confirm(`Hapus koneksi "${conn.label}"?`)) return;
+    // Catat tombstone dulu agar sync ikut menghapus salinan cloud & perangkat lain.
+    rememberSshDeletedId(conn.id);
     await ipc.sshConnDelete(conn.id);
     if (tabs.some((t) => t.sessionId === conn.id)) await closeTab(conn.id);
     await refreshList();
+    if (e2eState === 'ready') syncSshConnections().catch(() => {});
   }
 
   // ===== Tab & terminal =====
@@ -519,6 +582,35 @@
       <h2 class="text-sm font-bold text-slate-100">SSH Manager</h2>
       <span class="text-[10px] font-mono text-slate-500">kredensial terenkripsi E2E</span>
     </div>
+    {#if sshSyncState.status !== 'unconfigured'}
+      <button
+        onclick={() => e2eState === 'ready' && syncSshConnections().then(() => refreshList()).catch(() => {})}
+        disabled={sshSyncState.status === 'syncing' || e2eState !== 'ready'}
+        title={sshSyncState.message || 'Sinkronkan koneksi ke cloud'}
+        class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10.5px] font-medium transition-colors cursor-pointer disabled:cursor-default
+        {sshSyncState.status === 'error'
+          ? 'bg-rose-950/50 border-rose-800/60 text-rose-300 hover:bg-rose-900/60'
+          : sshSyncState.status === 'syncing'
+          ? 'bg-slate-900 border-slate-800 text-slate-400'
+          : sshSyncState.status === 'ok'
+          ? 'bg-emerald-950/30 border-emerald-800/50 text-emerald-300/90 hover:bg-emerald-900/40'
+          : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300'}"
+      >
+        {#if sshSyncState.status === 'syncing'}
+          <Loader2 class="w-3 h-3 animate-spin" />
+        {:else if sshSyncState.status === 'error'}
+          <AlertTriangle class="w-3 h-3" />
+        {:else}
+          <Cloud class="w-3 h-3" />
+        {/if}
+        <span class="max-w-[280px] truncate">
+          {#if sshSyncState.status === 'syncing'}Sinkron…{:else if sshSyncState.status === 'ok' && sshSyncState.lastSyncAt}Cloud {sshSyncState.lastSyncAt}{:else if sshSyncState.status === 'error'}Sync gagal{:else}Sinkron ke cloud{/if}
+        </span>
+        {#if sshSyncState.status !== 'syncing'}
+          <RefreshCw class="w-2.5 h-2.5 opacity-60" />
+        {/if}
+      </button>
+    {/if}
   </div>
 
   {#if e2eState === 'none'}
@@ -555,6 +647,42 @@
           </button>
         </div>
 
+  {#snippet connectionRow(conn: SshConnection)}
+    {@const tab = tabs.find((t) => t.sessionId === conn.id)}
+    <div class="rounded-lg border px-2.5 py-2 transition-colors {tab && !tab.closed ? 'border-emerald-600/40 bg-emerald-950/10' : selectedConnId === conn.id ? 'border-emerald-500/60 bg-slate-900' : editingId === conn.id ? 'border-emerald-600/60 bg-emerald-950/20' : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'}">
+      <div class="flex items-center justify-between">
+        <button
+          onclick={() => (selectedConnId = conn.id)}
+          ondblclick={() => connect(conn)}
+          disabled={connectingId !== null}
+          title="Klik 2x untuk connect"
+          class="flex-1 text-left cursor-pointer min-w-0"
+        >
+          <p class="text-xs font-semibold text-slate-200 truncate">{conn.label}</p>
+          <p class="text-[10px] text-slate-500 truncate">
+            {#if connectingId === conn.id}Menghubungkan…{:else if tab && !tab.closed}● aktif — klik 2x untuk buka{:else}Klik 2x untuk connect{/if}
+          </p>
+        </button>
+        <div class="flex items-center space-x-0.5 flex-shrink-0 ml-1">
+          <button
+            onclick={() => editConnection(conn)}
+            title="Edit koneksi"
+            class="p-1 rounded text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
+          >
+            <Pencil class="w-3 h-3" />
+          </button>
+          <button
+            onclick={() => deleteConnection(conn)}
+            title="Hapus"
+            class="p-1 rounded text-slate-500 hover:text-rose-300 hover:bg-slate-800 transition-colors cursor-pointer"
+          >
+            <Trash2 class="w-3 h-3" />
+          </button>
+        </div>
+      </div>
+    </div>
+  {/snippet}
+
         <div class="flex-1 overflow-y-auto p-2 space-y-1.5">
           {#if isLoading}
             <div class="flex justify-center py-4"><Loader2 class="w-4 h-4 animate-spin text-slate-500" /></div>
@@ -562,41 +690,31 @@
             <p class="text-[11px] text-slate-500 text-center py-4 px-2 leading-relaxed">
               Belum ada koneksi. Klik <Plus class="w-3 h-3 inline" /> untuk menyimpan kredensial SSH (terenkripsi E2E).
             </p>
+          {:else if hasWorkspaces}
+            {#each workspaceGroups as g (g.name || '__ungrouped')}
+              <div>
+                <button
+                  onclick={() => (collapsedGroups[g.name] = !collapsedGroups[g.name])}
+                  class="w-full flex items-center gap-1.5 px-1.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors cursor-pointer"
+                  title={collapsedGroups[g.name] ? 'Buka grup' : 'Tutup grup'}
+                >
+                  <ChevronDown class="w-3 h-3 flex-shrink-0 transition-transform {collapsedGroups[g.name] ? '-rotate-90' : ''}" />
+                  <Building2 class="w-3 h-3 text-emerald-400/80 flex-shrink-0" />
+                  <span class="truncate text-left {g.name ? '' : 'italic normal-case tracking-normal'}">{g.name || 'Tanpa Workspace'}</span>
+                  <span class="ml-auto font-mono text-[9px] font-normal text-slate-500 flex-shrink-0">{g.items.length}</span>
+                </button>
+                {#if !collapsedGroups[g.name]}
+                  <div class="space-y-1.5 mt-1">
+                    {#each g.items as conn (conn.id)}
+                      {@render connectionRow(conn)}
+                    {/each}
+                  </div>
+                {/if}
+              </div>
+            {/each}
           {:else}
             {#each connections as conn (conn.id)}
-              {@const tab = tabs.find((t) => t.sessionId === conn.id)}
-              <div class="rounded-lg border px-2.5 py-2 transition-colors {tab && !tab.closed ? 'border-emerald-600/40 bg-emerald-950/10' : selectedConnId === conn.id ? 'border-emerald-500/60 bg-slate-900' : editingId === conn.id ? 'border-emerald-600/60 bg-emerald-950/20' : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'}">
-                <div class="flex items-center justify-between">
-                  <button
-                    onclick={() => (selectedConnId = conn.id)}
-                    ondblclick={() => connect(conn)}
-                    disabled={connectingId !== null}
-                    title="Klik 2x untuk connect"
-                    class="flex-1 text-left cursor-pointer min-w-0"
-                  >
-                    <p class="text-xs font-semibold text-slate-200 truncate">{conn.label}</p>
-                    <p class="text-[10px] text-slate-500 truncate">
-                      {#if connectingId === conn.id}Menghubungkan…{:else if tab && !tab.closed}● aktif — klik 2x untuk buka{:else}Klik 2x untuk connect{/if}
-                    </p>
-                  </button>
-                  <div class="flex items-center space-x-0.5 flex-shrink-0 ml-1">
-                    <button
-                      onclick={() => editConnection(conn)}
-                      title="Edit koneksi"
-                      class="p-1 rounded text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
-                    >
-                      <Pencil class="w-3 h-3" />
-                    </button>
-                    <button
-                      onclick={() => deleteConnection(conn)}
-                      title="Hapus"
-                      class="p-1 rounded text-slate-500 hover:text-rose-300 hover:bg-slate-800 transition-colors cursor-pointer"
-                    >
-                      <Trash2 class="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              </div>
+              {@render connectionRow(conn)}
             {/each}
           {/if}
         </div>
@@ -749,6 +867,23 @@
                   placeholder="root"
                   class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-600 font-mono focus:outline-none focus:border-emerald-500"
                 />
+              </div>
+
+              <div class="space-y-1.5">
+                <label class="text-xs font-semibold text-slate-300" for="ssh-workspace">Workspace (perusahaan / lokasi)</label>
+                <input
+                  id="ssh-workspace"
+                  type="text"
+                  bind:value={workspace}
+                  placeholder="PT Contoh Jaya — opsional"
+                  list="ssh-workspace-datalist"
+                  class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-emerald-500"
+                />
+                <datalist id="ssh-workspace-datalist">
+                  {#each workspaceNames as name (name)}
+                    <option value={name}></option>
+                  {/each}
+                </datalist>
               </div>
 
               <div class="space-y-1.5">

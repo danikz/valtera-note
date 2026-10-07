@@ -120,6 +120,9 @@ pub fn run() {
             commands::supabase::fetch_remote_notes,
             commands::supabase::upsert_remote_note,
             commands::supabase::delete_remote_note,
+            commands::supabase::fetch_remote_ssh_connections,
+            commands::supabase::upsert_remote_ssh_connection,
+            commands::supabase::delete_remote_ssh_connection,
         ])
         .run(tauri::generate_context!())
         .expect("error while running valtera-note application");

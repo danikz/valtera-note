@@ -51,6 +51,16 @@ export interface RemoteNote {
   updated_at?: string;
 }
 
+// Satu baris tabel ssh_connections di cloud — payload selalu ciphertext E2E.
+export interface RemoteSshConnection {
+  id?: string;
+  label: string;
+  payload: string;
+  is_deleted?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface SessionState {
   tabs: TabState[];
   active_tab_index: number;

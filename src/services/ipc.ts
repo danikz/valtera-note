@@ -1,14 +1,15 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { 
-  FilePayload, 
-  FileSaveResult, 
-  SessionState, 
-  TabState, 
-  SqlResult, 
-  SupabaseConfig, 
+import type {
+  FilePayload,
+  FileSaveResult,
+  SessionState,
+  TabState,
+  SqlResult,
+  SupabaseConfig,
   Snippet,
   RemoteNote,
-  TableSummary 
+  RemoteSshConnection,
+  TableSummary
 } from '../types';
 
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -486,6 +487,21 @@ export const ipc = {
       drop policy if exists "Enable read access for all users" on public.notes;
       drop policy if exists "Owner full access" on public.notes;
       create policy "Owner full access" on public.notes for all to authenticated using (auth.uid() = user_id or user_id is null) with check (auth.uid() = user_id);
+
+      create table if not exists public.ssh_connections (
+          id uuid primary key,
+          user_id uuid default auth.uid(),
+          label text not null default '',
+          payload text not null default '',
+          is_deleted boolean not null default false,
+          created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+          updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+      );
+      create index if not exists idx_ssh_connections_updated_at on public.ssh_connections(updated_at desc);
+      alter table public.ssh_connections enable row level security;
+      revoke all on public.ssh_connections from anon;
+      drop policy if exists "Owner full access" on public.ssh_connections;
+      create policy "Owner full access" on public.ssh_connections for all to authenticated using (auth.uid() = user_id or user_id is null) with check (auth.uid() = user_id);
     `;
 
     const res = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
@@ -498,7 +514,7 @@ export const ipc = {
     });
 
     if (res.ok) {
-      return "Tabel 'notes' berhasil dibuat secara otomatis!";
+      return "Tabel 'notes' & 'ssh_connections' berhasil dibuat secara otomatis!";
     }
     const errText = await res.text().catch(() => '');
     throw new Error(`Supabase Management API error: ${errText}`);
@@ -829,6 +845,125 @@ export const ipc = {
     } catch (e) {
       console.warn('deleteRemoteNote failed:', e);
       throw e;
+    }
+  },
+
+  // ===== Sinkronisasi kredensial SSH (payload ciphertext E2E saja) =====
+
+  async fetchRemoteSshConnections(url: string, anonKey: string, accessToken?: string): Promise<RemoteSshConnection[]> {
+    const cleanUrl = url.trim().replace(/\/+$/, '');
+    const cleanKey = anonKey.trim();
+
+    if (isTauri) {
+      try {
+        return await invoke<RemoteSshConnection[]>('fetch_remote_ssh_connections', {
+          url: cleanUrl,
+          anonKey: cleanKey,
+          anon_key: cleanKey,
+          accessToken: accessToken || null,
+          access_token: accessToken || null
+        });
+      } catch (err) {
+        console.warn('Native fetchRemoteSshConnections error, fallback to fetch:', err);
+      }
+    }
+
+    // Tanpa filter is_deleted: frontend butuh melihat tombstone untuk heal.
+    const res = await fetch(`${cleanUrl}/rest/v1/ssh_connections?select=*&order=updated_at.desc`, {
+      method: 'GET',
+      headers: {
+        'apikey': cleanKey,
+        'Authorization': `Bearer ${accessToken || cleanKey}`
+      }
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(`HTTP ${res.status}: ${errText}`);
+    }
+    return await res.json();
+  },
+
+  async upsertRemoteSshConnection(url: string, anonKey: string, conn: RemoteSshConnection, accessToken?: string): Promise<RemoteSshConnection> {
+    const cleanUrl = url.trim().replace(/\/+$/, '');
+    const cleanKey = anonKey.trim();
+
+    if (isTauri) {
+      try {
+        return await invoke<RemoteSshConnection>('upsert_remote_ssh_connection', {
+          url: cleanUrl,
+          anonKey: cleanKey,
+          anon_key: cleanKey,
+          conn,
+          accessToken: accessToken || null,
+          access_token: accessToken || null
+        });
+      } catch (err) {
+        console.warn('Native upsertRemoteSshConnection error, fallback to fetch:', err);
+      }
+    }
+
+    const payload: any = { ...conn };
+    const hasId = Boolean(payload.id && typeof payload.id === 'string' && payload.id.trim().length > 0);
+    if (!hasId) delete payload.id;
+    if (!payload.created_at) delete payload.created_at;
+    payload.updated_at = new Date().toISOString();
+
+    const requestUrl = hasId
+      ? `${cleanUrl}/rest/v1/ssh_connections?on_conflict=id`
+      : `${cleanUrl}/rest/v1/ssh_connections`;
+
+    const res = await fetch(requestUrl, {
+      method: 'POST',
+      headers: {
+        'apikey': cleanKey,
+        'Authorization': `Bearer ${accessToken || cleanKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': hasId ? 'resolution=merge-duplicates,return=representation' : 'return=representation'
+      },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(`HTTP ${res.status}: ${errText}`);
+    }
+    const data = await res.json();
+    if (Array.isArray(data) && data.length > 0) return data[0];
+    return conn;
+  },
+
+  // Soft delete: tombstone is_deleted supaya perangkat lain ikut menghapus.
+  async deleteRemoteSshConnection(url: string, anonKey: string, id: string, accessToken?: string): Promise<void> {
+    const cleanUrl = url.trim().replace(/\/+$/, '');
+    const cleanKey = anonKey.trim();
+
+    if (isTauri) {
+      try {
+        await invoke<void>('delete_remote_ssh_connection', {
+          url: cleanUrl,
+          anonKey: cleanKey,
+          anon_key: cleanKey,
+          id,
+          accessToken: accessToken || null,
+          access_token: accessToken || null
+        });
+        return;
+      } catch (err) {
+        console.warn('Native deleteRemoteSshConnection error, fallback to fetch:', err);
+      }
+    }
+
+    const res = await fetch(`${cleanUrl}/rest/v1/ssh_connections?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': cleanKey,
+        'Authorization': `Bearer ${accessToken || cleanKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ is_deleted: true, updated_at: new Date().toISOString() })
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(`HTTP ${res.status}: ${errText}`);
     }
   },
 

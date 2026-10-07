@@ -58,6 +58,24 @@ pub struct RemoteNote {
     pub updated_at: Option<String>,
 }
 
+/// Satu baris tabel `ssh_connections` di cloud. `payload` selalu ciphertext
+/// E2E — server tidak pernah melihat kredensial plaintext.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemoteSshConnection {
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub label: String,
+    #[serde(default)]
+    pub payload: String,
+    #[serde(default)]
+    pub is_deleted: bool,
+    #[serde(default)]
+    pub created_at: Option<String>,
+    #[serde(default)]
+    pub updated_at: Option<String>,
+}
+
 impl SupabaseClient {
     pub fn new(url: String, anon_key: String) -> Self {
         let client = Client::builder()
@@ -109,11 +127,20 @@ impl SupabaseClient {
         }
     }
 
+    /// "Ready" berarti skema lengkap: tabel notes DAN ssh_connections.
+    /// Kalau notes ada tapi ssh_connections belum, user perlu jalankan
+    /// auto-create lagi (SQL-nya idempotent).
     pub async fn check_table_exists(&self) -> Result<bool, String> {
-        let url = format!("{}/rest/v1/notes?select=id&limit=1", self.url);
+        let notes_ok = self.table_probe("notes").await?;
+        let ssh_ok = self.table_probe("ssh_connections").await?;
+        Ok(notes_ok && ssh_ok)
+    }
+
+    async fn table_probe(&self, table: &str) -> Result<bool, String> {
+        let url = format!("{}/rest/v1/{}?select=id&limit=1", self.url, table);
         let mut req = self.client.get(&url)
             .header("apikey", &self.anon_key);
-        
+
         if let Some(token) = &self.access_token {
             req = req.header("Authorization", format!("Bearer {}", token));
         } else {
@@ -370,6 +397,116 @@ impl SupabaseClient {
         }
 
         Ok(note.clone())
+    }
+
+    /// Fetch semua baris ssh_connections (termasuk tombstone is_deleted agar
+    /// penghapusan di perangkat lain tetap terlihat dan bisa di-heal).
+    pub async fn fetch_ssh_connections(&self) -> Result<Vec<RemoteSshConnection>, String> {
+        let url = format!("{}/rest/v1/ssh_connections?select=*&order=updated_at.desc", self.url);
+        let mut req = self.client.get(&url).header("apikey", &self.anon_key);
+        if let Some(token) = &self.access_token {
+            req = req.header("Authorization", format!("Bearer {}", token));
+        } else {
+            req = req.header("Authorization", format!("Bearer {}", self.anon_key));
+        }
+
+        let res = req.send().await.map_err(|e| format!("Failed to fetch ssh connections: {}", e))?;
+        let status = res.status();
+        let text = res.text().await.unwrap_or_default();
+
+        if !status.is_success() {
+            return Err(format!("Fetch ssh_connections failed (HTTP {}): {}", status.as_u16(), text));
+        }
+
+        let rows: Vec<RemoteSshConnection> = serde_json::from_str(&text)
+            .map_err(|e| format!("Failed to parse ssh_connections: {} (Response: {})", e, text))?;
+        Ok(rows)
+    }
+
+    pub async fn upsert_ssh_connection(&self, conn: &RemoteSshConnection) -> Result<RemoteSshConnection, String> {
+        let has_id = conn.id.as_ref().map_or(false, |s| !s.trim().is_empty());
+
+        let url = if has_id {
+            format!("{}/rest/v1/ssh_connections?on_conflict=id", self.url)
+        } else {
+            format!("{}/rest/v1/ssh_connections", self.url)
+        };
+
+        let mut req = self.client.post(&url)
+            .header("apikey", &self.anon_key)
+            .header("Content-Type", "application/json");
+
+        if has_id {
+            req = req.header("Prefer", "resolution=merge-duplicates,return=representation");
+        } else {
+            req = req.header("Prefer", "return=representation");
+        }
+
+        if let Some(token) = &self.access_token {
+            req = req.header("Authorization", format!("Bearer {}", token));
+        } else {
+            req = req.header("Authorization", format!("Bearer {}", self.anon_key));
+        }
+
+        let mut conn_val = serde_json::to_value(conn)
+            .map_err(|e| format!("Serialization error: {}", e))?;
+
+        if let Some(obj) = conn_val.as_object_mut() {
+            if !has_id {
+                obj.remove("id");
+            }
+            if obj.get("created_at").map_or(true, |v| v.is_null()) {
+                obj.remove("created_at");
+            }
+            obj.insert("updated_at".to_string(), serde_json::Value::String(chrono_iso_now()));
+        }
+
+        let res = req.json(&conn_val).send().await.map_err(|e| format!("Failed to upsert ssh connection: {}", e))?;
+        let status = res.status();
+        let text = res.text().await.unwrap_or_default();
+
+        if !status.is_success() {
+            return Err(format!("Upsert ssh_connection failed (HTTP {}): {}", status.as_u16(), text));
+        }
+
+        if let Ok(records) = serde_json::from_str::<Vec<RemoteSshConnection>>(&text) {
+            if let Some(first) = records.into_iter().next() {
+                return Ok(first);
+            }
+        }
+        Ok(conn.clone())
+    }
+
+    /// Penghapusan memakai soft delete (tombstone) agar perangkat lain ikut
+    /// menghapus salinannya saat pull — hard delete akan membuat salinan
+    /// di perangkat lain ter-push ulang (zombie).
+    pub async fn delete_ssh_connection(&self, id: &str) -> Result<(), String> {
+        let url = format!("{}/rest/v1/ssh_connections?id=eq.{}", self.url, id);
+        let mut req = self.client.patch(&url)
+            .header("apikey", &self.anon_key)
+            .header("Content-Type", "application/json");
+
+        if let Some(token) = &self.access_token {
+            req = req.header("Authorization", format!("Bearer {}", token));
+        } else {
+            req = req.header("Authorization", format!("Bearer {}", self.anon_key));
+        }
+
+        let res = req
+            .json(&serde_json::json!({
+                "is_deleted": true,
+                "updated_at": chrono_iso_now()
+            }))
+            .send()
+            .await
+            .map_err(|e| format!("Delete ssh_connection failed: {}", e))?;
+
+        let status = res.status();
+        if status.is_success() {
+            return Ok(());
+        }
+        let text = res.text().await.unwrap_or_default();
+        Err(format!("Delete ssh_connection failed (HTTP {}): {}", status.as_u16(), text))
     }
 
     pub async fn delete_note(&self, id: &str) -> Result<(), String> {

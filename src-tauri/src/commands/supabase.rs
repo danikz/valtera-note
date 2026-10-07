@@ -150,6 +150,31 @@ pub async fn auto_create_supabase_table(
         to authenticated
         using (auth.uid() = user_id or user_id is null)
         with check (auth.uid() = user_id or user_id is null);
+
+        create table if not exists public.ssh_connections (
+            id uuid primary key,
+            user_id uuid default auth.uid(),
+            label text not null default '',
+            payload text not null default '',
+            is_deleted boolean not null default false,
+            created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+            updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+        );
+
+        create index if not exists idx_ssh_connections_updated_at on public.ssh_connections(updated_at desc);
+
+        alter table public.ssh_connections enable row level security;
+
+        revoke all on public.ssh_connections from anon;
+
+        drop policy if exists \"Owner full access\" on public.ssh_connections;
+
+        create policy \"Owner full access\"
+        on public.ssh_connections
+        for all
+        to authenticated
+        using (auth.uid() = user_id or user_id is null)
+        with check (auth.uid() = user_id or user_id is null);
     ";
 
     client.execute_sql_management(&project_ref, &token, sql).await
@@ -390,6 +415,97 @@ pub async fn delete_remote_note(
             Ok(token) => {
                 client.set_access_token(token);
                 client.delete_note(&id).await
+            }
+            Err(_) => Err(e),
+        },
+        Err(e) => Err(e),
+    }
+}
+
+// ===== Sinkronisasi kredensial SSH (payload ciphertext E2E saja) =====
+
+#[tauri::command]
+pub async fn fetch_remote_ssh_connections(
+    url: String,
+    anon_key: String,
+    access_token: Option<String>,
+    db: State<'_, Arc<DatabaseManager>>,
+) -> Result<Vec<crate::supabase::RemoteSshConnection>, String> {
+    let mut client = SupabaseClient::new(url, anon_key);
+    let token = effective_access_token(Arc::clone(&db))
+        .await
+        .or(access_token)
+        .filter(|s| !s.is_empty());
+    if let Some(token) = token {
+        client.set_access_token(token);
+    }
+
+    match client.fetch_ssh_connections().await {
+        Ok(rows) => Ok(rows),
+        Err(e) if is_auth_error(&e) => match refresh_stored_token(&db).await {
+            Ok(token) => {
+                client.set_access_token(token);
+                client.fetch_ssh_connections().await
+            }
+            Err(_) => Err(e),
+        },
+        Err(e) => Err(e),
+    }
+}
+
+#[tauri::command]
+pub async fn upsert_remote_ssh_connection(
+    url: String,
+    anon_key: String,
+    conn: crate::supabase::RemoteSshConnection,
+    access_token: Option<String>,
+    db: State<'_, Arc<DatabaseManager>>,
+) -> Result<crate::supabase::RemoteSshConnection, String> {
+    let mut client = SupabaseClient::new(url, anon_key);
+    let token = effective_access_token(Arc::clone(&db))
+        .await
+        .or(access_token)
+        .filter(|s| !s.is_empty());
+    if let Some(token) = token {
+        client.set_access_token(token);
+    }
+
+    match client.upsert_ssh_connection(&conn).await {
+        Ok(saved) => Ok(saved),
+        Err(e) if is_auth_error(&e) => match refresh_stored_token(&db).await {
+            Ok(token) => {
+                client.set_access_token(token);
+                client.upsert_ssh_connection(&conn).await
+            }
+            Err(_) => Err(e),
+        },
+        Err(e) => Err(e),
+    }
+}
+
+#[tauri::command]
+pub async fn delete_remote_ssh_connection(
+    url: String,
+    anon_key: String,
+    id: String,
+    access_token: Option<String>,
+    db: State<'_, Arc<DatabaseManager>>,
+) -> Result<(), String> {
+    let mut client = SupabaseClient::new(url, anon_key);
+    let token = effective_access_token(Arc::clone(&db))
+        .await
+        .or(access_token)
+        .filter(|s| !s.is_empty());
+    if let Some(token) = token {
+        client.set_access_token(token);
+    }
+
+    match client.delete_ssh_connection(&id).await {
+        Ok(()) => Ok(()),
+        Err(e) if is_auth_error(&e) => match refresh_stored_token(&db).await {
+            Ok(token) => {
+                client.set_access_token(token);
+                client.delete_ssh_connection(&id).await
             }
             Err(_) => Err(e),
         },

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.30] - 2026-10-07
+
+### ✨ Fitur Baru: Workspace & Sinkronisasi Kredensial SSH
+- **Workspace per perusahaan/lokasi**: field baru di form koneksi dengan autocomplete nama yang sudah ada; daftar kiri terkelompok per workspace dengan header yang bisa di-collapse. Nama workspace tersimpan di dalam ciphertext E2E dan ikut tersinkron.
+- **Kredensial SSH kini tersinkron ke Supabase**: pull/push otomatis saat membuka halaman SSH, setelah simpan, dan setelah hapus; konflik diselesaikan dengan timestamp terbaru menang. Yang pernah dikirim ke cloud hanya ciphertext E2E.
+- **Hapus bersifat tombstone**: menghapus di satu perangkat ikut menghapus salinannya di perangkat lain saat pull.
+- **Skema lengkap di semua jalur**: tabel `ssh_connections` ikut dibuat oleh tombol auto-create, SQL manual di Pengaturan, dan jalur fallback; status pengecekan tabel kini memverifikasi kedua tabel.
+- **Badge status cloud** di header SSH Manager: waktu sinkron terakhir, status gagal, dan sync manual satu klik.
+
+### ✨ Peningkatan: Sidebar Lebih Rapi
+- **Judul catatan ~2x lebih lebar**: toolbar aksi (pindah folder/rename/hapus/tutup tab) menjadi overlay yang muncul saat hover dan tidak lagi mencadangkan 104px per baris; sidebar dilebarkan 256→288px.
+
+---
+
 ## [0.1.29] - 2026-10-07
 
 ### ✨ Peningkatan UX: Daftar Koneksi SSH Lebih Aman & Bisa Diedit

@@ -79,6 +79,7 @@ pub struct SshManager {
 }
 
 #[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SshConnectParams {
     pub id: String,
     pub label: String,

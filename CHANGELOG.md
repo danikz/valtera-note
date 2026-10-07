@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.31] - 2026-10-07
+
+### ✨ Fitur Baru: Tombol Buat Workspace di SSH Manager
+- **Tombol gedung (🏢) di header daftar koneksi**: buat workspace langsung dari situ via input inline (Enter untuk buat, Esc untuk batal) — tidak lagi hanya lewat field di form koneksi.
+- **Workspace kosong tetap tampil sebagai grup** dengan hitungan 0, siap diisi koneksi; nama baru langsung masuk daftar autocomplete di form.
+- **Grup kosong bisa dihapus** lewat tombol X kecil di headernya; daftar workspace buatan tersimpan per perangkat.
+
+---
+
 ## [0.1.30] - 2026-10-07
 
 ### ✨ Fitur Baru: Workspace & Sinkronisasi Kredensial SSH

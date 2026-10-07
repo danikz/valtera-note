@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.29] - 2026-10-07
+
+### ✨ Peningkatan UX: Daftar Koneksi SSH Lebih Aman & Bisa Diedit
+- **Klik 2x untuk connect**: klik sekali di daftar koneksi hanya memilih (highlight), klik dua kali baru connect — tidak ada lagi koneksi tak sengaja. Pindah antar tab tetap satu klik.
+- **Kredensial diuji sebelum disimpan**: tombol "Uji & Simpan Koneksi" melakukan connect sungguhan dulu — kalau gagal, error tampil di form dan tidak ada yang disimpan; kalau sukses, kredensial tersimpan dan tab-nya langsung terbuka sebagai bukti.
+- **Edit koneksi sebenarnya**: ikon pensil menggantikan ikon mata yang membingungkan, dan form edit kini mengisi ulang host, port, username, serta metode autentikasi dari kredensial tersimpan — tidak perlu lagi hapus dan buat ulang. Password/key dikosongkan berarti mempertahankan yang lama.
+
+---
+
 ## [0.1.28] - 2026-10-07
 
 ### 🐛 Perbaikan: Terminal Blank Saat Kembali ke Sesi SSH

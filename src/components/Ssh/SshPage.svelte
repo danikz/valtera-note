@@ -60,6 +60,32 @@
   // Workspace per koneksi (connId -> nama) — dibaca dari payload terenkripsi.
   let connWorkspaces = $state<Record<string, string>>({});
   let collapsedGroups = $state<Record<string, boolean>>({});
+  // Workspace buatan (belum tentu punya koneksi) — lokal per perangkat.
+  let customWorkspaces = $state<string[]>([]);
+  let creatingWorkspace = $state(false);
+  let newWorkspaceName = $state('');
+
+  const WS_LIST_KEY = 'valtera_ssh_workspaces';
+
+  function loadCustomWorkspaces() {
+    try {
+      const raw = localStorage.getItem(WS_LIST_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(arr)) {
+        customWorkspaces = arr.filter((x: unknown) => typeof x === 'string' && x.trim());
+      }
+    } catch {
+      /* abaikan — daftar lokal hilang tidak fatal */
+    }
+  }
+
+  function persistCustomWorkspaces() {
+    try {
+      localStorage.setItem(WS_LIST_KEY, JSON.stringify(customWorkspaces));
+    } catch {
+      /* storage penuh — biarkan di memori saja */
+    }
+  }
 
   // Form
   let editingId = $state<string | null>(null);
@@ -98,6 +124,7 @@
   }
 
   // Pengelompokan koneksi per workspace (nama terurut; tanpa-workspace paling bawah).
+  // Workspace buatan yang masih kosong tetap tampil sebagai grup dengan 0 item.
   const workspaceGroups = $derived.by(() => {
     const named = new Map<string, SshConnection[]>();
     const ungrouped: SshConnection[] = [];
@@ -110,21 +137,27 @@
         ungrouped.push(c);
       }
     }
+    for (const ws of customWorkspaces) {
+      if (ws.trim() && !named.has(ws.trim())) named.set(ws.trim(), []);
+    }
     const groups = [...named.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([name, items]) => ({ name, items }));
     if (ungrouped.length > 0) groups.push({ name: '', items: ungrouped });
     return groups;
   });
-  const hasWorkspaces = $derived(connections.some((c) => (connWorkspaces[c.id] ?? '').trim() !== ''));
+  const hasWorkspaces = $derived(
+    customWorkspaces.length > 0 || connections.some((c) => (connWorkspaces[c.id] ?? '').trim() !== '')
+  );
   const workspaceNames = $derived(
-    [...new Set(connections.map((c) => (connWorkspaces[c.id] ?? '').trim()).filter(Boolean))].sort((a, b) =>
-      a.localeCompare(b)
-    )
+    [...new Set([...customWorkspaces, ...connections.map((c) => (connWorkspaces[c.id] ?? '').trim())])]
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b))
   );
 
   onMount(async () => {
     e2eState = await ipc.e2eStatus();
+    loadCustomWorkspaces();
     await refreshList();
     await restoreTabs();
     // Sinkron ke cloud (pull koneksi perangkat lain + push yang belum terkirim),
@@ -229,6 +262,26 @@
     passphrase = '';
     formError = '';
     showForm = true;
+  }
+
+  function createWorkspace() {
+    const name = newWorkspaceName.trim();
+    if (!name) {
+      creatingWorkspace = false;
+      return;
+    }
+    if (!customWorkspaces.some((w) => w.toLowerCase() === name.toLowerCase())) {
+      customWorkspaces = [...customWorkspaces, name];
+      persistCustomWorkspaces();
+    }
+    collapsedGroups[name] = false;
+    newWorkspaceName = '';
+    creatingWorkspace = false;
+  }
+
+  function deleteWorkspace(name: string) {
+    customWorkspaces = customWorkspaces.filter((w) => w !== name);
+    persistCustomWorkspaces();
   }
 
   function closeForm() {
@@ -638,14 +691,37 @@
       <div class="w-72 flex-shrink-0 border-r border-slate-800 flex flex-col overflow-hidden">
         <div class="px-3 py-2 border-b border-slate-800/80 flex items-center justify-between">
           <span class="text-[11px] font-bold text-slate-300 uppercase tracking-wider">Koneksi Tersimpan</span>
-          <button
-            onclick={resetForm}
-            title="Koneksi baru"
-            class="p-1 rounded text-slate-400 hover:text-emerald-300 hover:bg-slate-800 transition-colors cursor-pointer"
-          >
-            <Plus class="w-3.5 h-3.5" />
-          </button>
+          <div class="flex items-center space-x-0.5">
+            <button
+              onclick={() => { creatingWorkspace = !creatingWorkspace; newWorkspaceName = ''; }}
+              title="Buat workspace baru (perusahaan / lokasi)"
+              class="p-1 rounded text-slate-400 hover:text-emerald-300 hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              <Building2 class="w-3.5 h-3.5" />
+            </button>
+            <button
+              onclick={resetForm}
+              title="Koneksi baru"
+              class="p-1 rounded text-slate-400 hover:text-emerald-300 hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              <Plus class="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
+
+        {#if creatingWorkspace}
+          <div class="p-2 pb-0">
+            <input
+              bind:value={newWorkspaceName}
+              onkeydown={(e) => {
+                if (e.key === 'Enter') createWorkspace();
+                if (e.key === 'Escape') { creatingWorkspace = false; newWorkspaceName = ''; }
+              }}
+              placeholder="Nama workspace (perusahaan)… Enter untuk buat"
+              class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-emerald-600/60 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-emerald-400"
+            />
+          </div>
+        {/if}
 
   {#snippet connectionRow(conn: SshConnection)}
     {@const tab = tabs.find((t) => t.sessionId === conn.id)}
@@ -702,6 +778,18 @@
                   <Building2 class="w-3 h-3 text-emerald-400/80 flex-shrink-0" />
                   <span class="truncate text-left {g.name ? '' : 'italic normal-case tracking-normal'}">{g.name || 'Tanpa Workspace'}</span>
                   <span class="ml-auto font-mono text-[9px] font-normal text-slate-500 flex-shrink-0">{g.items.length}</span>
+                  {#if g.name && g.items.length === 0}
+                    <span
+                      role="button"
+                      tabindex="0"
+                      onclick={(e) => { e.stopPropagation(); deleteWorkspace(g.name); }}
+                      onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); deleteWorkspace(g.name); } }}
+                      title="Hapus workspace kosong"
+                      class="p-0.5 rounded text-slate-500 hover:text-rose-300 hover:bg-slate-800 transition-colors cursor-pointer flex-shrink-0"
+                    >
+                      <X class="w-2.5 h-2.5" />
+                    </span>
+                  {/if}
                 </button>
                 {#if !collapsedGroups[g.name]}
                   <div class="space-y-1.5 mt-1">

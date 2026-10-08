@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.33] - 2026-10-07
+
+### ✨ Fitur Baru: PIN Cepat 6 Digit & Trust Device di Layar Kunci
+- **PIN Cepat 6 digit** (Pengaturan → Keamanan): buka app cukup dengan keypad 6 digit. Kunci E2E disimpan terbungkus kunci turunan PIN di OS keychain (bukan di database); master password tetap kunci utamanya.
+- **Pengaman PIN**: 5x salah → PIN dimatikan otomatis dan kembali ke master password; ganti master password → PIN ikut dibatalkan; tersedia jalan keluar "gunakan master password" dari layar PIN.
+- **"Ingat di device ini" kini tersedia juga di layar terkunci** — sebelumnya hanya saat setup awal, sehingga tidak ada cara mengaktifkan trust device belakangan.
+
+---
+
 ## [0.1.32] - 2026-10-07
 
 ### ✨ Fitur Baru: Drag & Drop Antar Workspace SSH

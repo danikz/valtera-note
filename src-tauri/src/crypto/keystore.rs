@@ -6,9 +6,12 @@ use crate::crypto::Key;
 
 const KEYRING_SERVICE: &str = "valtera-note";
 const KEYRING_ACCOUNT: &str = "e2e-key";
+const KEYRING_QUICKPIN_ACCOUNT: &str = "e2e-quickpin";
 
 pub struct KeyManager {
     key: Mutex<Option<Zeroizing<Key>>>,
+    /// Hitungan PIN salah beruntun untuk quick unlock (reset saat sukses).
+    pin_attempts: Mutex<u32>,
 }
 
 impl Default for KeyManager {
@@ -21,7 +24,19 @@ impl KeyManager {
     pub fn new() -> Self {
         Self {
             key: Mutex::new(None),
+            pin_attempts: Mutex::new(0),
         }
+    }
+
+    /// Naikkan hitungan PIN salah, kembalikan jumlah kegagalan beruntun.
+    pub fn fail_pin(&self) -> u32 {
+        let mut g = self.pin_attempts.lock().unwrap();
+        *g += 1;
+        *g
+    }
+
+    pub fn reset_pin_attempts(&self) {
+        *self.pin_attempts.lock().unwrap() = 0;
     }
 
     pub fn set_key(&self, key: Key) {
@@ -60,6 +75,29 @@ impl KeyManager {
     pub fn delete_from_keyring() -> Result<(), String> {
         let entry =
             keyring::Entry::new(KEYRING_SERVICE, KEYRING_ACCOUNT).map_err(|e| e.to_string())?;
+        match entry.delete_credential() {
+            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+            Err(e) => Err(e.to_string()),
+        }
+    }
+
+    // ===== Quick PIN: blob kunci yang dibungkus kunci turunan PIN 6 digit =====
+
+    pub fn save_quickpin_blob(blob: &str) -> Result<(), String> {
+        let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_QUICKPIN_ACCOUNT)
+            .map_err(|e| e.to_string())?;
+        entry.set_password(blob).map_err(|e| e.to_string())
+    }
+
+    pub fn load_quickpin_blob() -> Result<String, String> {
+        let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_QUICKPIN_ACCOUNT)
+            .map_err(|e| e.to_string())?;
+        entry.get_password().map_err(|e| e.to_string())
+    }
+
+    pub fn delete_quickpin() -> Result<(), String> {
+        let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_QUICKPIN_ACCOUNT)
+            .map_err(|e| e.to_string())?;
         match entry.delete_credential() {
             Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
             Err(e) => Err(e.to_string()),

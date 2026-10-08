@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Lock, Loader2, ShieldCheck, ShieldOff, KeyRound, MonitorSmartphone } from 'lucide-svelte';
+  import { Lock, Loader2, ShieldCheck, ShieldOff, KeyRound, MonitorSmartphone, Fingerprint } from 'lucide-svelte';
   import { ipc } from '../../services/ipc';
   import { editorStore } from '../../stores/editorStore.svelte';
 
@@ -11,11 +11,67 @@
   let isWorking = $state(false);
   let message = $state<{ text: string; type: 'success' | 'error' } | null>(null);
 
+  // Quick PIN 6 digit
+  let pinEnabled = $state(false);
+  let pin = $state('');
+  let pinConfirm = $state('');
+  let pinWorking = $state(false);
+  let pinMessage = $state<{ text: string; type: 'success' | 'error' } | null>(null);
+
   async function refreshStatus() {
     status = await ipc.e2eStatus();
+    if (status === 'ready') {
+      pinEnabled = await ipc.quickPinStatus();
+    } else {
+      pinEnabled = false;
+    }
   }
 
   refreshStatus();
+
+  function validPin(p: string): boolean {
+    return p.length === 6 && /^\d{6}$/.test(p);
+  }
+
+  async function handleSetupPin() {
+    pinMessage = null;
+    if (!validPin(pin) || !validPin(pinConfirm)) {
+      pinMessage = { text: 'PIN harus tepat 6 digit angka', type: 'error' };
+      return;
+    }
+    if (pin !== pinConfirm) {
+      pinMessage = { text: 'Konfirmasi PIN tidak cocok', type: 'error' };
+      return;
+    }
+    pinWorking = true;
+    try {
+      await ipc.setupQuickPin(pin);
+      pinEnabled = true;
+      pin = pinConfirm = '';
+      pinMessage = {
+        text: 'PIN cepat aktif — saat app dibuka, cukup masukkan PIN ini. Auto-unlock password dinonaktifkan.',
+        type: 'success'
+      };
+    } catch (e: any) {
+      pinMessage = { text: typeof e === 'string' ? e : e?.message || 'Gagal mengatur PIN', type: 'error' };
+    } finally {
+      pinWorking = false;
+    }
+  }
+
+  async function handleDisablePin() {
+    pinWorking = true;
+    try {
+      await ipc.disableQuickPin();
+      pinEnabled = false;
+      pin = pinConfirm = '';
+      pinMessage = { text: 'PIN cepat dimatikan. App kembali memakai master password / auto-unlock.', type: 'success' };
+    } catch (e: any) {
+      pinMessage = { text: typeof e === 'string' ? e : e?.message || 'Gagal mematikan PIN', type: 'error' };
+    } finally {
+      pinWorking = false;
+    }
+  }
 
   async function handleChangePassword() {
     message = null;
@@ -137,8 +193,64 @@
         </button>
       </form>
       <p class="text-[11px] text-slate-500">
-        Semua catatan lokal akan dienkripsi ulang dengan kunci baru.
+        Semua catatan lokal akan dienkripsi ulang dengan kunci baru. PIN cepat (jika aktif) ikut dimatikan — aktifkan kembali setelah ganti password.
       </p>
+    </div>
+
+    <div class="space-y-3 rounded-xl border border-slate-700/60 bg-slate-800/40 p-4">
+      <h4 class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
+        <Fingerprint class="h-4 w-4" /> PIN Cepat (6 digit)
+      </h4>
+      {#if pinEnabled}
+        <p class="text-[11px] text-emerald-400">
+          Aktif — saat app dibuka di device ini, cukup masukkan PIN 6 digit (dengan keypad di layar kunci).
+        </p>
+        <button
+          onclick={handleDisablePin}
+          disabled={pinWorking}
+          class="flex items-center gap-2 rounded-lg bg-red-900/40 px-4 py-2 text-xs font-medium text-red-300 hover:bg-red-900/60 disabled:opacity-50"
+        >
+          {#if pinWorking}<Loader2 class="h-4 w-4 animate-spin" />{/if}
+          Matikan PIN Cepat
+        </button>
+      {:else}
+        <p class="text-[11px] text-slate-500 leading-relaxed">
+          Buka app cukup dengan PIN 6 digit — master password tetap kunci utamanya
+          (kunci disimpan terbungkus PIN di Windows Credential Manager, bukan di database).
+          PIN menggantikan auto-unlock password di device ini. 5x salah = PIN dimatikan otomatis.
+        </p>
+        <form class="space-y-2" onsubmit={(e) => { e.preventDefault(); handleSetupPin(); }}>
+          <input
+            type="password"
+            inputmode="numeric"
+            maxlength="6"
+            bind:value={pin}
+            placeholder="PIN baru (6 digit)"
+            class="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-mono tracking-[0.4em] text-slate-100 placeholder:tracking-normal placeholder:text-slate-500 focus:border-blue-500 focus:outline-none"
+          />
+          <input
+            type="password"
+            inputmode="numeric"
+            maxlength="6"
+            bind:value={pinConfirm}
+            placeholder="Ulangi PIN"
+            class="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-mono tracking-[0.4em] text-slate-100 placeholder:tracking-normal placeholder:text-slate-500 focus:border-blue-500 focus:outline-none"
+          />
+          {#if pinMessage}
+            <p class="text-xs {pinMessage.type === 'success' ? 'text-emerald-400' : 'text-red-400'}">
+              {pinMessage.text}
+            </p>
+          {/if}
+          <button
+            type="submit"
+            disabled={pinWorking || !validPin(pin) || !validPin(pinConfirm)}
+            class="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {#if pinWorking}<Loader2 class="h-4 w-4 animate-spin" />{/if}
+            Aktifkan PIN Cepat
+          </button>
+        </form>
+      {/if}
     </div>
 
     <div class="space-y-2 rounded-xl border border-slate-700/60 bg-slate-800/40 p-4">

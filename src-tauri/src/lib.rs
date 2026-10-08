@@ -123,6 +123,10 @@ pub fn run() {
             commands::supabase::fetch_remote_ssh_connections,
             commands::supabase::upsert_remote_ssh_connection,
             commands::supabase::delete_remote_ssh_connection,
+            commands::crypto::quick_pin_status,
+            commands::crypto::setup_quick_pin,
+            commands::crypto::unlock_with_pin,
+            commands::crypto::disable_quick_pin,
         ])
         .run(tauri::generate_context!())
         .expect("error while running valtera-note application");

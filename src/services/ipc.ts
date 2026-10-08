@@ -1012,12 +1012,45 @@ export const ipc = {
     throw new Error('Enkripsi hanya tersedia di aplikasi desktop');
   },
 
-  async unlockMasterPassword(password: string): Promise<void> {
+  async unlockMasterPassword(password: string, rememberDevice?: boolean): Promise<void> {
     if (isTauri) {
-      await invoke<void>('unlock', { password });
+      await invoke<void>('unlock', { password, rememberDevice: rememberDevice ?? false });
       return;
     }
     throw new Error('Enkripsi hanya tersedia di aplikasi desktop');
+  },
+
+  async quickPinStatus(): Promise<boolean> {
+    if (isTauri) {
+      try {
+        return await invoke<boolean>('quick_pin_status');
+      } catch (err) {
+        console.warn('IPC quickPinStatus error:', err);
+      }
+    }
+    return false;
+  },
+
+  async setupQuickPin(pin: string): Promise<void> {
+    if (isTauri) {
+      await invoke<void>('setup_quick_pin', { pin });
+      return;
+    }
+    throw new Error('Enkripsi hanya tersedia di aplikasi desktop');
+  },
+
+  async unlockWithPin(pin: string): Promise<void> {
+    if (isTauri) {
+      await invoke<void>('unlock_with_pin', { pin });
+      return;
+    }
+    throw new Error('Enkripsi hanya tersedia di aplikasi desktop');
+  },
+
+  async disableQuickPin(): Promise<void> {
+    if (isTauri) {
+      await invoke<void>('disable_quick_pin');
+    }
   },
 
   async lockApp(): Promise<void> {

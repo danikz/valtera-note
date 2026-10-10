@@ -1,4 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/crypto/e2e_controller.dart';
+import '../../../notes/data/repositories/notes_repository_impl.dart';
+import '../../../notes/presentation/controllers/notes_list_controller.dart';
+import '../../../setup/data/repositories/setup_repository.dart';
+import '../../../sync/domain/sync_engine.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../domain/models/auth_state.dart';
 
@@ -97,6 +102,25 @@ class AuthController extends Notifier<AuthState> {
 
   Future<void> logout() async {
     await _repo.logout();
+
+    // Hapus semua data milik akun ini dari device: catatan lokal (plaintext),
+    // antrean sync, folder, serta konfigurasi & kunci E2E. Tanpa ini catatan
+    // akun lama ikut ter-sync ke akun yang login berikutnya, dan kunci E2E
+    // akun lama dipakai untuk mengenkripsi data akun baru.
+    final storage = ref.read(secureStorageServiceProvider);
+    await ref.read(syncQueueDataSourceProvider).clearQueue();
+    await ref.read(notesLocalDataSourceProvider).clearAll();
+    await storage.saveCustomFolders(const []);
+    await storage.clearAllE2e();
+    await ref.read(e2eControllerProvider.notifier).refreshConfig();
+    ref.invalidate(notesListControllerProvider);
+
     state = const AuthState(isLoggedIn: false);
+  }
+
+  /// Jumlah perubahan lokal yang belum terkirim (hilang bila logout).
+  Future<int> pendingChangesCount() async {
+    final items = await ref.read(syncQueueDataSourceProvider).getPendingItems();
+    return items.length;
   }
 }

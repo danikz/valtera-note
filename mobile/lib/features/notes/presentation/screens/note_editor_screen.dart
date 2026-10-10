@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../domain/entities/note.dart';
 import '../controllers/note_editor_controller.dart';
 import '../controllers/notes_list_controller.dart';
 
@@ -35,10 +34,13 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
     super.dispose();
   }
 
-  void _syncControllersWithState(Note note) {
-    if (!_isInitialized) {
-      _titleController.text = note.title;
-      _contentController.text = note.content;
+  /// Isi text field SEKALI, setelah catatan selesai dimuat (bukan dari note
+  /// kosong awal — kalau tidak, editor tampil kosong dan ketikan pertama
+  /// menimpa isi catatan asli).
+  void _syncControllersWithState(NoteEditorState state) {
+    if (!_isInitialized && !state.isLoading) {
+      _titleController.text = state.note.title;
+      _contentController.text = state.note.content;
       _isInitialized = true;
     }
   }
@@ -95,7 +97,7 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
     final state = ref.watch(noteEditorControllerProvider(widget.noteId));
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    _syncControllersWithState(state.note);
+    _syncControllersWithState(state);
 
     return PopScope(
       canPop: false,
@@ -148,11 +150,22 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (state.isLoading)
+                  const LinearProgressIndicator(minHeight: 2),
+                if (state.isEncryptedLocked)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'Catatan terenkripsi — buka E2E (master password) untuk membaca & mengedit.',
+                      style: AppTypography.bodySmall(color: AppColors.errorRed),
+                    ),
+                  ),
                 _buildFolderSelector(context, ref, state.note.folder, isDark),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _titleController,
-                  autofocus: state.note.title.isEmpty,
+                  readOnly: state.isLoading || state.isEncryptedLocked,
+                  autofocus: !state.isLoading && state.note.title.isEmpty,
                   style: AppTypography.headingLarge(
                     color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                   ),
@@ -175,6 +188,7 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
                 Expanded(
                   child: TextField(
                     controller: _contentController,
+                    readOnly: state.isLoading || state.isEncryptedLocked,
                     maxLines: null,
                     expands: true,
                     textAlignVertical: TextAlignVertical.top,

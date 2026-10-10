@@ -31,10 +31,14 @@ class SyncQueueDataSource {
     final db = await _db;
     final result = await db.query(
       AppDatabase.tableSyncQueue,
+      // 'processing' ikut diambil: drain hanya berjalan satu per satu (guard
+      // _isSyncing), jadi item 'processing' di awal drain adalah sisa proses yang
+      // terhenti (app di-kill) — tanpa ini item tersebut macet selamanya.
       where:
-          "${AppDatabase.colQueueStatus} = ? OR (${AppDatabase.colQueueStatus} = ? AND ${AppDatabase.colQueueAttemptCount} < ?)",
+          "${AppDatabase.colQueueStatus} IN (?, ?) OR (${AppDatabase.colQueueStatus} = ? AND ${AppDatabase.colQueueAttemptCount} < ?)",
       whereArgs: [
         SyncQueueStatus.pending.name,
+        SyncQueueStatus.processing.name,
         SyncQueueStatus.failed.name,
         SyncQueueItem.maxRetryAttempts,
       ],
@@ -58,6 +62,21 @@ class SyncQueueDataSource {
     final db = await _db;
     await db.delete(
       AppDatabase.tableSyncQueue,
+      where: '${AppDatabase.colQueueId} = ?',
+      whereArgs: [id],
+    );
+  }
+
+  /// Kembalikan item ke antrean tanpa menambah hitungan percobaan
+  /// (ditunda, bukan gagal — mis. menunggu E2E dibuka).
+  Future<void> markPending(int id, {String? reason}) async {
+    final db = await _db;
+    await db.update(
+      AppDatabase.tableSyncQueue,
+      {
+        AppDatabase.colQueueStatus: SyncQueueStatus.pending.name,
+        AppDatabase.colQueueLastError: reason,
+      },
       where: '${AppDatabase.colQueueId} = ?',
       whereArgs: [id],
     );

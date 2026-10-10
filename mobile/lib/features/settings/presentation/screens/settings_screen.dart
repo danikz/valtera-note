@@ -84,6 +84,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
 
     if (confirmed == true && mounted) {
+      if (!await _confirmUnsyncedLoss()) return;
       await ref.read(setupControllerProvider.notifier).disconnect();
       await ref.read(authControllerProvider.notifier).logout();
       if (mounted) context.go('/setup');
@@ -91,8 +92,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _handleLogout() async {
+    if (!await _confirmUnsyncedLoss()) return;
     await ref.read(authControllerProvider.notifier).logout();
     if (mounted) context.go('/login');
+  }
+
+  /// Logout menghapus data lokal akun ini. Bila masih ada perubahan yang belum
+  /// ter-sync, minta konfirmasi dulu. true = lanjut.
+  Future<bool> _confirmUnsyncedLoss() async {
+    final pending = await ref.read(authControllerProvider.notifier).pendingChangesCount();
+    if (pending == 0) return true;
+    if (!mounted) return false;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Ada perubahan belum ter-sync'),
+        content: Text(
+          '$pending perubahan catatan belum terkirim ke cloud dan akan HILANG karena '
+          'data lokal dihapus saat logout. Sinkronkan dulu bila ingin menyimpannya.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Tetap logout', style: TextStyle(color: AppColors.errorRed)),
+          ),
+        ],
+      ),
+    );
+    return ok == true;
   }
 
   @override
@@ -737,6 +768,10 @@ class _UnlockMasterPasswordDialogState
           onPressed: _isLoading
               ? null
               : () async {
+                  // Ambil navigator/messenger sebelum await — context dialog
+                  // tidak aman dipakai setelah async gap.
+                  final navigator = Navigator.of(context);
+                  final messenger = ScaffoldMessenger.of(context);
                   setState(() {
                     _isLoading = true;
                     _error = null;
@@ -750,8 +785,8 @@ class _UnlockMasterPasswordDialogState
                   if (mounted) {
                     setState(() => _isLoading = false);
                     if (ok) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      navigator.pop();
+                      messenger.showSnackBar(
                         const SnackBar(content: Text('E2E Berhasil dibuka! Catatan terdekripsi.')),
                       );
                     } else {

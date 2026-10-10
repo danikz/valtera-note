@@ -15,6 +15,7 @@
     ChevronDown,
     Cloud,
     RefreshCw,
+    Monitor,
     X
   } from 'lucide-svelte';
   import { Terminal } from '@xterm/xterm';
@@ -32,7 +33,10 @@
     updated_at: string;
   }
 
+  type ConnKind = 'ssh' | 'rdp';
+
   interface SshPayload {
+    kind?: ConnKind; // tanpa kind = SSH (data lama)
     host: string;
     port: number;
     username: string;
@@ -41,7 +45,13 @@
     privateKey?: string;
     passphrase?: string;
     workspace?: string; // pengelompokan (perusahaan/lokasi) — ikut payload E2E
+    // Khusus RDP
+    domain?: string;
+    fullscreen?: boolean;
+    multimon?: boolean;
   }
+
+  const DEFAULT_PORT: Record<ConnKind, number> = { ssh: 22, rdp: 3389 };
 
   // Satu tab = satu sesi hidup = satu instance terminal sendiri.
   // Pindah tab hanya show/hide DOM sehingga scrollback tiap sesi tetap utuh,
@@ -59,6 +69,8 @@
 
   // Workspace per koneksi (connId -> nama) — dibaca dari payload terenkripsi.
   let connWorkspaces = $state<Record<string, string>>({});
+  // Jenis koneksi per connId (ssh/rdp) — juga dari payload terenkripsi.
+  let connKinds = $state<Record<string, ConnKind>>({});
   let collapsedGroups = $state<Record<string, boolean>>({});
   // Workspace buatan (belum tentu punya koneksi) — lokal per perangkat.
   let customWorkspaces = $state<string[]>([]);
@@ -93,6 +105,10 @@
 
   // Form
   let editingId = $state<string | null>(null);
+  let connKind = $state<ConnKind>('ssh');
+  let domain = $state('');
+  let fullscreen = $state(true);
+  let multimon = $state(false);
   let label = $state('');
   let host = $state('');
   let port = $state(22);
@@ -218,15 +234,19 @@
       connections = await ipc.sshConnList();
       // Workspace dibaca dari payload terenkripsi masing-masing koneksi.
       const map: Record<string, string> = {};
+      const kinds: Record<string, ConnKind> = {};
       for (const c of connections) {
         try {
           const p: SshPayload = JSON.parse(await ipc.decryptContent(c.payload));
           map[c.id] = (p.workspace ?? '').trim();
+          kinds[c.id] = p.kind ?? 'ssh';
         } catch {
           map[c.id] = '';
+          kinds[c.id] = 'ssh';
         }
       }
       connWorkspaces = map;
+      connKinds = kinds;
     } catch (e) {
       console.warn('Gagal memuat koneksi SSH:', e);
     } finally {
@@ -255,6 +275,10 @@
 
   function resetForm() {
     editingId = null;
+    connKind = 'ssh';
+    domain = '';
+    fullscreen = true;
+    multimon = false;
     label = '';
     host = '';
     port = 22;
@@ -309,6 +333,15 @@
     }
   }
 
+  // Ganti jenis koneksi di form; port ikut default jenisnya bila belum diubah.
+  function setConnKind(kind: ConnKind) {
+    if (connKind === kind) return;
+    if (port === DEFAULT_PORT[connKind]) port = DEFAULT_PORT[kind];
+    connKind = kind;
+    if (kind === 'rdp') authType = 'password';
+    formError = '';
+  }
+
   function closeForm() {
     resetForm();
     showForm = false;
@@ -325,11 +358,15 @@
     // didekrip di memori saat uji & simpan.
     try {
       const stored: SshPayload = JSON.parse(await ipc.decryptContent(conn.payload));
+      connKind = stored.kind ?? 'ssh';
       host = stored.host;
-      port = stored.port ?? 22;
+      port = stored.port ?? DEFAULT_PORT[connKind];
       username = stored.username;
       workspace = stored.workspace ?? '';
       authType = stored.authType ?? 'password';
+      domain = stored.domain ?? '';
+      fullscreen = stored.fullscreen ?? true;
+      multimon = stored.multimon ?? false;
       formError = '';
     } catch {
       host = '';
@@ -344,6 +381,10 @@
     formError = '';
     if (!label.trim() || !host.trim() || !username.trim()) {
       formError = 'Label, host, dan username wajib diisi.';
+      return;
+    }
+    if (connKind === 'rdp') {
+      await saveRdpConnection();
       return;
     }
     if (authType === 'password' && !password && !editingId) {
@@ -361,7 +402,9 @@
       // Saat edit, field secret yang dikosongkan berarti tetap pakai yang tersimpan.
       // Workspace bukan rahasia dan selalu mengikuti nilai form (kosong = hapus).
       let creds: SshPayload;
-      if (editingId) {
+      // Edit yang mengubah RDP → SSH: secret lama milik RDP tidak dibawa.
+      const prevKind = editingId ? (connKinds[editingId] ?? 'ssh') : 'ssh';
+      if (editingId && prevKind === 'ssh') {
         const conn = connections.find((c) => c.id === editingId);
         if (!conn) throw new Error('Koneksi tidak ditemukan.');
         const stored: SshPayload = JSON.parse(await ipc.decryptContent(conn.payload));
@@ -409,6 +452,69 @@
     }
   }
 
+  // RDP tidak bisa diuji kredensialnya tanpa handshake penuh — yang diuji
+  // hanya port RDP terjangkau. Lolos uji → simpan (E2E) lalu langsung dibuka.
+  async function saveRdpConnection() {
+    isSaving = true;
+    try {
+      const id = editingId ?? crypto.randomUUID();
+      let storedPassword: string | undefined;
+      if (editingId && connKinds[editingId] === 'rdp') {
+        const conn = connections.find((c) => c.id === editingId);
+        if (!conn) throw new Error('Koneksi tidak ditemukan.');
+        const stored: SshPayload = JSON.parse(await ipc.decryptContent(conn.payload));
+        storedPassword = stored.password;
+      }
+      const finalPassword = password || storedPassword;
+      if (!finalPassword) {
+        formError = 'Password wajib diisi untuk koneksi Remote Desktop baru.';
+        return;
+      }
+      const creds: SshPayload = {
+        kind: 'rdp',
+        host: host.trim(),
+        port,
+        username: username.trim(),
+        authType: 'password',
+        password: finalPassword,
+        fullscreen,
+        multimon,
+        ...(domain.trim() ? { domain: domain.trim() } : {}),
+        ...(workspace.trim() ? { workspace: workspace.trim() } : {})
+      };
+
+      await ipc.rdpTest(creds.host, creds.port);
+
+      // Bila sebelumnya koneksi SSH dengan id sama sedang terbuka, tutup tabnya.
+      if (tabs.some((t) => t.sessionId === id)) await closeTab(id);
+
+      const payload = await ipc.encryptContent(JSON.stringify(creds));
+      await ipc.sshConnSave(id, label.trim(), payload);
+      await refreshList();
+      resetForm();
+      showForm = tabs.length === 0;
+      if (e2eState === 'ready') syncSshConnections().catch(() => {});
+      await launchRdp(id, creds);
+    } catch (e: any) {
+      formError = typeof e === 'string' ? e : e?.message || String(e);
+    } finally {
+      isSaving = false;
+    }
+  }
+
+  async function launchRdp(id: string, creds: SshPayload) {
+    await ipc.rdpLaunch({
+      id,
+      host: creds.host,
+      port: creds.port,
+      username: creds.username,
+      password: creds.password ?? null,
+      domain: creds.domain ?? null,
+      fullscreen: creds.fullscreen ?? true,
+      multimon: creds.multimon ?? false
+    });
+  }
+
   async function deleteConnection(conn: SshConnection) {
     if (!confirm(`Hapus koneksi "${conn.label}"?`)) return;
     // Catat tombstone dulu agar sync ikut menghapus salinan cloud & perangkat lain.
@@ -423,6 +529,19 @@
 
   async function connect(conn: SshConnection) {
     if (e2eState !== 'ready' || connectingId) return;
+    if (connKinds[conn.id] === 'rdp') {
+      connectError = '';
+      connectingId = conn.id;
+      try {
+        const payload: SshPayload = JSON.parse(await ipc.decryptContent(conn.payload));
+        await launchRdp(conn.id, payload);
+      } catch (e: any) {
+        connectError = typeof e === 'string' ? e : e?.message || String(e);
+      } finally {
+        connectingId = null;
+      }
+      return;
+    }
     const existing = tabs.find((t) => t.sessionId === conn.id);
     if (existing && !existing.closed) {
       await activateTab(conn.id);
@@ -657,7 +776,7 @@
   <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
     <div class="flex items-center space-x-2">
       <TerminalIcon class="w-4 h-4 text-emerald-400" />
-      <h2 class="text-sm font-bold text-slate-100">SSH Manager</h2>
+      <h2 class="text-sm font-bold text-slate-100">SSH &amp; Remote Desktop</h2>
       <span class="text-[10px] font-mono text-slate-500">kredensial terenkripsi E2E</span>
     </div>
     {#if sshSyncState.status !== 'unconfigured'}
@@ -750,6 +869,7 @@
 
   {#snippet connectionRow(conn: SshConnection)}
     {@const tab = tabs.find((t) => t.sessionId === conn.id)}
+    {@const isRdp = connKinds[conn.id] === 'rdp'}
     <div
       role="listitem"
       draggable="true"
@@ -769,9 +889,17 @@
           title="Klik 2x untuk connect — drag ke workspace untuk pindahkan"
           class="flex-1 text-left cursor-pointer min-w-0"
         >
-          <p class="text-xs font-semibold text-slate-200 truncate">{conn.label}</p>
+          <p class="text-xs font-semibold text-slate-200 truncate flex items-center gap-1.5">
+            {#if isRdp}
+              <Monitor class="w-3 h-3 text-sky-400 flex-shrink-0" />
+            {:else}
+              <TerminalIcon class="w-3 h-3 text-emerald-400 flex-shrink-0" />
+            {/if}
+            <span class="truncate">{conn.label}</span>
+            {#if isRdp}<span class="px-1 rounded bg-sky-950/60 border border-sky-800/60 text-[8.5px] font-mono text-sky-300 flex-shrink-0">RDP</span>{/if}
+          </p>
           <p class="text-[10px] text-slate-500 truncate">
-            {#if connectingId === conn.id}Menghubungkan…{:else if tab && !tab.closed}● aktif — klik 2x untuk buka{:else}Klik 2x untuk connect{/if}
+            {#if connectingId === conn.id}Menghubungkan…{:else if tab && !tab.closed}● aktif — klik 2x untuk buka{:else if isRdp}Klik 2x untuk buka Remote Desktop{:else}Klik 2x untuk connect{/if}
           </p>
         </button>
         <div class="flex items-center space-x-0.5 flex-shrink-0 ml-1">
@@ -799,7 +927,7 @@
             <div class="flex justify-center py-4"><Loader2 class="w-4 h-4 animate-spin text-slate-500" /></div>
           {:else if connections.length === 0}
             <p class="text-[11px] text-slate-500 text-center py-4 px-2 leading-relaxed">
-              Belum ada koneksi. Klik <Plus class="w-3 h-3 inline" /> untuk menyimpan kredensial SSH (terenkripsi E2E).
+              Belum ada koneksi. Klik <Plus class="w-3 h-3 inline" /> untuk menyimpan kredensial SSH / Remote Desktop (terenkripsi E2E).
             </p>
           {:else if hasWorkspaces}
             {#each workspaceGroups as g (g.name || '__ungrouped')}
@@ -965,12 +1093,34 @@
               {/if}
 
               <div class="space-y-1.5">
+                <span class="text-xs font-semibold text-slate-300">Jenis Koneksi</span>
+                <div class="grid grid-cols-2 gap-2">
+                  <button
+                    onclick={() => setConnKind('ssh')}
+                    class="px-3 py-2 rounded-xl border text-xs font-medium transition-colors cursor-pointer flex items-center justify-center gap-1.5 {connKind === 'ssh'
+                      ? 'bg-emerald-600/10 border-emerald-500 text-white'
+                      : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700'}"
+                  >
+                    <TerminalIcon class="w-3.5 h-3.5" /> SSH (Terminal)
+                  </button>
+                  <button
+                    onclick={() => setConnKind('rdp')}
+                    class="px-3 py-2 rounded-xl border text-xs font-medium transition-colors cursor-pointer flex items-center justify-center gap-1.5 {connKind === 'rdp'
+                      ? 'bg-sky-600/10 border-sky-500 text-white'
+                      : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700'}"
+                  >
+                    <Monitor class="w-3.5 h-3.5" /> Remote Desktop (RDP)
+                  </button>
+                </div>
+              </div>
+
+              <div class="space-y-1.5">
                 <label class="text-xs font-semibold text-slate-300" for="ssh-label">Label</label>
                 <input
                   id="ssh-label"
                   type="text"
                   bind:value={label}
-                  placeholder="VPS Production"
+                  placeholder={connKind === 'rdp' ? 'Windows Server Kantor' : 'VPS Production'}
                   class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-emerald-500"
                 />
               </div>
@@ -1005,10 +1155,23 @@
                   id="ssh-user"
                   type="text"
                   bind:value={username}
-                  placeholder="root"
+                  placeholder={connKind === 'rdp' ? 'Administrator' : 'root'}
                   class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-600 font-mono focus:outline-none focus:border-emerald-500"
                 />
               </div>
+
+              {#if connKind === 'rdp'}
+                <div class="space-y-1.5">
+                  <label class="text-xs font-semibold text-slate-300" for="rdp-domain">Domain (opsional)</label>
+                  <input
+                    id="rdp-domain"
+                    type="text"
+                    bind:value={domain}
+                    placeholder="CONTOSO — kosongkan untuk akun lokal"
+                    class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-600 font-mono focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              {/if}
 
               <div class="space-y-1.5">
                 <label class="text-xs font-semibold text-slate-300" for="ssh-workspace">Workspace (perusahaan / lokasi)</label>
@@ -1027,6 +1190,7 @@
                 </datalist>
               </div>
 
+              {#if connKind === 'ssh'}
               <div class="space-y-1.5">
                 <label class="text-xs font-semibold text-slate-300">Metode Autentikasi</label>
                 <div class="grid grid-cols-2 gap-2">
@@ -1048,8 +1212,9 @@
                   </button>
                 </div>
               </div>
+              {/if}
 
-              {#if authType === 'password'}
+              {#if authType === 'password' || connKind === 'rdp'}
                 <div class="space-y-1.5">
                   <label class="text-xs font-semibold text-slate-300" for="ssh-pass">Password</label>
                   <div class="relative">
@@ -1088,6 +1253,20 @@
                 </div>
               {/if}
 
+              {#if connKind === 'rdp'}
+                <div class="space-y-1.5">
+                  <span class="text-xs font-semibold text-slate-300">Tampilan</span>
+                  <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                    <input type="checkbox" bind:checked={fullscreen} class="accent-sky-500" />
+                    Layar penuh
+                  </label>
+                  <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                    <input type="checkbox" bind:checked={multimon} class="accent-sky-500" />
+                    Gunakan semua monitor
+                  </label>
+                </div>
+              {/if}
+
               <div class="flex items-center gap-2 pt-1">
                 <button
                   onclick={saveConnection}
@@ -1095,7 +1274,11 @@
                   class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold transition-colors cursor-pointer"
                 >
                   {#if isSaving}<Loader2 class="w-3.5 h-3.5 inline animate-spin mr-1" />{/if}
-                  {editingId ? 'Uji & Perbarui Koneksi' : 'Uji & Simpan Koneksi'}
+                  {#if connKind === 'rdp'}
+                    {editingId ? 'Uji, Perbarui & Buka' : 'Uji, Simpan & Buka'}
+                  {:else}
+                    {editingId ? 'Uji & Perbarui Koneksi' : 'Uji & Simpan Koneksi'}
+                  {/if}
                 </button>
                 {#if editingId || tabs.length > 0}
                   <button
@@ -1110,9 +1293,15 @@
               <p class="text-[10.5px] text-slate-500 flex items-start space-x-1.5 leading-relaxed pt-1">
                 <Lock class="w-3 h-3 flex-shrink-0 mt-0.5 text-emerald-500/70" />
                 <span>
+                  {#if connKind === 'rdp'}
+                    Remote Desktop dibuka di jendela klien bawaan (mstsc di Windows). Sebelum disimpan, port RDP diuji
+                    terjangkau dulu. Password disuntikkan sementara ke Windows Credential Manager agar login otomatis,
+                    lalu dihapus lagi beberapa detik kemudian. Penyimpanan &amp; sinkronisasi tetap terenkripsi E2E.
+                  {:else}
                   Kredensial diuji dengan connect sungguhan dulu — kalau gagal, tidak ada yang disimpan.
                   Setelah terbukti tersambung, kredensial dienkripsi dengan kunci master password (E2E);
                   sinkronisasi cloud via tabel <code class="font-mono">ssh_connections</code> hanya menyimpan ciphertext.
+                  {/if}
                 </span>
               </p>
             </div>

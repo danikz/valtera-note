@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.34] - 2026-10-10
+
+### ✨ Fitur Baru: Remote Desktop (RDP) di SSH Manager
+- **Koneksi Remote Desktop** kini bisa disimpan berdampingan dengan koneksi SSH — pilih jenis "Remote Desktop (RDP)" di form koneksi (host, port 3389, username, domain opsional, layar penuh / semua monitor).
+- **Login otomatis** lewat klien bawaan Windows (mstsc): password disuntikkan sementara ke Windows Credential Manager lalu dihapus otomatis; dipanggil langsung via `/v:` sehingga tidak muncul peringatan "Unknown remote connection".
+- Kredensial RDP tetap terenkripsi E2E, ikut workspace, drag & drop, dan sinkronisasi cloud yang sama dengan SSH (tanpa perubahan tabel).
+
+---
+
 ## [0.1.33] - 2026-10-07
 
 ### ✨ Fitur Baru: PIN Cepat 6 Digit & Trust Device di Layar Kunci

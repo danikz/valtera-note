@@ -171,7 +171,12 @@ class NotesListController extends Notifier<NotesListState> {
     // Notes in this folder get reset to folder = null
     final affectedNotes = state.notes.where((n) => n.folder == name).toList();
     for (final note in affectedNotes) {
-      final updated = note.copyWith(folder: null, syncStatus: SyncStatus.local);
+      // copyWith(folder: null) diabaikan (null = "tidak diubah") — wajib clearFolder.
+      final updated = note.copyWith(
+        clearFolder: true,
+        syncStatus: SyncStatus.local,
+        updatedAt: DateTime.now().toUtc(),
+      );
       await _repo.saveNote(updated);
       await _syncEngine.enqueueAndSync(note: updated, operation: 'update');
     }
@@ -199,7 +204,11 @@ class NotesListController extends Notifier<NotesListState> {
 
     final affectedNotes = state.notes.where((n) => n.folder == oldName).toList();
     for (final note in affectedNotes) {
-      final updated = note.copyWith(folder: trimmed, syncStatus: SyncStatus.local);
+      final updated = note.copyWith(
+        folder: trimmed,
+        syncStatus: SyncStatus.local,
+        updatedAt: DateTime.now().toUtc(),
+      );
       await _repo.saveNote(updated);
       await _syncEngine.enqueueAndSync(note: updated, operation: 'update');
     }

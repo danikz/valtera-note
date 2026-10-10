@@ -837,6 +837,9 @@ class _UnlockMasterPasswordDialogState
           onPressed: _isLoading
               ? null
               : () async {
+                  // Ambil navigator sebelum await — context dialog tidak aman
+                  // dipakai setelah async gap.
+                  final navigator = Navigator.of(context);
                   setState(() {
                     _isLoading = true;
                     _error = null;
@@ -850,7 +853,7 @@ class _UnlockMasterPasswordDialogState
                   if (mounted) {
                     setState(() => _isLoading = false);
                     if (ok) {
-                      Navigator.pop(context);
+                      navigator.pop();
                     } else {
                       final err = ref.read(e2eControllerProvider).errorMessage;
                       setState(() => _error = err ?? 'Password salah');

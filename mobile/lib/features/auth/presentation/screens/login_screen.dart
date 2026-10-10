@@ -158,6 +158,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       if (ok && context.mounted) {
                         await ref.read(e2eControllerProvider.notifier).refreshConfig();
                         ref.read(syncEngineProvider).syncAll(silent: true);
+                        if (!context.mounted) return;
                         context.go('/notes');
                       }
                     },

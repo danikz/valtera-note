@@ -81,19 +81,11 @@ class NotesRemoteDataSource {
     String? accessToken,
   }) async {
     final cleanUrl = url.trim().replaceAll(RegExp(r'/+$'), '');
-    final uri = Uri.parse('$cleanUrl/rest/v1/notes?id=eq.$id');
+    final uri = Uri.parse('$cleanUrl/rest/v1/notes?id=eq.${Uri.encodeQueryComponent(id)}');
 
-    // 1. Try hard delete first
-    final deleteRes = await _httpClient.delete(
-      uri,
-      headers: _buildHeaders(anonKey, accessToken),
-    ).timeout(const Duration(seconds: 10));
-
-    if (deleteRes.statusCode >= 200 && deleteRes.statusCode < 300) {
-      return;
-    }
-
-    // 2. Fallback: Soft delete by setting is_deleted = true if DELETE restricted by RLS
+    // Soft delete (tombstone), sama seperti desktop: device lain melihat
+    // is_deleted lalu ikut menghapus. Hard delete membuat desktop menganggap
+    // note "hilang di remote" dan meng-upload ulang salinannya (zombie).
     final patchRes = await _httpClient.patch(
       uri,
       headers: _buildHeaders(anonKey, accessToken),

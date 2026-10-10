@@ -48,6 +48,11 @@ final syncEngineProvider = Provider<SyncEngine>((ref) {
     connectivityService: connectivity,
     cryptoService: crypto,
     getKeyBytes: () => ref.read(e2eControllerProvider).keyBytes,
+    // Fail-closed: selama status E2E belum diketahui (loading) anggap aktif.
+    isE2eConfigured: () {
+      final e2e = ref.read(e2eControllerProvider);
+      return e2e.isConfigured || e2e.isLoading;
+    },
   );
 
   ref.onDispose(() => engine.dispose());
@@ -68,6 +73,7 @@ class SyncEngine {
   final ConnectivityService _connectivity;
   final CryptoService? _crypto;
   final List<int>? Function()? _getKeyBytes;
+  final bool Function()? _isE2eConfigured;
 
   final _statusController = StreamController<SyncStatusInfo>.broadcast();
   StreamSubscription? _connectivitySubscription;
@@ -83,6 +89,7 @@ class SyncEngine {
     required ConnectivityService connectivityService,
     CryptoService? cryptoService,
     List<int>? Function()? getKeyBytes,
+    bool Function()? isE2eConfigured,
   })  : _storageService = storageService,
         _authRepository = authRepository,
         _local = localDataSource,
@@ -90,7 +97,8 @@ class SyncEngine {
         _queue = queueDataSource,
         _connectivity = connectivityService,
         _crypto = cryptoService,
-        _getKeyBytes = getKeyBytes {
+        _getKeyBytes = getKeyBytes,
+        _isE2eConfigured = isE2eConfigured {
     _statusController.add(const SyncStatusInfo());
     _listenToConnectivity();
   }
@@ -174,6 +182,8 @@ class SyncEngine {
   }) async {
     final pending = await _queue.getPendingItems();
     final key = _getKeyBytes?.call();
+    final crypto = _crypto;
+    final e2eConfigured = _isE2eConfigured?.call() ?? false;
 
     for (final item in pending) {
       if (item.id == null) continue;
@@ -183,13 +193,18 @@ class SyncEngine {
         if (item.operation == 'create' || item.operation == 'update') {
           final note = Note.fromMap(item.payload);
           var remoteNote = note;
+          final isPlaintext = crypto == null || !crypto.isEncrypted(note.content);
 
-          // If E2E is active and content not yet encrypted, encrypt for remote storage
-          if (_crypto != null && key != null && !_crypto!.isEncrypted(note.content)) {
-            try {
-              final encryptedContent = await _crypto!.encrypt(key, note.content);
-              remoteNote = note.copyWith(content: encryptedContent);
-            } catch (_) {}
+          if (isPlaintext && (e2eConfigured || key != null)) {
+            if (crypto == null || key == null) {
+              // E2E aktif tapi terkunci: JANGAN unggah plaintext ke cloud.
+              // Tunda sampai kunci tersedia (tidak dihitung sebagai gagal).
+              await _queue.markPending(item.id!, reason: 'Menunggu E2E dibuka');
+              continue;
+            }
+            // Enkripsi gagal = error (item dicoba ulang), bukan unggah plaintext.
+            final encryptedContent = await crypto.encrypt(key, note.content);
+            remoteNote = note.copyWith(content: encryptedContent);
           }
 
           await _remote.upsertRemoteNote(
@@ -198,8 +213,12 @@ class SyncEngine {
             note: remoteNote,
             accessToken: accessToken,
           );
-          // Update local status to synced (local retains plaintext)
-          await _local.upsertNote(note.copyWith(syncStatus: SyncStatus.synced));
+          // Tandai synced hanya jika catatan lokal belum diubah lagi sejak
+          // item ini diantrekan — jangan timpa editan yang lebih baru.
+          final current = await _local.getNoteById(note.id);
+          if (current != null && !current.updatedAt.isAfter(note.updatedAt)) {
+            await _local.upsertNote(current.copyWith(syncStatus: SyncStatus.synced));
+          }
         } else if (item.operation == 'delete') {
           await _remote.deleteRemoteNote(
             url: url,
@@ -243,10 +262,15 @@ class SyncEngine {
 
       var content = remote.content;
       // Decrypt if E2E unlocked
-      if (_crypto != null && key != null && _crypto!.isEncrypted(content)) {
+      final crypto = _crypto;
+      if (crypto != null && key != null && crypto.isEncrypted(content)) {
         try {
-          content = await _crypto!.decrypt(key, content);
-        } catch (_) {}
+          content = await crypto.decrypt(key, content);
+        } catch (_) {
+          // Kunci tidak cocok (mis. master password diganti di device lain):
+          // jangan timpa salinan lokal yang terbaca dengan ciphertext.
+          if (local != null) continue;
+        }
       }
 
       final noteToStore = remote.copyWith(
@@ -272,13 +296,14 @@ class SyncEngine {
   }
 
   Future<int> decryptExistingLocalNotes(List<int> keyBytes) async {
-    if (_crypto == null) return 0;
+    final crypto = _crypto;
+    if (crypto == null) return 0;
     final notes = await _local.getAllNotes();
     var count = 0;
     for (final note in notes) {
-      if (_crypto!.isEncrypted(note.content)) {
+      if (crypto.isEncrypted(note.content)) {
         try {
-          final decrypted = await _crypto!.decrypt(keyBytes, note.content);
+          final decrypted = await crypto.decrypt(keyBytes, note.content);
           await _local.upsertNote(note.copyWith(content: decrypted));
           count++;
         } catch (_) {}

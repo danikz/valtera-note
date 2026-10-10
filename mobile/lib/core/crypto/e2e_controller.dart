@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../storage/secure_storage_service.dart';
@@ -74,6 +75,33 @@ class E2eController extends Notifier<E2eState> {
   }
 
   Future<void> _init() async {
+    final local = await _loadConfig();
+    // Di latar belakang: cocokkan dengan user_metadata Supabase.
+    unawaited(_syncRemoteConfig(local));
+  }
+
+  /// Master password bisa diganti dari desktop (salt + verifier baru). Salinan
+  /// lokal yang basi membuat catatan baru tak terbaca dan editan mobile
+  /// terenkripsi dengan kunci lama — jadi selalu cocokkan dengan server.
+  Future<void> _syncRemoteConfig(E2eConfigData local) async {
+    try {
+      final metadata = await _authRepo.fetchUserMetadata();
+      if (metadata == null) return; // offline / belum login
+      final remote = await _storage.getE2eConfig();
+      if (!remote.isConfigured) return;
+      if (remote.salt == local.salt && remote.verifier == local.verifier) return;
+
+      // Kunci yang diingat diturunkan dari salt lama -> basi, wajib unlock ulang.
+      await _storage.clearE2eKey();
+      state = E2eState(
+        status: E2eStatus.locked,
+        salt: remote.salt,
+        verifier: remote.verifier,
+      );
+    } catch (_) {}
+  }
+
+  Future<E2eConfigData> _loadConfig() async {
     state = state.copyWith(isLoading: true);
 
     // 1. Check local storage for E2E config
@@ -87,7 +115,7 @@ class E2eController extends Notifier<E2eState> {
 
     if (!config.isConfigured) {
       state = const E2eState(status: E2eStatus.notConfigured);
-      return;
+      return config;
     }
 
     final salt = config.salt!;
@@ -108,7 +136,7 @@ class E2eController extends Notifier<E2eState> {
             verifier: verifier,
             keyBytes: keyBytes,
           );
-          return;
+          return config;
         }
       } catch (_) {}
     }
@@ -119,6 +147,7 @@ class E2eController extends Notifier<E2eState> {
       salt: salt,
       verifier: verifier,
     );
+    return config;
   }
 
   Future<bool> unlock(String password, {bool rememberDevice = true}) async {

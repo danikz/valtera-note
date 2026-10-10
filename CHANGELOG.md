@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.35] - 2026-10-10
+
+### 🔒 Keamanan
+- **PIN cepat lebih kuat:** gagal aktivasi kini dilaporkan; PIN tidak bisa dilewati lewat "Ingat device"; batas 5x salah tetap berlaku walau app di-restart; jeda bertahap antar percobaan; KDF PIN diperkuat (Argon2id 64 MiB, blob lama dimigrasi otomatis).
+- **Setting kripto terlindungi:** salt/verifier E2E tidak bisa lagi ditimpa dari UI.
+- **TLS Supabase:** sertifikat tidak valid hanya ditoleransi untuk instance lokal (localhost) — mencegah penyadapan token login.
+- **RDP:** kredensial sementara di Windows Credential Manager kini selalu dibersihkan (juga saat app ditutup/crash), kredensial milik user tidak lagi ditimpa; dukungan alamat IPv6.
+
+### 🔄 Sinkronisasi Desktop ↔ Mobile
+- Konfigurasi E2E dipublikasikan ke akun Supabase sehingga aplikasi mobile bisa membuka catatan terenkripsi; ganti master password terdeteksi di mobile.
+- Hapus catatan memakai tombstone di kedua platform — catatan yang dihapus di satu device ikut terhapus di device lain dan tidak muncul kembali.
+- Pin yang diatur di mobile tidak lagi tertimpa oleh desktop.
+
+### 📱 Mobile
+- Catatan tidak pernah terunggah sebagai plaintext saat E2E aktif.
+- Editor: catatan lama tidak lagi tampil kosong / tertimpa, ketikan saat menyimpan tidak hilang, catatan terenkripsi read-only saat E2E terkunci.
+- Logout menghapus data lokal akun (dengan konfirmasi bila ada perubahan belum ter-sync).
+- Antrean sync yang macet dipulihkan; hapus folder benar-benar mengosongkan folder.
+
+---
+
 ## [0.1.34] - 2026-10-10
 
 ### ✨ Fitur Baru: Remote Desktop (RDP) di SSH Manager

@@ -401,6 +401,32 @@ export const ipc = {
     return [];
   },
 
+  // ===== Remote Desktop (RDP) — dibuka lewat klien bawaan OS =====
+  async rdpTest(host: string, port: number): Promise<void> {
+    if (isTauri) {
+      await invoke('rdp_test', { host, port });
+      return;
+    }
+    throw new Error('Remote Desktop hanya tersedia di aplikasi desktop.');
+  },
+
+  async rdpLaunch(params: {
+    id: string;
+    host: string;
+    port: number;
+    username: string;
+    password?: string | null;
+    domain?: string | null;
+    fullscreen: boolean;
+    multimon: boolean;
+  }): Promise<void> {
+    if (isTauri) {
+      await invoke('rdp_launch', { params });
+      return;
+    }
+    throw new Error('Remote Desktop hanya tersedia di aplikasi desktop.');
+  },
+
   async checkSupabaseTable(url: string, anonKey: string, accessToken?: string): Promise<boolean> {
     const cleanUrl = url.trim().replace(/\/+$/, '');
     const cleanKey = anonKey.trim();

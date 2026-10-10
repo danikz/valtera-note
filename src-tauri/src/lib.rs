@@ -112,6 +112,8 @@ pub fn run() {
             commands::ssh::ssh_resize,
             commands::ssh::ssh_disconnect,
             commands::ssh::ssh_active_sessions,
+            commands::rdp::rdp_test,
+            commands::rdp::rdp_launch,
             commands::supabase::test_supabase_connection,
             commands::supabase::check_supabase_table,
             commands::supabase::auto_create_supabase_table,

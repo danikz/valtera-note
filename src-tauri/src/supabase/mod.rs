@@ -48,8 +48,10 @@ pub struct RemoteNote {
     pub file_extension: String,
     #[serde(default)]
     pub folder: Option<String>,
-    #[serde(default)]
-    pub is_pinned: bool,
+    /// None = jangan kirim kolom ini saat upsert (desktop tidak punya konsep pin),
+    /// sehingga pin yang diatur di aplikasi mobile tidak tertimpa `false`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub is_pinned: Option<bool>,
     #[serde(default)]
     pub is_deleted: bool,
     #[serde(default)]
@@ -76,11 +78,29 @@ pub struct RemoteSshConnection {
     pub updated_at: Option<String>,
 }
 
+/// true bila URL mengarah ke mesin lokal (localhost / 127.x / ::1 / *.localhost).
+fn is_loopback_url(url: &str) -> bool {
+    let Ok(parsed) = reqwest::Url::parse(url.trim()) else {
+        return false;
+    };
+    let Some(host) = parsed.host_str() else {
+        return false;
+    };
+    let host = host.trim_start_matches('[').trim_end_matches(']').to_ascii_lowercase();
+    if let Ok(ip) = host.parse::<std::net::IpAddr>() {
+        return ip.is_loopback();
+    }
+    host == "localhost" || host.ends_with(".localhost")
+}
+
 impl SupabaseClient {
     pub fn new(url: String, anon_key: String) -> Self {
         let client = Client::builder()
             .timeout(Duration::from_secs(12))
-            .danger_accept_invalid_certs(true) // For local Docker / self-hosted Supabase instances
+            // Sertifikat self-signed hanya ditoleransi untuk instance lokal
+            // (Docker di mesin sendiri). Host lain WAJIB TLS valid — tanpa ini
+            // token login & data bisa disadap lewat MITM.
+            .danger_accept_invalid_certs(is_loopback_url(&url))
             .build()
             .unwrap_or_default();
 
@@ -251,6 +271,30 @@ impl SupabaseClient {
         let auth_res: SupabaseAuthResponse = serde_json::from_str(&text)
             .map_err(|e| format!("Failed to parse auth token: {}", e))?;
         Ok(auth_res)
+    }
+
+    /// Gabungkan `data` ke `user_metadata` user yang sedang login (PUT /auth/v1/user).
+    pub async fn update_user_metadata(&self, data: serde_json::Value) -> Result<(), String> {
+        let token = self
+            .access_token
+            .as_deref()
+            .ok_or_else(|| "Belum login Supabase".to_string())?;
+        let url = format!("{}/auth/v1/user", self.url);
+        let res = self.client.put(&url)
+            .header("apikey", &self.anon_key)
+            .header("Authorization", format!("Bearer {}", token))
+            .header("Content-Type", "application/json")
+            .json(&serde_json::json!({ "data": data }))
+            .send()
+            .await
+            .map_err(|e| format!("Network request failed: {}", e))?;
+
+        let status = res.status();
+        if status.is_success() {
+            return Ok(());
+        }
+        let text = res.text().await.unwrap_or_default();
+        Err(format!("Update user metadata failed (HTTP {}): {}", status.as_u16(), text))
     }
 
     pub async fn refresh_token(&self, refresh_token: &str) -> Result<SupabaseAuthResponse, String> {
@@ -509,40 +553,31 @@ impl SupabaseClient {
         Err(format!("Delete ssh_connection failed (HTTP {}): {}", status.as_u16(), text))
     }
 
+    /// Soft delete (tombstone), sama seperti ssh_connections & aplikasi mobile:
+    /// device lain melihat is_deleted lalu ikut menghapus salinannya. Hard delete
+    /// membuat device lain tidak pernah tahu note dihapus (atau meng-upload ulang).
     pub async fn delete_note(&self, id: &str) -> Result<(), String> {
         let url = format!("{}/rest/v1/notes?id=eq.{}", self.url, id);
-        let mut req = self.client.delete(&url).header("apikey", &self.anon_key);
+        let mut req = self.client.patch(&url)
+            .header("apikey", &self.anon_key)
+            .header("Content-Type", "application/json");
+
         if let Some(token) = &self.access_token {
             req = req.header("Authorization", format!("Bearer {}", token));
         } else {
             req = req.header("Authorization", format!("Bearer {}", self.anon_key));
         }
 
-        let res = req.send().await;
-        if let Ok(response) = res {
-            if response.status().is_success() {
-                return Ok(());
-            }
-        }
-
-        // Fallback: Soft delete by setting is_deleted = true in case hard DELETE RLS policy is restricted
-        let patch_url = format!("{}/rest/v1/notes?id=eq.{}", self.url, id);
-        let mut patch_req = self.client.patch(&patch_url)
-            .header("apikey", &self.anon_key)
-            .header("Content-Type", "application/json");
-
-        if let Some(token) = &self.access_token {
-            patch_req = patch_req.header("Authorization", format!("Bearer {}", token));
-        } else {
-            patch_req = patch_req.header("Authorization", format!("Bearer {}", self.anon_key));
-        }
-
-        match patch_req.json(&serde_json::json!({
+        match req.json(&serde_json::json!({
             "is_deleted": true,
             "updated_at": chrono_iso_now()
         })).send().await {
             Ok(response) if response.status().is_success() => Ok(()),
-            Ok(response) => Err(format!("Delete note failed (HTTP {})", response.status().as_u16())),
+            Ok(response) => {
+                let status = response.status().as_u16();
+                let text = response.text().await.unwrap_or_default();
+                Err(format!("Delete note failed (HTTP {}): {}", status, text))
+            }
             Err(e) => Err(format!("Delete note failed: {}", e)),
         }
     }
@@ -553,4 +588,21 @@ fn chrono_iso_now() -> String {
     let now = std::time::SystemTime::now();
     let datetime: chrono::DateTime<chrono::Utc> = now.into();
     datetime.to_rfc3339()
+}
+
+#[cfg(test)]
+mod tls_tests {
+    use super::is_loopback_url;
+
+    #[test]
+    fn only_local_hosts_skip_tls_validation() {
+        assert!(is_loopback_url("https://localhost:8000"));
+        assert!(is_loopback_url("https://127.0.0.1:54321"));
+        assert!(is_loopback_url("https://[::1]:8000"));
+        assert!(is_loopback_url("https://api.localhost"));
+        assert!(!is_loopback_url("https://xyz.supabase.co"));
+        assert!(!is_loopback_url("https://localhost.evil.com"));
+        assert!(!is_loopback_url("https://192.168.1.10"));
+        assert!(!is_loopback_url("bukan url"));
+    }
 }

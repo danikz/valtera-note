@@ -5,9 +5,15 @@
 
 #[cfg(not(target_os = "windows"))]
 use std::path::PathBuf;
+use std::sync::Arc;
+#[cfg(target_os = "windows")]
+use std::sync::Mutex;
 use std::time::Duration;
 
+use tauri::State;
 use tokio::net::TcpStream;
+
+use crate::db::DatabaseManager;
 
 /// Lama kredensial & file .rdp sementara dibiarkan sebelum dibersihkan —
 /// cukup untuk mstsc membaca keduanya saat handshake awal.
@@ -40,6 +46,15 @@ fn clean(v: &str) -> String {
     v.replace(['\r', '\n'], "").trim().to_string()
 }
 
+/// Host untuk alamat `host:port` — literal IPv6 wajib dibungkus kurung siku.
+fn host_for_addr(host: &str) -> String {
+    if host.contains(':') && !host.starts_with('[') {
+        format!("[{}]", host)
+    } else {
+        host.to_string()
+    }
+}
+
 fn full_username(username: &str, domain: Option<&str>) -> String {
     match domain.map(clean).filter(|d| !d.is_empty()) {
         Some(d) => format!("{}\\{}", d, clean(username)),
@@ -49,7 +64,7 @@ fn full_username(username: &str, domain: Option<&str>) -> String {
 
 #[cfg(not(target_os = "windows"))]
 fn build_rdp_file(p: &RdpLaunchParams) -> String {
-    let host = clean(&p.host);
+    let host = host_for_addr(&clean(&p.host));
     let address = if p.port == 3389 {
         host
     } else {
@@ -84,8 +99,7 @@ fn rdp_file_path(id: &str) -> PathBuf {
 /// handshake penuh, jadi yang diuji hanya host:port terbuka.
 #[tauri::command]
 pub async fn rdp_test(host: String, port: u16) -> Result<(), String> {
-    let host = clean(&host);
-    let addr = format!("{}:{}", host, port);
+    let addr = format!("{}:{}", host_for_addr(&clean(&host)), port);
     match tokio::time::timeout(Duration::from_secs(6), TcpStream::connect(&addr)).await {
         Ok(Ok(_)) => Ok(()),
         Ok(Err(e)) => Err(format!("Tidak bisa terhubung ke {} — {}", addr, e)),
@@ -94,11 +108,17 @@ pub async fn rdp_test(host: String, port: u16) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn rdp_launch(params: RdpLaunchParams) -> Result<(), String> {
+pub async fn rdp_launch(
+    params: RdpLaunchParams,
+    db: State<'_, Arc<DatabaseManager>>,
+) -> Result<(), String> {
     if params.host.trim().is_empty() {
         return Err("Host kosong".to_string());
     }
-    launch_platform(&params)
+    let db = Arc::clone(&db);
+    tokio::task::spawn_blocking(move || launch_platform(&params, db))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 /// File .rdp sementara untuk klien non-Windows; dihapus otomatis setelahnya.
@@ -108,41 +128,142 @@ fn write_temp_rdp_file(p: &RdpLaunchParams) -> Result<PathBuf, String> {
     std::fs::write(&file, build_rdp_file(p))
         .map_err(|e| format!("Gagal menulis file .rdp: {}", e))?;
     let cleanup_file = file.clone();
-    tokio::spawn(async move {
-        tokio::time::sleep(CLEANUP_AFTER).await;
+    std::thread::spawn(move || {
+        std::thread::sleep(CLEANUP_AFTER);
         let _ = std::fs::remove_file(cleanup_file);
     });
     Ok(file)
+}
+
+// ===== Kredensial sementara TERMSRV/<host> (Windows) =====
+// Setiap kredensial yang disuntikkan dicatat dulu di DB (setting `rdp_pending_creds`,
+// tidak bisa ditulis frontend) SEBELUM ditulis ke Credential Manager. Catatan ini
+// dibersihkan oleh timer, saat app keluar, dan saat app start berikutnya — jadi
+// password tidak tertinggal permanen walau app ditutup/crash sebelum timer jalan.
+
+#[cfg(target_os = "windows")]
+const SETTING_PENDING_CREDS: &str = "rdp_pending_creds";
+#[cfg(target_os = "windows")]
+const CRED_SERVICE: &str = "valtera-rdp";
+
+#[cfg(target_os = "windows")]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq)]
+struct PendingCred {
+    target: String,
+    user: String,
+}
+
+/// Serialisasi read-modify-write daftar pending antar thread.
+#[cfg(target_os = "windows")]
+static PENDING_LOCK: Mutex<()> = Mutex::new(());
+
+#[cfg(target_os = "windows")]
+fn load_pending(db: &DatabaseManager) -> Vec<PendingCred> {
+    db.get_setting(SETTING_PENDING_CREDS)
+        .ok()
+        .flatten()
+        .and_then(|v| serde_json::from_str(&v).ok())
+        .unwrap_or_default()
+}
+
+#[cfg(target_os = "windows")]
+fn save_pending(db: &DatabaseManager, list: &[PendingCred]) -> Result<(), String> {
+    let json = serde_json::to_string(list).map_err(|e| e.to_string())?;
+    db.set_setting(SETTING_PENDING_CREDS, &json)
+}
+
+#[cfg(target_os = "windows")]
+fn delete_cred(c: &PendingCred) -> bool {
+    match keyring::Entry::new_with_target(&c.target, CRED_SERVICE, &c.user) {
+        Ok(entry) => matches!(entry.delete_credential(), Ok(()) | Err(keyring::Error::NoEntry)),
+        Err(_) => false,
+    }
+}
+
+/// Hapus satu kredensial sementara dan keluarkan dari daftar pending.
+#[cfg(target_os = "windows")]
+fn cleanup_one(db: &DatabaseManager, c: &PendingCred) {
+    let _g = PENDING_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    if delete_cred(c) {
+        let mut list = load_pending(db);
+        list.retain(|x| x != c);
+        let _ = save_pending(db, &list);
+    }
+}
+
+/// Bersihkan semua kredensial RDP sementara yang tercatat (startup & exit).
+#[cfg(target_os = "windows")]
+pub fn cleanup_pending_credentials(db: &DatabaseManager) {
+    let _g = PENDING_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let list = load_pending(db);
+    if list.is_empty() {
+        return;
+    }
+    let remaining: Vec<PendingCred> = list.into_iter().filter(|c| !delete_cred(c)).collect();
+    let _ = save_pending(db, &remaining);
+}
+
+/// Non-Windows tidak menyuntikkan kredensial; bersihkan sisa file .rdp.
+#[cfg(not(target_os = "windows"))]
+pub fn cleanup_pending_credentials(_db: &DatabaseManager) {
+    if let Ok(dir) = std::fs::read_dir(std::env::temp_dir()) {
+        for e in dir.flatten() {
+            let name = e.file_name().to_string_lossy().to_string();
+            if name.starts_with("valtera-rdp-") && name.ends_with(".rdp") {
+                let _ = std::fs::remove_file(e.path());
+            }
+        }
+    }
 }
 
 // Windows: mstsc dipanggil langsung dengan /v (tanpa file .rdp). File .rdp
 // yang tidak ditandatangani memicu dialog "Unknown remote connection" di
 // setiap connect sejak update keamanan Windows 2025; argumen /v tidak.
 #[cfg(target_os = "windows")]
-fn launch_platform(p: &RdpLaunchParams) -> Result<(), String> {
+fn launch_platform(p: &RdpLaunchParams, db: Arc<DatabaseManager>) -> Result<(), String> {
     // Kredensial generic "TERMSRV/<host>" dibaca mstsc untuk login otomatis.
-    // Bila user sudah punya entri sendiri untuk host ini, entri itu tidak
-    // dihapus setelahnya (hanya ditimpa dengan kredensial tersimpan).
     let host = clean(&p.host);
     let user = full_username(&p.username, p.domain.as_deref());
     let target = format!("TERMSRV/{}", host);
     if let Some(pass) = p.password.as_deref().filter(|s| !s.is_empty()) {
-        let entry = keyring::Entry::new_with_target(&target, "valtera-rdp", &user)
+        let cred = PendingCred { target: target.clone(), user: user.clone() };
+        let entry = keyring::Entry::new_with_target(&target, CRED_SERVICE, &user)
             .map_err(|e| format!("Gagal menyiapkan kredensial RDP: {}", e))?;
-        let pre_existing = entry.get_password().is_ok();
-        entry
-            .set_password(pass)
-            .map_err(|e| format!("Gagal menyimpan kredensial RDP sementara: {}", e))?;
-        if !pre_existing {
-            tokio::spawn(async move {
-                tokio::time::sleep(CLEANUP_AFTER).await;
-                let _ = entry.delete_credential();
+
+        let inject = {
+            let _g = PENDING_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            let mut list = load_pending(&db);
+            let ours = list.iter().any(|c| c.target == target);
+            if !ours && entry.get_password().is_ok() {
+                // Kredensial milik user sendiri untuk host ini — jangan ditimpa
+                // (tidak bisa dipulihkan). mstsc akan memakai kredensial itu.
+                false
+            } else {
+                // Catat dulu, baru tulis: crash di antara keduanya tetap terbersihkan.
+                if !list.contains(&cred) {
+                    list.push(cred.clone());
+                    save_pending(&db, &list)
+                        .map_err(|e| format!("Gagal mencatat kredensial RDP sementara: {}", e))?;
+                }
+                true
+            }
+        };
+
+        if inject {
+            if let Err(e) = entry.set_password(pass) {
+                cleanup_one(&db, &cred);
+                return Err(format!("Gagal menyimpan kredensial RDP sementara: {}", e));
+            }
+            let db_timer = Arc::clone(&db);
+            std::thread::spawn(move || {
+                std::thread::sleep(CLEANUP_AFTER);
+                cleanup_one(&db_timer, &cred);
             });
         }
     }
 
     let mut cmd = std::process::Command::new("mstsc.exe");
-    cmd.arg(format!("/v:{}:{}", host, p.port));
+    cmd.arg(format!("/v:{}:{}", host_for_addr(&host), p.port));
     if p.fullscreen {
         cmd.arg("/f");
     }
@@ -155,7 +276,7 @@ fn launch_platform(p: &RdpLaunchParams) -> Result<(), String> {
 }
 
 #[cfg(target_os = "macos")]
-fn launch_platform(p: &RdpLaunchParams) -> Result<(), String> {
+fn launch_platform(p: &RdpLaunchParams, _db: Arc<DatabaseManager>) -> Result<(), String> {
     let file = write_temp_rdp_file(p)?;
     // Dibuka oleh aplikasi "Windows App" / Microsoft Remote Desktop.
     // Password tidak bisa disuntikkan — klien akan meminta saat connect.
@@ -167,11 +288,29 @@ fn launch_platform(p: &RdpLaunchParams) -> Result<(), String> {
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
-fn launch_platform(p: &RdpLaunchParams) -> Result<(), String> {
+fn launch_platform(p: &RdpLaunchParams, _db: Arc<DatabaseManager>) -> Result<(), String> {
     let file = write_temp_rdp_file(p)?;
     std::process::Command::new("xdg-open")
         .arg(file)
         .spawn()
         .map_err(|e| format!("Gagal membuka file .rdp (pasang Remmina/FreeRDP): {}", e))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn host_for_addr_brackets_ipv6_only() {
+        assert_eq!(host_for_addr("10.0.0.5"), "10.0.0.5");
+        assert_eq!(host_for_addr("srv.example.com"), "srv.example.com");
+        assert_eq!(host_for_addr("fe80::1"), "[fe80::1]");
+        assert_eq!(host_for_addr("[fe80::1]"), "[fe80::1]");
+    }
+
+    #[test]
+    fn clean_strips_line_breaks() {
+        assert_eq!(clean(" host\r\nusername:s:evil "), "hostusername:s:evil");
+    }
 }

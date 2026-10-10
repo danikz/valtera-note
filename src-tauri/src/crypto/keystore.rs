@@ -7,6 +7,9 @@ use crate::crypto::Key;
 const KEYRING_SERVICE: &str = "valtera-note";
 const KEYRING_ACCOUNT: &str = "e2e-key";
 const KEYRING_QUICKPIN_ACCOUNT: &str = "e2e-quickpin";
+/// Hitungan PIN salah disimpan di keychain (bukan DB yang bisa ditulis
+/// frontend lewat set_app_setting) agar tidak ter-reset saat app di-restart.
+const KEYRING_PIN_FAILS_ACCOUNT: &str = "e2e-quickpin-fails";
 
 pub struct KeyManager {
     key: Mutex<Option<Zeroizing<Key>>>,
@@ -28,15 +31,50 @@ impl KeyManager {
         }
     }
 
+    /// Jumlah PIN salah beruntun — maksimum dari hitungan persisten (keychain)
+    /// dan hitungan memori (cadangan bila keychain gagal ditulis).
+    pub fn pin_attempts(&self) -> u32 {
+        let mem = *self.pin_attempts.lock().unwrap();
+        mem.max(Self::load_pin_fails())
+    }
+
     /// Naikkan hitungan PIN salah, kembalikan jumlah kegagalan beruntun.
     pub fn fail_pin(&self) -> u32 {
-        let mut g = self.pin_attempts.lock().unwrap();
-        *g += 1;
-        *g
+        let n = self.pin_attempts() + 1;
+        *self.pin_attempts.lock().unwrap() = n;
+        if let Err(e) = Self::save_pin_fails(n) {
+            eprintln!("Warning: gagal menyimpan hitungan PIN salah: {}", e);
+        }
+        n
     }
 
     pub fn reset_pin_attempts(&self) {
         *self.pin_attempts.lock().unwrap() = 0;
+        if let Err(e) = Self::delete_entry(KEYRING_PIN_FAILS_ACCOUNT) {
+            eprintln!("Warning: gagal mereset hitungan PIN salah: {}", e);
+        }
+    }
+
+    fn load_pin_fails() -> u32 {
+        keyring::Entry::new(KEYRING_SERVICE, KEYRING_PIN_FAILS_ACCOUNT)
+            .and_then(|e| e.get_password())
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0)
+    }
+
+    fn save_pin_fails(n: u32) -> Result<(), String> {
+        let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_PIN_FAILS_ACCOUNT)
+            .map_err(|e| e.to_string())?;
+        entry.set_password(&n.to_string()).map_err(|e| e.to_string())
+    }
+
+    fn delete_entry(account: &str) -> Result<(), String> {
+        let entry = keyring::Entry::new(KEYRING_SERVICE, account).map_err(|e| e.to_string())?;
+        match entry.delete_credential() {
+            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+            Err(e) => Err(e.to_string()),
+        }
     }
 
     pub fn set_key(&self, key: Key) {
@@ -73,12 +111,7 @@ impl KeyManager {
     }
 
     pub fn delete_from_keyring() -> Result<(), String> {
-        let entry =
-            keyring::Entry::new(KEYRING_SERVICE, KEYRING_ACCOUNT).map_err(|e| e.to_string())?;
-        match entry.delete_credential() {
-            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(e) => Err(e.to_string()),
-        }
+        Self::delete_entry(KEYRING_ACCOUNT)
     }
 
     // ===== Quick PIN: blob kunci yang dibungkus kunci turunan PIN 6 digit =====
@@ -96,12 +129,8 @@ impl KeyManager {
     }
 
     pub fn delete_quickpin() -> Result<(), String> {
-        let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_QUICKPIN_ACCOUNT)
-            .map_err(|e| e.to_string())?;
-        match entry.delete_credential() {
-            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(e) => Err(e.to_string()),
-        }
+        let _ = Self::delete_entry(KEYRING_PIN_FAILS_ACCOUNT);
+        Self::delete_entry(KEYRING_QUICKPIN_ACCOUNT)
     }
 }
 

@@ -199,7 +199,7 @@ pub async fn open_session(
         return Err("Autentikasi ditolak server — periksa user/password/key.".to_string());
     }
 
-    let mut channel = handle
+    let channel = handle
         .channel_open_session()
         .await
         .map_err(|e| format!("Gagal membuka channel: {}", e))?;

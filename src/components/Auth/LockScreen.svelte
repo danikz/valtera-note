@@ -59,7 +59,10 @@
       pin = '';
       // Fitur PIN bisa dimatikan otomatis oleh backend setelah 5x salah.
       ipc.quickPinStatus().then((enabled) => {
-        if (!enabled) usePin = false;
+        if (!enabled) {
+          usePin = false;
+          pinEnabled = false;
+        }
       });
     } finally {
       isWorking = false;
@@ -94,7 +97,8 @@
     error = '';
     isWorking = true;
     try {
-      await ipc.unlockMasterPassword(password, rememberDevice);
+      // Saat quick PIN aktif, raw key tidak boleh masuk keyring (PIN jadi terlewati).
+      await ipc.unlockMasterPassword(password, rememberDevice && !pinEnabled);
       await editorStore.reloadSession();
       onDone();
     } catch (e: any) {
@@ -252,10 +256,12 @@
             Ingat password di device ini (Windows Credential Manager)
           </label>
         {:else}
-          <label class="flex cursor-pointer items-center gap-2 text-xs text-slate-300">
-            <input type="checkbox" bind:checked={rememberDevice} class="accent-blue-600" />
-            Ingat di device ini — tidak perlu password lagi saat berikutnya
-          </label>
+          {#if !pinEnabled}
+            <label class="flex cursor-pointer items-center gap-2 text-xs text-slate-300">
+              <input type="checkbox" bind:checked={rememberDevice} class="accent-blue-600" />
+              Ingat di device ini — tidak perlu password lagi saat berikutnya
+            </label>
+          {/if}
 
           {#if pinEnabled}
             <button

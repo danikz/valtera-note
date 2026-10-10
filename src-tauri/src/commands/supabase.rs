@@ -271,6 +271,58 @@ pub async fn effective_access_token(db: Arc<DatabaseManager>) -> Option<String> 
     refresh_stored_token(&db).await.ok().or(token)
 }
 
+/// Publikasikan salt + verifier E2E ke `user_metadata` Supabase agar device lain
+/// (aplikasi mobile) bisa menurunkan kunci yang sama dari master password.
+/// Keduanya bukan rahasia: salt publik, dan verifier tidak membuka apa pun yang
+/// belum bisa diserang dari ciphertext note di cloud. No-op bila belum login
+/// atau master password belum diatur.
+pub async fn publish_e2e_config(db: Arc<DatabaseManager>) -> Result<(), String> {
+    let db_read = Arc::clone(&db);
+    let (url, anon_key, salt, verifier) = tokio::task::spawn_blocking(move || {
+        let get = |k: &str| -> Result<Option<String>, String> {
+            Ok(db_read.get_setting(k)?.filter(|s| !s.trim().is_empty()))
+        };
+        Ok::<_, String>((
+            get("supabase_url")?,
+            get("supabase_anon_key")?,
+            get(crate::crypto::SETTING_SALT)?,
+            get(crate::crypto::SETTING_VERIFIER)?,
+        ))
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+
+    let (Some(url), Some(anon_key), Some(salt), Some(verifier)) = (url, anon_key, salt, verifier)
+    else {
+        return Ok(());
+    };
+    let Some(token) = effective_access_token(Arc::clone(&db)).await else {
+        return Ok(());
+    };
+
+    let mut client = SupabaseClient::new(url, anon_key);
+    client.set_access_token(token);
+    let data = serde_json::json!({ "e2e_salt": salt, "e2e_verifier": verifier });
+    match client.update_user_metadata(data.clone()).await {
+        Ok(()) => Ok(()),
+        Err(e) if is_auth_error(&e) => {
+            let token = refresh_stored_token(&db).await.map_err(|_| e)?;
+            client.set_access_token(token);
+            client.update_user_metadata(data).await
+        }
+        Err(e) => Err(e),
+    }
+}
+
+/// Versi best-effort (tidak memblokir pemanggil; gagal hanya dicatat).
+pub fn publish_e2e_config_background(db: Arc<DatabaseManager>) {
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = publish_e2e_config(db).await {
+            eprintln!("Warning: gagal mempublikasikan konfigurasi E2E: {}", e);
+        }
+    });
+}
+
 #[tauri::command]
 pub async fn supabase_register(
     url: String,
@@ -288,6 +340,7 @@ pub async fn supabase_register(
     let email_clone = email.clone();
     let db = Arc::clone(&db);
 
+    let db_publish = Arc::clone(&db);
     tokio::task::spawn_blocking(move || {
         db.set_setting("supabase_url", &url)?;
         db.set_setting("supabase_anon_key", &anon_key)?;
@@ -299,6 +352,7 @@ pub async fn supabase_register(
     })
     .await
     .map_err(|e| e.to_string())??;
+    publish_e2e_config_background(db_publish);
 
     Ok("Registration successful. Please check email if confirmation is required.".to_string())
 }
@@ -320,6 +374,7 @@ pub async fn supabase_login(
     let email_clone = email.clone();
     let db = Arc::clone(&db);
 
+    let db_publish = Arc::clone(&db);
     tokio::task::spawn_blocking(move || {
         db.set_setting("supabase_url", &url)?;
         db.set_setting("supabase_anon_key", &anon_key)?;
@@ -329,6 +384,7 @@ pub async fn supabase_login(
     })
     .await
     .map_err(|e| e.to_string())??;
+    publish_e2e_config_background(db_publish);
 
     Ok("Login successful".to_string())
 }

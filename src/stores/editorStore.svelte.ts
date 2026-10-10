@@ -771,7 +771,6 @@ class EditorStore {
         content: await ipc.encryptContent(tab.content || ''),
         file_extension: tab.file_extension || 'txt',
         folder: tab.folder || undefined,
-        is_pinned: false,
         is_deleted: false
       };
 
@@ -852,10 +851,27 @@ class EditorStore {
 
       // 1. Merge remote notes into local tabs
       if (Array.isArray(remoteNotes) && remoteNotes.length > 0) {
+        const remotelyDeleted = new Set<string>();
         for (const remote of remoteNotes) {
+          // Tombstone dari device lain (mis. dihapus di HP): hapus salinan lokal.
+          // Tab yang sedang punya editan belum ter-sync tidak dibuang — dilepas
+          // dari id lama agar ter-push sebagai note baru (editan menang).
+          if (remote.id && remote.is_deleted && !this.deletedNoteIds.includes(remote.id)) {
+            const localTab = this.tabs.find(t => t.supabase_id === remote.id);
+            if (localTab?.is_dirty) {
+              localTab.supabase_id = undefined;
+            } else if (localTab) {
+              remotelyDeleted.add(remote.id);
+            }
+            this.deletedNoteIds.push(remote.id);
+            this.persistDeletedNotes();
+            continue;
+          }
+
           if (!remote.id || remote.is_deleted || this.deletedNoteIds.includes(remote.id)) {
-            // If it was deleted locally but remote returned it, clean up remotely again
-            if (remote.id && this.deletedNoteIds.includes(remote.id)) {
+            // Dihapus lokal tapi cloud masih aktif -> kirim ulang tombstone
+            // (sekali saja: baris yang sudah is_deleted tidak di-PATCH lagi).
+            if (remote.id && !remote.is_deleted && this.deletedNoteIds.includes(remote.id)) {
               ipc.deleteRemoteNote(
                 this.supabaseConfig.url,
                 this.supabaseConfig.anon_key,
@@ -908,6 +924,18 @@ class EditorStore {
             });
           }
         }
+
+        if (remotelyDeleted.size > 0) {
+          const activeTab = this.tabs[this.activeTabIndex];
+          for (let i = this.tabs.length - 1; i >= 0; i--) {
+            const id = this.tabs[i].supabase_id;
+            if (id && remotelyDeleted.has(id)) this.tabs.splice(i, 1);
+          }
+          const keptIdx = activeTab ? this.tabs.indexOf(activeTab) : -1;
+          const nextOpenIdx = this.tabs.findIndex(t => t.is_open !== false);
+          this.activeTabIndex = keptIdx !== -1 ? keptIdx : Math.max(nextOpenIdx, 0);
+          this.persistTabs();
+        }
       }
 
       // 2. Push local tabs that have content or are filed/named and are not yet on Supabase (or dirty)
@@ -949,7 +977,6 @@ class EditorStore {
                 content: await ipc.encryptContent(tab.content || ''),
                 file_extension: tab.file_extension || 'txt',
                 folder: tab.folder || undefined,
-                is_pinned: false,
                 is_deleted: false
               },
               this.supabaseConfig.access_token || undefined

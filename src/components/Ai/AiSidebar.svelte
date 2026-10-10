@@ -34,7 +34,7 @@
   let busy = $state(false);
   let includeNote = $state(true);
   let includeSelection = $state(true);
-  let listEl: HTMLDivElement | null = null;
+  let listEl = $state<HTMLDivElement | null>(null);
   let cfg = $state<{ kind: string; base_url: string; has_api_key: boolean; model: string } | null>(null);
 
   const tab = $derived(editorStore.activeTab);

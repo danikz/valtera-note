@@ -21,8 +21,18 @@ pub fn run() {
     };
 
     let keys = crypto::keystore::KeyManager::new();
-    // Auto-unlock: ambil kunci dari OS keyring, verifikasi terhadap verifier di DB
-    if let Ok(key) = crypto::keystore::KeyManager::load_from_keyring() {
+    let quick_pin_on = db
+        .get_setting(commands::crypto::SETTING_QUICK_PIN)
+        .map(|v| v.as_deref() == Some("1"))
+        .unwrap_or(true); // fail-closed: DB error -> jangan auto-unlock
+    if quick_pin_on {
+        // Quick PIN aktif = PIN adalah pintunya. Raw key sisa versi lama
+        // (sebelum guard "ingat device") akan melewati PIN — hapus.
+        if let Err(e) = crypto::keystore::KeyManager::delete_from_keyring() {
+            eprintln!("Warning: gagal menghapus raw key keyring: {}", e);
+        }
+    } else if let Ok(key) = crypto::keystore::KeyManager::load_from_keyring() {
+        // Auto-unlock: ambil kunci dari OS keyring, verifikasi terhadap verifier di DB
         let verifier_ok = db
             .get_setting(crypto::SETTING_VERIFIER)
             .ok()
@@ -57,6 +67,15 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
+            // Sisa kredensial RDP sementara dari sesi sebelumnya (app ditutup/crash
+            // sebelum timer pembersih jalan).
+            let db = Arc::clone(app.state::<Arc<DatabaseManager>>().inner());
+            std::thread::spawn(move || commands::rdp::cleanup_pending_credentials(&db));
+            // Pastikan salt/verifier E2E ada di user_metadata Supabase (pengguna lama
+            // yang sudah login sebelum fitur ini) agar aplikasi mobile bisa unlock.
+            commands::supabase::publish_e2e_config_background(Arc::clone(
+                app.state::<Arc<DatabaseManager>>().inner(),
+            ));
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_decorations(false);
                 let _ = window.set_shadow(true);
@@ -130,6 +149,12 @@ pub fn run() {
             commands::crypto::unlock_with_pin,
             commands::crypto::disable_quick_pin,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running valtera-note application");
+        .build(tauri::generate_context!())
+        .expect("error while building valtera-note application")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                let db = app.state::<Arc<DatabaseManager>>();
+                commands::rdp::cleanup_pending_credentials(db.inner());
+            }
+        });
 }

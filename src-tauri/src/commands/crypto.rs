@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use tauri::State;
+use zeroize::Zeroizing;
 
 use crate::crypto::{self, keystore::KeyManager, Key};
 use crate::crypto::{SETTING_DECLINED, SETTING_SALT, SETTING_VERIFIER, VERIFIER_PLAINTEXT};
@@ -70,6 +71,7 @@ pub async fn set_master_password(
     }
 
     let db = Arc::clone(&db);
+    let db_publish = Arc::clone(&db);
     let key = tokio::task::spawn_blocking(move || {
         // Idempoten: jika master password sudah diatur, validasi password ini
         // terhadap verifier lama. Valid = sukses tanpa mengubah apa pun;
@@ -85,7 +87,8 @@ pub async fn set_master_password(
             if plain != VERIFIER_PLAINTEXT {
                 return Err("Master password sudah diatur - password tidak cocok".to_string());
             }
-            if remember_device {
+            let quick_pin_on = db.get_setting(SETTING_QUICK_PIN)?.as_deref() == Some("1");
+            if remember_device && !quick_pin_on {
                 if let Err(e) = KeyManager::save_to_keyring(&key) {
                     eprintln!("Warning: gagal menyimpan kunci ke keyring: {}", e);
                 }
@@ -122,6 +125,8 @@ pub async fn set_master_password(
     .map_err(|e| e.to_string())??;
 
     keys.set_key(key);
+    // Device lain (mobile) membaca salt + verifier dari user_metadata Supabase.
+    crate::commands::supabase::publish_e2e_config_background(db_publish);
     Ok(())
 }
 
@@ -133,7 +138,7 @@ pub async fn unlock(
     db: State<'_, Arc<DatabaseManager>>,
 ) -> Result<(), String> {
     let db = Arc::clone(&db);
-    let key = tokio::task::spawn_blocking(move || {
+    let (key, quick_pin_on) = tokio::task::spawn_blocking(move || {
         let salt_b64 = db
             .get_setting(SETTING_SALT)?
             .ok_or_else(|| "Master password belum diatur".to_string())?;
@@ -146,13 +151,15 @@ pub async fn unlock(
         if plain != VERIFIER_PLAINTEXT {
             return Err("Password salah".to_string());
         }
-        Ok::<_, String>(key)
+        let quick_pin_on = db.get_setting(SETTING_QUICK_PIN)?.as_deref() == Some("1");
+        Ok::<_, String>((key, quick_pin_on))
     })
     .await
     .map_err(|e| e.to_string())??;
 
-    // "Ingat device" bisa diaktifkan belakangan dari layar terkunci.
-    if remember_device.unwrap_or(false) {
+    // "Ingat device" bisa diaktifkan belakangan dari layar terkunci — kecuali
+    // quick PIN aktif: raw key di keyring akan membuat auto-unlock melewati PIN.
+    if remember_device.unwrap_or(false) && !quick_pin_on {
         if let Err(e) = KeyManager::save_to_keyring(&key) {
             eprintln!("Warning: gagal menyimpan kunci ke keyring: {}", e);
         }
@@ -247,6 +254,8 @@ pub async fn change_password(
             e
         ));
     }
+    // Cloud sudah memakai kunci baru — umumkan salt/verifier baru ke device lain.
+    crate::commands::supabase::publish_e2e_config_background(Arc::clone(&db));
     Ok(())
 }
 
@@ -404,6 +413,21 @@ pub async fn quick_pin_status(db: State<'_, Arc<DatabaseManager>>) -> Result<boo
     .map_err(|e| e.to_string())?
 }
 
+/// Bungkus kunci E2E dengan kunci turunan PIN (blob v2: KDF PIN yang diperkuat).
+/// Salt PIN di luar ciphertext (dibutuhkan untuk derive wrapper), kunci E2E di
+/// dalamnya. Verifikasi tetap lewat verifier DB saat unlock.
+fn wrap_key_with_pin(pin: &str, key: &Key) -> Result<String, String> {
+    let pin_salt = crypto::generate_salt();
+    let wrapper = Zeroizing::new(crypto::derive_pin_key(pin, &pin_salt)?);
+    let key_b64 = Zeroizing::new(b64_encode(key));
+    Ok(serde_json::json!({
+        "v": 2,
+        "s": b64_encode(&pin_salt),
+        "ct": crypto::encrypt(&wrapper, &key_b64)?,
+    })
+    .to_string())
+}
+
 #[tauri::command]
 pub async fn setup_quick_pin(
     pin: String,
@@ -418,32 +442,35 @@ pub async fn setup_quick_pin(
 
     let db = Arc::clone(&db);
     tokio::task::spawn_blocking(move || {
-        let pin_salt = crypto::generate_salt();
-        let wrapper = crypto::derive_key(&pin, &pin_salt)?;
-
-        // Blob: salt PIN di luar ciphertext (dibutuhkan untuk derive wrapper),
-        // kunci E2E di dalamnya. Verifikasi tetap lewat verifier DB saat unlock.
-        let blob = serde_json::json!({
-            "v": 1,
-            "s": b64_encode(&pin_salt),
-            "ct": crypto::encrypt(&wrapper, &b64_encode(&key))?,
-        })
-        .to_string();
-
+        let blob = wrap_key_with_pin(&pin, &key)?;
         KeyManager::save_quickpin_blob(&blob)?;
+
         // Raw key tidak boleh tersisa di keyring — kalau ada, auto-unlock
-        // akan melewati PIN. PIN kini menjadi pintunya.
+        // akan melewati PIN. Gagal dihapus = batalkan aktivasi PIN.
         if let Err(e) = KeyManager::delete_from_keyring() {
-            eprintln!("Warning: gagal menghapus raw key keyring: {}", e);
+            let _ = KeyManager::delete_quickpin();
+            return Err(format!(
+                "Gagal menghapus kunci tersimpan dari keychain ({}) — PIN tidak diaktifkan",
+                e
+            ));
         }
-        db.set_setting(SETTING_QUICK_PIN, "1")?;
+        if let Err(e) = db.set_setting(SETTING_QUICK_PIN, "1") {
+            let _ = KeyManager::delete_quickpin();
+            return Err(e);
+        }
         Ok::<_, String>(())
     })
     .await
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| e.to_string())??;
 
     keys.reset_pin_attempts();
     Ok(())
+}
+
+/// Matikan quick PIN di device ini (blob, hitungan gagal, dan flag DB).
+fn disable_quick_pin_blocking(db: &DatabaseManager) {
+    let _ = KeyManager::delete_quickpin();
+    let _ = db.set_setting(SETTING_QUICK_PIN, "0");
 }
 
 #[tauri::command]
@@ -454,63 +481,101 @@ pub async fn unlock_with_pin(
 ) -> Result<(), String> {
     validate_pin(&pin)?;
 
+    // Batas percobaan berlaku lintas restart (hitungan disimpan di keychain).
+    if keys.pin_attempts() >= QUICK_PIN_MAX_ATTEMPTS {
+        let db = Arc::clone(&db);
+        let _ = tokio::task::spawn_blocking(move || disable_quick_pin_blocking(&db)).await;
+        keys.reset_pin_attempts();
+        return Err("Fitur PIN dimatikan karena terlalu banyak percobaan salah. Gunakan master password.".to_string());
+    }
+
     let db = Arc::clone(&db);
     let db_cleanup = Arc::clone(&db);
-    let key = tokio::task::spawn_blocking(move || {
+    // Err((pesan, dihitung_sebagai_pin_salah))
+    let result = tokio::task::spawn_blocking(move || -> Result<Key, (String, bool)> {
         let blob = KeyManager::load_quickpin_blob()
-            .map_err(|_| "PIN cepat tidak aktif di device ini".to_string())?;
-        let parsed: serde_json::Value =
-            serde_json::from_str(&blob).map_err(|_| "Blob PIN korup".to_string())?;
+            .map_err(|_| ("PIN cepat tidak aktif di device ini".to_string(), false))?;
+        let parsed: serde_json::Value = serde_json::from_str(&blob)
+            .map_err(|_| ("Blob PIN korup".to_string(), false))?;
+        let version = parsed["v"].as_u64().unwrap_or(1);
         let salt_b64 = parsed["s"]
             .as_str()
-            .ok_or_else(|| "Blob PIN korup (salt)".to_string())?;
+            .ok_or_else(|| ("Blob PIN korup (salt)".to_string(), false))?;
         let ct = parsed["ct"]
             .as_str()
-            .ok_or_else(|| "Blob PIN korup (ct)".to_string())?;
+            .ok_or_else(|| ("Blob PIN korup (ct)".to_string(), false))?;
 
-        let pin_salt = b64_decode16(salt_b64)?;
-        let wrapper = crypto::derive_key(&pin, &pin_salt)?;
-        let key_b64 = crypto::decrypt(&wrapper, ct)?;
+        let pin_salt = b64_decode16(salt_b64).map_err(|e| (e, false))?;
+        let wrapper = Zeroizing::new(
+            match version {
+                1 => crypto::derive_key(&pin, &pin_salt),
+                2 => crypto::derive_pin_key(&pin, &pin_salt),
+                _ => return Err(("Versi blob PIN tidak dikenal".to_string(), false)),
+            }
+            .map_err(|e| (e, false))?,
+        );
+        // Dekripsi gagal = PIN salah (AEAD tidak lolos autentikasi).
+        let key_b64 = Zeroizing::new(
+            crypto::decrypt(&wrapper, ct).map_err(|_| ("PIN salah".to_string(), true))?,
+        );
 
-        // Kunci hasil unwrap wajib lolos verifier DB — menangkap PIN salah
-        // maupun kunci basi setelah ganti master password.
-        let raw = b64_decode(&key_b64)?;
+        let raw = Zeroizing::new(b64_decode(&key_b64).map_err(|e| (e, false))?);
         let key: Key = raw
+            .as_slice()
             .try_into()
-            .map_err(|_| "Blob PIN korup (panjang kunci)".to_string())?;
+            .map_err(|_| ("Blob PIN korup (panjang kunci)".to_string(), false))?;
 
-        let salt_b64 = db
-            .get_setting(SETTING_SALT)?
-            .ok_or_else(|| "Master password belum diatur".to_string())?;
-        let verifier = db
-            .get_setting(SETTING_VERIFIER)?
-            .ok_or_else(|| "Verifier E2E tidak ditemukan".to_string())?;
-        let plain = crypto::decrypt(&key, &verifier)?;
-        if plain != VERIFIER_PLAINTEXT {
-            // Kunci basi (master password pernah diganti) — buang fitur PIN.
-            let _ = KeyManager::delete_quickpin();
-            let _ = db.set_setting(SETTING_QUICK_PIN, "0");
-            return Err("Kunci PIN sudah basi — silakan set ulang PIN setelah unlock".to_string());
+        // Kunci hasil unwrap wajib lolos verifier DB — menangkap kunci basi
+        // setelah ganti master password.
+        let salt_ok = db.get_setting(SETTING_SALT).map_err(|e| (e, false))?.is_some();
+        if !salt_ok {
+            return Err(("Master password belum diatur".to_string(), false));
         }
-        Ok::<_, String>(key)
+        let verifier = db
+            .get_setting(SETTING_VERIFIER)
+            .map_err(|e| (e, false))?
+            .ok_or_else(|| ("Verifier E2E tidak ditemukan".to_string(), false))?;
+        let verified = crypto::decrypt(&key, &verifier)
+            .map(|p| p == VERIFIER_PLAINTEXT)
+            .unwrap_or(false);
+        if !verified {
+            // Kunci basi (master password pernah diganti) — buang fitur PIN.
+            disable_quick_pin_blocking(&db);
+            return Err((
+                "Kunci PIN sudah basi — silakan set ulang PIN setelah unlock".to_string(),
+                false,
+            ));
+        }
+
+        // Migrasi diam-diam blob v1 -> v2 (KDF PIN lebih kuat).
+        if version < 2 {
+            match wrap_key_with_pin(&pin, &key) {
+                Ok(b) => {
+                    if let Err(e) = KeyManager::save_quickpin_blob(&b) {
+                        eprintln!("Warning: gagal memperbarui blob PIN: {}", e);
+                    }
+                }
+                Err(e) => eprintln!("Warning: gagal membungkus ulang kunci PIN: {}", e),
+            }
+        }
+        Ok(key)
     })
     .await
     .map_err(|e| e.to_string())?;
 
-    match key {
+    match result {
         Ok(key) => {
             keys.reset_pin_attempts();
             keys.set_key(key);
             Ok(())
         }
-        Err(e) => {
+        Err((e, false)) => Err(e),
+        Err((e, true)) => {
             let attempts = keys.fail_pin();
             if attempts >= QUICK_PIN_MAX_ATTEMPTS {
                 // Brute-force brake: matikan PIN, kembali ke master password.
-                let db2 = db_cleanup;
                 let _ = tokio::task::spawn_blocking(move || {
-                    let _ = KeyManager::delete_quickpin();
-                    let _ = db2.set_setting(SETTING_QUICK_PIN, "0");
+                    disable_quick_pin_blocking(&db_cleanup)
                 })
                 .await;
                 keys.reset_pin_attempts();
@@ -519,6 +584,8 @@ pub async fn unlock_with_pin(
                     e, attempts
                 ));
             }
+            // Jeda progresif memperlambat tebakan beruntun.
+            tokio::time::sleep(std::time::Duration::from_millis(750 * attempts as u64)).await;
             Err(format!(
                 "{} (PIN salah {}x dari {})",
                 e, attempts, QUICK_PIN_MAX_ATTEMPTS

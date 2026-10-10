@@ -98,12 +98,22 @@ pub async fn get_app_setting(
         .map_err(|e| e.to_string())?
 }
 
+/// Setting yang hanya boleh diubah backend: material kripto (salt, verifier,
+/// flag quick PIN) dan state internal RDP. Menimpa salt/verifier dari frontend
+/// akan membuat seluruh catatan tidak bisa didekripsi.
+fn is_protected_setting(key: &str) -> bool {
+    (key.starts_with("e2e_") && key != crypto::SETTING_DECLINED) || key.starts_with("rdp_")
+}
+
 #[tauri::command]
 pub async fn set_app_setting(
     key: String,
     value: String,
     db: State<'_, Arc<DatabaseManager>>,
 ) -> Result<(), String> {
+    if is_protected_setting(&key) {
+        return Err(format!("Setting '{}' tidak boleh diubah dari UI", key));
+    }
     let db = Arc::clone(&db);
     tokio::task::spawn_blocking(move || db.set_setting(&key, &value))
         .await
@@ -133,4 +143,19 @@ pub async fn list_snippets(
     }
 
     Ok(snippets)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_protected_setting;
+
+    #[test]
+    fn crypto_and_rdp_settings_are_protected() {
+        assert!(is_protected_setting("e2e_salt"));
+        assert!(is_protected_setting("e2e_verifier"));
+        assert!(is_protected_setting("e2e_quickpin"));
+        assert!(is_protected_setting("rdp_pending_creds"));
+        assert!(!is_protected_setting("e2e_declined"));
+        assert!(!is_protected_setting("theme_mode"));
+    }
 }

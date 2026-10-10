@@ -15,6 +15,11 @@ const ARGON2_M_KIB: u32 = 19456; // 19 MiB (OWASP)
 const ARGON2_T: u32 = 2;
 const ARGON2_P: u32 = 1;
 
+// Kunci pembungkus quick PIN: ruang PIN hanya 10^6, jadi tiap tebakan offline
+// dibuat jauh lebih mahal daripada KDF master password.
+const PIN_ARGON2_M_KIB: u32 = 65536; // 64 MiB
+const PIN_ARGON2_T: u32 = 4;
+
 pub type Key = [u8; 32];
 
 pub fn is_encrypted(value: &str) -> bool {
@@ -29,8 +34,16 @@ pub fn generate_salt() -> [u8; 16] {
 }
 
 pub fn derive_key(password: &str, salt: &[u8; 16]) -> Result<Key, String> {
-    let params = Params::new(ARGON2_M_KIB, ARGON2_T, ARGON2_P, Some(32))
-        .map_err(|e| e.to_string())?;
+    derive_key_with(password, salt, ARGON2_M_KIB, ARGON2_T)
+}
+
+/// KDF untuk kunci pembungkus quick PIN (blob v2).
+pub fn derive_pin_key(pin: &str, salt: &[u8; 16]) -> Result<Key, String> {
+    derive_key_with(pin, salt, PIN_ARGON2_M_KIB, PIN_ARGON2_T)
+}
+
+fn derive_key_with(password: &str, salt: &[u8; 16], m_kib: u32, t: u32) -> Result<Key, String> {
+    let params = Params::new(m_kib, t, ARGON2_P, Some(32)).map_err(|e| e.to_string())?;
     let argon = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
     let mut key = [0u8; 32];
     argon
@@ -118,5 +131,13 @@ mod tests {
     fn decrypt_rejects_plaintext() {
         let key = derive_key("x", &[3u8; 16]).unwrap();
         assert!(decrypt(&key, "bukan ciphertext").is_err());
+    }
+
+    #[test]
+    fn pin_key_differs_from_master_kdf() {
+        let salt = [4u8; 16];
+        let pin_key = derive_pin_key("123456", &salt).unwrap();
+        assert_eq!(pin_key, derive_pin_key("123456", &salt).unwrap());
+        assert_ne!(pin_key, derive_key("123456", &salt).unwrap());
     }
 }

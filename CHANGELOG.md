@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.36] - 2026-10-12
+
+### ✨ Fitur Baru
+- **Hash Generator** di Tools: MD5, SHA-1, SHA-256, SHA-384 & SHA-512 sekaligus untuk teks (UTF-8) atau file (klik / seret & lepas, diproses lokal di memori). Mendukung HMAC dengan kunci rahasia, output hex / HEX / Base64, salin per baris atau semua, dan verifikasi checksum (hash yang cocok disorot hijau). Bisa dibuka dari menu Tools, tab Tools Workspace, atau Command Palette.
+
+### 🐛 Perbaikan
+- **Jendela langsung maximize saat dibuka** — ukuran tersimpan tetap dipakai untuk "Restore Down".
+- **Tombol window tidak lagi hilang** saat jendela sempit: tombol cepat, kotak pencarian, dan teks brand di titlebar disembunyikan otomatis sehingga Minimize / Maximize / Close selalu terlihat.
+
+---
+
 ## [0.1.35] - 2026-10-10
 
 ### 🔒 Keamanan

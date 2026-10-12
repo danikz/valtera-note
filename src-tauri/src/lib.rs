@@ -79,6 +79,9 @@ pub fn run() {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_decorations(false);
                 let _ = window.set_shadow(true);
+                // Selalu buka dalam keadaan maximize. Ukuran tersimpan dari
+                // window-state tetap dipakai sebagai ukuran "Restore Down".
+                let _ = window.maximize();
             }
             Ok(())
         })

@@ -11,7 +11,8 @@
     Sparkles,
     Sliders,
     Image as ImageIcon,
-    Terminal as TerminalIcon
+    Terminal as TerminalIcon,
+    Hash
   } from 'lucide-svelte';
   import JsonToolPage from './JsonToolPage.svelte';
   import FaviconToolPage from './FaviconToolPage.svelte';
@@ -19,10 +20,11 @@
   import Base64ToolPage from './Base64ToolPage.svelte';
   import UrlToolPage from './UrlToolPage.svelte';
   import UuidToolPage from './UuidToolPage.svelte';
+  import HashToolPage from './HashToolPage.svelte';
   import SqliteToolPage from './SqliteToolPage.svelte';
   import SshPage from '../Ssh/SshPage.svelte';
 
-  export type ToolType = 'json' | 'sqlite' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid' | 'ssh';
+  export type ToolType = 'json' | 'sqlite' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid' | 'hash' | 'ssh';
 
   let { 
     activeTool = 'json',
@@ -86,6 +88,12 @@
       label: 'UUID Generator', 
       icon: Key, 
       iconColor: 'text-amber-400' 
+    },
+    {
+      id: 'hash',
+      label: 'Hash Generator',
+      icon: Hash,
+      iconColor: 'text-rose-400'
     }
   ];
 
@@ -181,6 +189,8 @@
       <UrlToolPage />
     {:else if activeTool === 'uuid'}
       <UuidToolPage />
+    {:else if activeTool === 'hash'}
+      <HashToolPage />
     {/if}
   </main>
 </div>

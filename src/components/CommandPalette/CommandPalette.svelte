@@ -27,6 +27,7 @@
     Binary,
     Globe,
     Key,
+    Hash,
     Info,
     Settings,
     Palette,
@@ -36,7 +37,7 @@
   } from 'lucide-svelte';
   import { themeStore } from '../../stores/themeStore.svelte';
 
-  export type ToolType = 'json' | 'sqlite' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid' | 'ssh';
+  export type ToolType = 'json' | 'sqlite' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid' | 'hash' | 'ssh';
 
   let { 
     isOpen, 
@@ -195,6 +196,15 @@
       icon: Key,
       action: () => {
         if (onOpenTool) onOpenTool('uuid');
+      }
+    },
+    {
+      id: 'devtools-hash',
+      title: 'Tools: Hash Generator (MD5, SHA-1, SHA-256, SHA-512, HMAC)',
+      shortcut: '',
+      icon: Hash,
+      action: () => {
+        if (onOpenTool) onOpenTool('hash');
       }
     },
     {

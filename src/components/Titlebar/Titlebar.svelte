@@ -26,6 +26,7 @@
     Binary,
     Globe,
     Key,
+    Hash,
     Layers,
     Terminal as TerminalIcon,
     Loader2,
@@ -38,7 +39,7 @@
   } from 'lucide-svelte';
   import { APP_VERSION } from '../../constants/app';
 
-  export type ToolType = 'json' | 'sqlite' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid' | 'ssh';
+  export type ToolType = 'json' | 'sqlite' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid' | 'hash' | 'ssh';
 
   let { 
     onOpenSyncModal, 
@@ -245,7 +246,7 @@
   <div class="flex items-center space-x-2 pointer-events-auto flex-shrink-0">
     <div class="flex items-center space-x-2 px-2 py-0.5 rounded bg-blue-600/10 text-blue-300 border border-blue-500/20 text-xs font-semibold flex-shrink-0">
       <img src="/logo.png" alt="Valtera Logo" class="w-4 h-4 object-contain" />
-      <span>Valtera Note</span>
+      <span class="hidden md:inline">Valtera Note</span>
     </div>
 
     <!-- Sidebar Toggle (Right above the sidebar) -->
@@ -524,6 +525,17 @@
                 <span class="whitespace-nowrap">UUID Generator (Batch)</span>
               </span>
             </button>
+
+            <!-- Hash Generator -->
+            <button 
+              onclick={() => { if (onOpenTool) onOpenTool('hash'); closeMenu(); }} 
+              class="w-full px-3.5 py-1.5 flex items-center justify-between hover:bg-slate-800 text-left cursor-pointer transition-colors whitespace-nowrap {activeView === 'tools' && activeTool === 'hash' ? 'text-rose-400 bg-rose-600/10 font-medium' : ''}"
+            >
+              <span class="flex items-center space-x-2.5 whitespace-nowrap shrink-0">
+                <Hash class="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                <span class="whitespace-nowrap">Hash Generator (MD5/SHA)</span>
+              </span>
+            </button>
           </div>
         {/if}
       </div>
@@ -572,7 +584,7 @@
   <!-- Center: Command Palette Trigger Bar (Click to search or Ctrl+K) -->
   <button 
     onclick={onOpenCommandPalette}
-    class="flex items-center space-x-2 px-3 py-1 rounded bg-slate-950/70 hover:bg-slate-800/80 border border-slate-800/80 text-xs text-slate-400 hover:text-slate-200 transition-colors cursor-pointer pointer-events-auto max-w-xs w-full justify-between mx-2"
+    class="hidden md:flex items-center space-x-2 px-3 py-1 rounded bg-slate-950/70 hover:bg-slate-800/80 border border-slate-800/80 text-xs text-slate-400 hover:text-slate-200 transition-colors cursor-pointer pointer-events-auto max-w-xs min-w-0 w-full justify-between mx-2"
     title="Search commands and features (Ctrl+K)"
   >
     <div class="flex items-center space-x-1.5 truncate">
@@ -585,7 +597,7 @@
   <!-- Right: Quick Action Groups, Supabase Sync Status & Window Buttons -->
   <div class="flex items-center space-x-1.5 pointer-events-auto flex-shrink-0 h-full self-stretch">
     <!-- Group: File Operations (New, Open, Save) -->
-    <div class="flex items-center bg-slate-950/60 border border-slate-800/80 rounded-md p-0.5 space-x-0.5">
+    <div class="hidden lg:flex items-center bg-slate-950/60 border border-slate-800/80 rounded-md p-0.5 space-x-0.5">
       <button 
         onclick={() => {
           if (onSwitchToNotes) onSwitchToNotes();
@@ -621,7 +633,7 @@
     </div>
 
     <!-- Group: Editor Content Helpers (Emoji, Snippets) -->
-    <div class="flex items-center bg-slate-950/60 border border-slate-800/80 rounded-md p-0.5 space-x-0.5">
+    <div class="hidden lg:flex items-center bg-slate-950/60 border border-slate-800/80 rounded-md p-0.5 space-x-0.5">
       {#if onOpenEmojiPicker}
         <button 
           onclick={onOpenEmojiPicker}

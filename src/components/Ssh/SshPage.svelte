@@ -18,9 +18,17 @@
     Monitor,
     X
   } from 'lucide-svelte';
-  import { Terminal } from '@xterm/xterm';
-  import { FitAddon } from '@xterm/addon-fit';
+  import type { Terminal } from '@xterm/xterm';
   import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+  import {
+    ensureSshTermListeners,
+    getSshTerm,
+    sshTermIds,
+    attachSshTerm,
+    detachSshTerm,
+    disposeSshTerm,
+    beginSshReplay
+  } from './sshTerminals';
   import { ipc } from '../../services/ipc';
   import { copyText } from '../../utils/clipboard';
   import { sshStore, consumeSshConnectRequest, sshSyncState, syncSshConnections, rememberSshDeletedId } from '../../stores/sshStore.svelte';
@@ -131,16 +139,10 @@
   let connectError = $state('');
   let unlisteners: UnlistenFn[] = [];
 
-  // Instance terminal per sesi — tidak perlu reaktif, cukup diakses via Map.
-  // `ready` false sampai replay selesai ditulis; data live yang datang lebih
-  // cepat ditahan di `queue` agar urutan output tetap benar.
-  const terms = new Map<
-    string,
-    { term: Terminal; fitAddon: FitAddon; ready: boolean; queue: string[] }
-  >();
-
+  // Instance terminal per sesi hidup di ./sshTerminals (level modul) supaya
+  // tidak ikut dibuang saat halaman ini di-unmount.
   function activeTerm(): Terminal | null {
-    return activeTabId ? (terms.get(activeTabId)?.term ?? null) : null;
+    return activeTabId ? (getSshTerm(activeTabId)?.term ?? null) : null;
   }
 
   // Pengelompokan koneksi per workspace (nama terurut; tanpa-workspace paling bawah).
@@ -178,6 +180,7 @@
   onMount(async () => {
     e2eState = await ipc.e2eStatus();
     loadCustomWorkspaces();
+    await ensureSshTermListeners().catch((e) => console.warn('Gagal memasang listener SSH:', e));
     await refreshList();
     await restoreTabs();
     // Sinkron ke cloud (pull koneksi perangkat lain + push yang belum terkirim),
@@ -188,13 +191,10 @@
         .catch(() => {});
     }
     unlisteners.push(
+      // Penulisan ke terminal ditangani listener global di ./sshTerminals;
+      // di sini hanya penanda tab belum dibaca.
       await listen<{ id: string; data: string }>('ssh-data', (e) => {
-        const entry = terms.get(e.payload.id);
-        if (entry) {
-          if (entry.ready) entry.term.write(e.payload.data);
-          else entry.queue.push(e.payload.data);
-          if (e.payload.id !== activeTabId) markUnread(e.payload.id);
-        }
+        if (e.payload.id !== activeTabId) markUnread(e.payload.id);
       })
     );
     unlisteners.push(
@@ -203,7 +203,6 @@
         if (!tab) return;
         if (e.payload.status === 'closed' || e.payload.status === 'disconnected') {
           tab.closed = true;
-          terms.get(e.payload.id)?.term.writeln(`\r\n\x1b[33m[Sesi ditutup]\x1b[0m`);
         } else if (e.payload.status === 'connected') {
           tab.closed = false;
         }
@@ -255,13 +254,18 @@
   }
 
   // Sesi yang masih hidup di Rust (mis. karena sempat keluar dari halaman ini)
-  // dikembalikan sebagai tab — terminalnya baru, tapi sesinya sama.
+  // dikembalikan sebagai tab — terminalnya pun sama (dari ./sshTerminals),
+  // kecuali setelah webview dimuat ulang: baru dibuat lalu diisi replay.
   async function restoreTabs() {
     let ids: string[] = [];
     try {
       ids = await ipc.sshActiveSessions();
     } catch {
       ids = [];
+    }
+    // Terminal sesi yang sudah tidak hidup di Rust tidak akan punya tab lagi.
+    for (const sid of sshTermIds()) {
+      if (!ids.includes(sid)) disposeSshTerm(sid);
     }
     for (const sid of ids) {
       if (tabs.some((t) => t.sessionId === sid)) continue;
@@ -552,8 +556,7 @@
     try {
       if (existing) {
         // Tab bekas sesi yang sudah mati — buang dulu agar tab barunya bersih.
-        terms.get(conn.id)?.term.dispose();
-        terms.delete(conn.id);
+        disposeSshTerm(conn.id);
         tabs = tabs.filter((t) => t.sessionId !== conn.id);
         await tick();
       }
@@ -595,7 +598,7 @@
     showForm = false;
     await tick();
     fitActive();
-    terms.get(sessionId)?.term.focus();
+    getSshTerm(sessionId)?.term.focus();
     return sessionId;
   }
 
@@ -606,7 +609,7 @@
     if (tab) tab.unread = false;
     await tick();
     fitActive();
-    terms.get(sessionId)?.term.focus();
+    getSshTerm(sessionId)?.term.focus();
   }
 
   async function closeTab(sessionId: string) {
@@ -614,8 +617,7 @@
     if (tab && !tab.closed) {
       await ipc.sshDisconnect(sessionId).catch(() => {});
     }
-    terms.get(sessionId)?.term.dispose();
-    terms.delete(sessionId);
+    disposeSshTerm(sessionId);
     const idx = tabs.findIndex((t) => t.sessionId === sessionId);
     tabs = tabs.filter((t) => t.sessionId !== sessionId);
     if (activeTabId === sessionId) {
@@ -632,14 +634,17 @@
 
   function fitActive() {
     if (!activeTabId || !terminalAreaVisible()) return;
-    const entry = terms.get(activeTabId);
+    const entry = getSshTerm(activeTabId);
     if (!entry) return;
     try {
       entry.fitAddon.fit();
       ipc.sshResize(activeTabId, entry.term.cols, entry.term.rows);
     } catch {
       /* abaikan resize saat container 0 */
+      return;
     }
+    // Terminal baru: replay baru dijalankan setelah ukurannya benar.
+    beginSshReplay(activeTabId);
   }
 
   function terminalAreaVisible(): boolean {
@@ -658,75 +663,127 @@
     };
   }
 
-  // Svelte action: satu node div per tab; terminal dibuat saat node mount
-  // dan dibuang saat tab ditutup / halaman ditinggalkan (sesi tetap di Rust).
-  // Terminal baru dimulai kosong — isi layar terakhir sesi dipulihkan dari
-  // replay buffer Rust supaya attach ulang terasa melanjutkan, bukan blank.
+  // Svelte action: satu node div per tab. Terminal sesi dipasang ke node ini
+  // saat mount dan hanya dilepas dari DOM saat node hilang — dibuang hanya
+  // lewat closeTab/connect (disposeSshTerm), bukan saat halaman ditinggalkan.
   function mountTerminal(el: HTMLDivElement, sessionId: string) {
-    const term = new Terminal({
-      fontFamily: 'ui-monospace, "Cascadia Mono", Consolas, monospace',
-      fontSize: 13,
-      cursorBlink: true,
-      theme: { background: '#0b0f19', foreground: '#e2e8f0' }
-    });
-    const fitAddon = new FitAddon();
-    term.loadAddon(fitAddon);
-    term.attachCustomKeyEventHandler(customKeyHandler);
-    term.open(el);
-    fitAddon.fit();
-    term.onData((data) => {
-      ipc.sshWrite(sessionId, data);
-    });
+    const entry = attachSshTerm(el, sessionId);
+    // Handler dipasang ulang tiap mount: yang lama menutup state komponen
+    // yang sudah di-unmount (activeTabId, dsb.).
+    entry.term.attachCustomKeyEventHandler(customKeyHandler);
     el.addEventListener('contextmenu', openCtxMenu);
-    const entry = { term, fitAddon, ready: false, queue: [] as string[] };
-    terms.set(sessionId, entry);
-    ipc
-      .sshReplay(sessionId)
-      .then((replay) => {
-        if (replay && !entry.ready) term.write(replay);
-      })
-      .catch(() => {})
-      .finally(() => {
-        entry.ready = true;
-        for (const chunk of entry.queue) term.write(chunk);
-        entry.queue.length = 0;
-      });
+    el.addEventListener('paste', interceptPaste, true);
     return {
       destroy() {
         el.removeEventListener('contextmenu', openCtxMenu);
-        // closeTab/connect mungkin sudah membuang & menghapus entry —
-        // jangan dispose dua kali terminal yang sama.
-        const entry = terms.get(sessionId);
-        if (entry && entry.term === term) {
-          term.dispose();
-          terms.delete(sessionId);
-        }
+        el.removeEventListener('paste', interceptPaste, true);
+        detachSshTerm(el, sessionId);
       }
     };
   }
 
   // ===== Paste & clipboard terminal =====
 
-  // Clipboard Windows pakai CRLF; terminal mengharapkan CR per baris.
-  function normalizePaste(text: string): string {
-    return text.replace(/\r\n/g, '\r').replace(/\n/g, '\r');
+  // Semua jalur tempel (Ctrl+V, Ctrl+Shift+V, klik kanan) lewat pratinjau
+  // dulu — isi clipboard bisa berbeda dari yang terlihat saat disalin
+  // (pastejacking), dan baris baru di dalamnya langsung mengeksekusi perintah.
+  interface PastePreview {
+    sessionId: string;
+    tabLabel: string;
+    text: string; // sudah bersih dari karakter kontrol, baris baru = \n
+    removedControls: number;
+    trailingNewline: boolean;
+    bracketed: boolean; // shell mendukung bracketed paste → baris tidak langsung jalan
+    risky: string[];
   }
 
-  async function sendPaste(text: string) {
-    if (!text || !activeTabId) return;
-    const normalized = normalizePaste(text);
-    const lineCount = normalized.split('\r').length;
-    if (
-      lineCount > 3 &&
-      !confirm(`Tempel ${lineCount} baris ke terminal?\nBaris akan langsung dieksekusi satu per satu (kecuali shell mendukung bracketed paste).`)
-    ) {
-      return;
+  let pastePreview = $state<PastePreview | null>(null);
+  let trimTrailingNewline = $state(true);
+
+  const RISKY_PATTERNS: [RegExp, string][] = [
+    [/\brm\s+-[a-z]*r[a-z]*f|\brm\s+-[a-z]*f[a-z]*r/i, 'rm -rf (hapus paksa rekursif)'],
+    [/\bsudo\b/, 'sudo (hak akses root)'],
+    [/\b(curl|wget)\b[^|\n]*\|\s*(sudo\s+)?(ba|z)?sh\b/, 'unduh lalu langsung dijalankan (curl | sh)'],
+    [/\bmkfs(\.\w+)?\b|\bdd\s+[^\n]*\bof=\/dev\//, 'format / tulis langsung ke disk'],
+    [/\bchmod\s+(-R\s+)?777\b/, 'chmod 777'],
+    [/:\(\)\s*\{\s*:\|:&\s*\};:/, 'fork bomb'],
+    [/>\s*\/dev\/sd[a-z]/, 'menimpa perangkat disk'],
+    [/\b(shutdown|reboot|halt|poweroff)\b/, 'mematikan / me-restart server']
+  ];
+
+  function requestPaste(raw: string) {
+    if (!raw || !activeTabId) return;
+    const entry = getSshTerm(activeTabId);
+    if (!entry) return;
+    // Karakter kontrol (ESC, BEL, dsb.) tidak terlihat di clipboard tapi bisa
+    // menjalankan escape sequence / perintah tersembunyi — selalu dibuang.
+    // Tab & baris baru dipertahankan.
+    let removedControls = 0;
+    const text = raw
+      .replace(/\r\n?/g, '\n')
+      .replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, () => {
+        removedControls++;
+        return '';
+      });
+    if (!text) return;
+    pastePreview = {
+      sessionId: activeTabId,
+      tabLabel: tabs.find((t) => t.sessionId === activeTabId)?.label ?? '',
+      text,
+      removedControls,
+      trailingNewline: text.endsWith('\n'),
+      bracketed: entry.term.modes.bracketedPasteMode,
+      risky: RISKY_PATTERNS.filter(([re]) => re.test(text)).map(([, desc]) => desc)
+    };
+    trimTrailingNewline = true;
+  }
+
+  const pastePreviewText = $derived(
+    pastePreview && pastePreview.trailingNewline && trimTrailingNewline
+      ? pastePreview.text.replace(/\n+$/, '')
+      : (pastePreview?.text ?? '')
+  );
+  const pastePreviewLines = $derived(pastePreviewText.split('\n'));
+
+  function confirmPaste() {
+    if (!pastePreview) return;
+    const term = getSshTerm(pastePreview.sessionId)?.term;
+    const text = pastePreviewText;
+    pastePreview = null;
+    if (!term || !text) return;
+    // term.paste mengubah \n → \r dan membungkus bracketed paste bila
+    // shell mengaktifkannya; hasilnya dikirim lewat onData ke sesi.
+    term.paste(text);
+    term.focus();
+  }
+
+  function cancelPaste() {
+    const sid = pastePreview?.sessionId;
+    pastePreview = null;
+    if (sid) getSshTerm(sid)?.term.focus();
+  }
+
+  function pasteDialogKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelPaste();
+    } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      confirmPaste();
     }
-    const CHUNK = 4096;
-    for (let i = 0; i < normalized.length; i += CHUNK) {
-      await ipc.sshWrite(activeTabId, normalized.slice(i, i + CHUNK));
-      if (i + CHUNK < normalized.length) await new Promise((r) => setTimeout(r, 20));
-    }
+  }
+
+  // Svelte action: fokus ke elemen saat muncul.
+  function autofocus(el: HTMLElement) {
+    el.focus();
+  }
+
+  // Tempel bawaan browser/xterm (Ctrl+V) dicegat di fase capture sebelum
+  // sampai ke textarea xterm, lalu dialihkan ke pratinjau.
+  function interceptPaste(e: ClipboardEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    requestPaste(e.clipboardData?.getData('text/plain') ?? '');
   }
 
   // Ctrl+C cerdas: ada seleksi = salin, tanpa seleksi = SIGINT.
@@ -737,7 +794,7 @@
     if (ctrl && e.shiftKey && e.key.toLowerCase() === 'v') {
       navigator.clipboard
         .readText()
-        .then((t) => sendPaste(t))
+        .then((t) => requestPaste(t))
         .catch(() => {});
       return false;
     }
@@ -760,7 +817,7 @@
   async function ctxPaste() {
     ctxMenu = null;
     const text = await navigator.clipboard.readText().catch(() => '');
-    await sendPaste(text);
+    requestPaste(text);
   }
 
   async function ctxCopy() {
@@ -1063,6 +1120,93 @@
               >
                 Bersihkan Layar
               </button>
+            </div>
+          {/if}
+          {#if pastePreview}
+            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+            <div
+              class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Pratinjau tempel ke terminal"
+              tabindex="-1"
+              onkeydown={pasteDialogKeydown}
+            >
+              <div class="w-full max-w-2xl max-h-[80vh] flex flex-col rounded-xl bg-slate-900 border border-slate-700 shadow-2xl text-xs text-slate-200">
+                <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between gap-3">
+                  <div class="min-w-0">
+                    <div class="text-sm font-semibold text-slate-100">Tempel ke terminal?</div>
+                    <div class="text-[11px] text-slate-500 truncate">
+                      {pastePreview.tabLabel} · {pastePreviewLines.length} baris · {pastePreviewText.length} karakter
+                    </div>
+                  </div>
+                  <button onclick={cancelPaste} class="p-1 rounded hover:bg-slate-800 text-slate-400 cursor-pointer" aria-label="Batal">
+                    <X class="w-4 h-4" />
+                  </button>
+                </div>
+
+                {#if pastePreview.risky.length > 0 || pastePreview.removedControls > 0 || (pastePreviewLines.length > 1 && !pastePreview.bracketed)}
+                  <div class="px-4 pt-3 space-y-1.5">
+                    {#if pastePreview.risky.length > 0}
+                      <div class="flex gap-2 px-2.5 py-2 rounded-lg bg-rose-950/50 border border-rose-800/60 text-rose-200">
+                        <AlertTriangle class="w-3.5 h-3.5 flex-shrink-0 mt-px" />
+                        <span>Berisi perintah berisiko: {pastePreview.risky.join(', ')}.</span>
+                      </div>
+                    {/if}
+                    {#if pastePreviewLines.length > 1 && !pastePreview.bracketed}
+                      <div class="flex gap-2 px-2.5 py-2 rounded-lg bg-amber-950/40 border border-amber-800/50 text-amber-200">
+                        <AlertTriangle class="w-3.5 h-3.5 flex-shrink-0 mt-px" />
+                        <span>Shell tidak memakai bracketed paste — setiap baris langsung dijalankan begitu ditempel.</span>
+                      </div>
+                    {/if}
+                    {#if pastePreview.removedControls > 0}
+                      <div class="flex gap-2 px-2.5 py-2 rounded-lg bg-amber-950/40 border border-amber-800/50 text-amber-200">
+                        <AlertTriangle class="w-3.5 h-3.5 flex-shrink-0 mt-px" />
+                        <span>{pastePreview.removedControls} karakter kontrol tersembunyi dibuang dari isi clipboard.</span>
+                      </div>
+                    {/if}
+                  </div>
+                {/if}
+
+                <div class="m-4 flex-1 min-h-0 overflow-auto rounded-lg bg-[#0b0f19] border border-slate-800">
+                  <table class="font-mono text-[12px] leading-5 border-collapse">
+                    <tbody>
+                      {#each pastePreviewLines as line, i}
+                        <tr>
+                          <td class="pl-3 pr-3 text-right align-top text-slate-600 select-none">{i + 1}</td>
+                          <td class="pr-3 whitespace-pre text-slate-200">{line || ' '}</td>
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="px-4 py-3 border-t border-slate-800 flex items-center justify-between gap-3">
+                  {#if pastePreview.trailingNewline}
+                    <label class="flex items-center gap-2 text-slate-400 cursor-pointer select-none">
+                      <input type="checkbox" bind:checked={trimTrailingNewline} class="accent-blue-600" />
+                      Buang baris baru di akhir (jangan langsung Enter)
+                    </label>
+                  {:else}
+                    <span class="text-[11px] text-slate-500">Ctrl+Enter tempel · Esc batal</span>
+                  {/if}
+                  <div class="flex gap-2 flex-shrink-0">
+                    <button
+                      onclick={cancelPaste}
+                      class="px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 cursor-pointer"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      use:autofocus
+                      onclick={confirmPaste}
+                      class="px-3 py-1.5 rounded-lg font-semibold text-white cursor-pointer {pastePreview.risky.length > 0 ? 'bg-rose-600 hover:bg-rose-500' : 'bg-blue-600 hover:bg-blue-500'}"
+                    >
+                      Tempel
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           {/if}
         </div>

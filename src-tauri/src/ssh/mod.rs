@@ -2,10 +2,15 @@
 //! lewat Tauri events. Satu sesi = satu koneksi (MVP); kredensial diterima
 //! sudah terdekripsi di sisi frontend (E2E tetap berlaku di penyimpanan).
 
+pub mod sftp;
+
 use std::collections::HashMap;
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex as StdMutex};
 
 use russh::client::{self, Handle};
+use russh::ChannelId;
+use russh_sftp::client::SftpSession;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::Mutex;
 
@@ -47,6 +52,16 @@ pub struct ClientHandler {
     app: AppHandle,
     session_id: String,
     replay: Arc<ReplayBuffer>,
+    // russh memanggil handler untuk data SEMUA channel di koneksi ini. Selain
+    // shell ada channel SFTP (data biner) — hanya channel shell yang boleh
+    // masuk ke terminal / replay dan menandai sesi tertutup.
+    shell_channel: Arc<StdMutex<Option<ChannelId>>>,
+}
+
+impl ClientHandler {
+    fn is_shell(&self, channel: ChannelId) -> bool {
+        *self.shell_channel.lock().unwrap() == Some(channel)
+    }
 }
 
 #[async_trait::async_trait]
@@ -64,10 +79,13 @@ impl client::Handler for ClientHandler {
 
     async fn data(
         &mut self,
-        _channel: russh::ChannelId,
+        channel: russh::ChannelId,
         data: &[u8],
         _session: &mut client::Session,
     ) -> Result<(), Self::Error> {
+        if !self.is_shell(channel) {
+            return Ok(());
+        }
         self.replay.push(data);
         let _ = self.app.emit(
             "ssh-data",
@@ -78,11 +96,14 @@ impl client::Handler for ClientHandler {
 
     async fn extended_data(
         &mut self,
-        _channel: russh::ChannelId,
+        channel: russh::ChannelId,
         _ext: u32,
         data: &[u8],
         _session: &mut client::Session,
     ) -> Result<(), Self::Error> {
+        if !self.is_shell(channel) {
+            return Ok(());
+        }
         self.replay.push(data);
         let _ = self.app.emit(
             "ssh-data",
@@ -93,9 +114,12 @@ impl client::Handler for ClientHandler {
 
     async fn channel_close(
         &mut self,
-        _channel: russh::ChannelId,
+        channel: russh::ChannelId,
         _session: &mut client::Session,
     ) -> Result<(), Self::Error> {
+        if !self.is_shell(channel) {
+            return Ok(());
+        }
         let _ = self.app.emit(
             "ssh-status",
             serde_json::json!({ "id": self.session_id, "status": "closed" }),
@@ -109,11 +133,16 @@ pub struct ActiveSession {
     pub channel: russh::Channel<russh::client::Msg>,
     pub label: String,
     pub replay: Arc<ReplayBuffer>,
+    /// Sesi SFTP di atas koneksi yang sama — dibuka saat panel file
+    /// pertama kali dipakai (lihat `sftp::sftp_for`).
+    pub sftp: Arc<Mutex<Option<Arc<SftpSession>>>>,
 }
 
 #[derive(Default)]
 pub struct SshManager {
     pub sessions: Mutex<HashMap<String, ActiveSession>>,
+    /// Flag pembatalan per transfer SFTP yang sedang berjalan.
+    pub transfers: StdMutex<HashMap<String, Arc<AtomicBool>>>,
 }
 
 #[derive(serde::Deserialize)]
@@ -163,10 +192,12 @@ pub async fn open_session(
     let config = Arc::new(client::Config::default());
     let addr = (p.host.clone(), p.port);
     let replay = Arc::new(ReplayBuffer::new(128 * 1024));
+    let shell_channel = Arc::new(StdMutex::new(None));
     let handler = ClientHandler {
         app: app.clone(),
         session_id: p.id.clone(),
         replay: Arc::clone(&replay),
+        shell_channel: Arc::clone(&shell_channel),
     };
 
     let mut handle: Handle<ClientHandler> =
@@ -203,6 +234,8 @@ pub async fn open_session(
         .channel_open_session()
         .await
         .map_err(|e| format!("Gagal membuka channel: {}", e))?;
+    // Dicatat sebelum shell diminta — output shell baru datang setelahnya.
+    *shell_channel.lock().unwrap() = Some(channel.id());
     channel
         .request_pty(true, "xterm-256color", p.cols, p.rows, 0, 0, &[])
         .await
@@ -220,6 +253,7 @@ pub async fn open_session(
             channel,
             label: p.label.clone(),
             replay,
+            sftp: Arc::new(Mutex::new(None)),
         },
     );
     let _ = app.emit(

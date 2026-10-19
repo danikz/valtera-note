@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.38] - 2026-10-19
+
+### ✨ Fitur Baru
+- **Upload & download file lewat SFTP** — tombol **File** di bar tab SSH membuka panel file di samping terminal, memakai koneksi SSH yang sama (tanpa login ulang). Navigasi folder lewat breadcrumb (klik dua kali untuk mengetik path), download dengan klik dua kali atau tombol di baris file ke folder Downloads atau folder pilihan, upload lewat tombol atau seret & lepas dari Explorer. Dilengkapi progress bar, tombol batal, konfirmasi sebelum menimpa file di server, dan tombol "Tampilkan" untuk membuka lokasi hasil download.
+
+### 🔒 Keamanan
+- Nama file dari server dibersihkan sebelum disimpan lokal (tidak bisa keluar dari folder tujuan atau memakai nama terlarang Windows), dan file lokal yang sudah ada tidak pernah ditimpa.
+
+### 🐛 Perbaikan
+- Data channel SFTP tidak pernah bocor ke tampilan terminal dan tidak menutup tab sesi.
+
+---
+
 ## [0.1.37] - 2026-10-19
 
 ### ✨ Fitur Baru

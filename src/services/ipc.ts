@@ -14,6 +14,20 @@ import type {
 
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
+export interface SftpEntry {
+  name: string;
+  isDir: boolean;
+  isLink: boolean;
+  size: number;
+  modified: number | null; // unix detik
+  permissions: number | null;
+}
+
+export interface SftpListing {
+  path: string; // absolut
+  entries: SftpEntry[];
+}
+
 export const ipc = {
   async getCliOpenFile(): Promise<string | null> {
     if (isTauri) {
@@ -399,6 +413,40 @@ export const ipc = {
       return await invoke<string[]>('ssh_active_sessions');
     }
     return [];
+  },
+
+  // ===== SFTP (transfer file di atas sesi SSH yang sama) =====
+
+  async sftpList(id: string, path: string): Promise<SftpListing> {
+    if (isTauri) {
+      return await invoke<SftpListing>('sftp_list', { id, path });
+    }
+    return { path: '/', entries: [] };
+  },
+
+  async sftpDownload(id: string, transferId: string, remotePath: string, localDir: string | null): Promise<string> {
+    return await invoke<string>('sftp_download', { id, transferId, remotePath, localDir });
+  },
+
+  async sftpUpload(id: string, transferId: string, localPath: string, remoteDir: string): Promise<string> {
+    return await invoke<string>('sftp_upload', { id, transferId, localPath, remoteDir });
+  },
+
+  async sftpCancel(transferId: string): Promise<void> {
+    if (isTauri) {
+      await invoke('sftp_cancel', { transferId });
+    }
+  },
+
+  async sftpDefaultDownloadDir(): Promise<string | null> {
+    if (isTauri) {
+      return await invoke<string | null>('sftp_default_download_dir');
+    }
+    return null;
+  },
+
+  async revealInFolder(path: string): Promise<void> {
+    await invoke('reveal_in_folder', { path });
   },
 
   // ===== Remote Desktop (RDP) — dibuka lewat klien bawaan OS =====

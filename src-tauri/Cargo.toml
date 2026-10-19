@@ -40,6 +40,7 @@ tauri-plugin-clipboard-manager = "2.4.1"
 russh = "0.45"
 russh-keys = "0.45"
 async-trait = "0.1.92"
+russh-sftp = "2"
 
 # keyring v3 tidak punya backend default — aktifkan store per-platform
 # (tanpa ini, "ingat device" menyimpan ke mock store yang hilang saat restart)

@@ -4,6 +4,7 @@ use serde::Serialize;
 use tauri::{AppHandle, State};
 
 use crate::db::DatabaseManager;
+use crate::ssh::sftp::{self, SftpListing};
 use crate::ssh::{
     disconnect_session, open_session, replay_session, resize_session, write_to_session,
     SshConnectParams, SshManager,
@@ -135,4 +136,88 @@ pub async fn ssh_disconnect(
 pub async fn ssh_active_sessions(manager: State<'_, SshManager>) -> Result<Vec<String>, String> {
     let sessions = manager.sessions.lock().await;
     Ok(sessions.keys().cloned().collect())
+}
+
+// ===== Transfer file (SFTP di atas sesi yang sama) =====
+
+/// Isi folder remote; `path` kosong = folder home user.
+#[tauri::command]
+pub async fn sftp_list(
+    id: String,
+    path: String,
+    manager: State<'_, SshManager>,
+) -> Result<SftpListing, String> {
+    sftp::list(&manager, &id, &path).await
+}
+
+/// Unduh file remote ke `local_dir` (null = folder Downloads); hasilnya path
+/// file lokal. Progres dikirim lewat event `sftp-progress`.
+#[tauri::command]
+pub async fn sftp_download(
+    app: AppHandle,
+    id: String,
+    transfer_id: String,
+    remote_path: String,
+    local_dir: Option<String>,
+    manager: State<'_, SshManager>,
+) -> Result<String, String> {
+    sftp::download(&app, &manager, &id, &transfer_id, &remote_path, local_dir).await
+}
+
+/// Unggah file lokal ke folder remote; hasilnya path file remote.
+#[tauri::command]
+pub async fn sftp_upload(
+    app: AppHandle,
+    id: String,
+    transfer_id: String,
+    local_path: String,
+    remote_dir: String,
+    manager: State<'_, SshManager>,
+) -> Result<String, String> {
+    sftp::upload(&app, &manager, &id, &transfer_id, &local_path, &remote_dir).await
+}
+
+#[tauri::command]
+pub fn sftp_cancel(transfer_id: String, manager: State<'_, SshManager>) {
+    sftp::cancel_transfer(&manager, &transfer_id);
+}
+
+/// Folder Downloads default (ditampilkan di panel file).
+#[tauri::command]
+pub fn sftp_default_download_dir() -> Option<String> {
+    dirs::download_dir().map(|p| p.to_string_lossy().into_owned())
+}
+
+/// Tampilkan file hasil unduhan di file manager OS.
+#[tauri::command]
+pub fn reveal_in_folder(path: String) -> Result<(), String> {
+    let p = std::path::Path::new(&path);
+    if !p.exists() {
+        return Err("File tidak ditemukan".to_string());
+    }
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        std::process::Command::new("explorer")
+            .raw_arg(format!("/select,\"{}\"", path.replace('"', "")))
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg("-R")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        let dir = p.parent().unwrap_or(p);
+        std::process::Command::new("xdg-open")
+            .arg(dir)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }

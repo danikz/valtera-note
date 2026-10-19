@@ -16,8 +16,10 @@
     Cloud,
     RefreshCw,
     Monitor,
+    FolderOpen,
     X
   } from 'lucide-svelte';
+  import SftpPanel from './SftpPanel.svelte';
   import type { Terminal } from '@xterm/xterm';
   import { listen, type UnlistenFn } from '@tauri-apps/api/event';
   import {
@@ -138,6 +140,9 @@
   let connectingId = $state<string | null>(null);
   let connectError = $state('');
   let unlisteners: UnlistenFn[] = [];
+  // Panel file (SFTP) terbuka per sesi.
+  let filesOpen = $state<Record<string, boolean>>({});
+  const activeTab = $derived(tabs.find((t) => t.sessionId === activeTabId) ?? null);
 
   // Instance terminal per sesi hidup di ./sshTerminals (level modul) supaya
   // tidak ikut dibuang saat halaman ini di-unmount.
@@ -618,6 +623,7 @@
       await ipc.sshDisconnect(sessionId).catch(() => {});
     }
     disposeSshTerm(sessionId);
+    delete filesOpen[sessionId];
     const idx = tabs.findIndex((t) => t.sessionId === sessionId);
     tabs = tabs.filter((t) => t.sessionId !== sessionId);
     if (activeTabId === sessionId) {
@@ -1080,14 +1086,28 @@
               </button>
             </div>
           {/each}
+          {#if activeTab && !activeTab.closed}
+            <div class="ml-auto flex items-center px-2 flex-shrink-0">
+              <button
+                onclick={() => (filesOpen[activeTab.sessionId] = !filesOpen[activeTab.sessionId])}
+                title="Upload / download file (SFTP)"
+                class="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer {filesOpen[activeTab.sessionId]
+                  ? 'bg-amber-500/15 text-amber-300'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'}"
+              >
+                <FolderOpen class="w-3.5 h-3.5" /> File
+              </button>
+            </div>
+          {/if}
         </div>
 
+        <div class="flex-1 min-h-0 flex {tabs.length === 0 || showForm ? 'hidden' : ''}">
         <!-- Terminal per tab: semua div selalu ter-mount (hidden saja) agar
              buffer xterm tiap sesi tidak hilang saat pindah tab / buka form. -->
         <div
           id="ssh-terminal-area"
           use:observeTerminalArea
-          class="flex-1 min-h-0 p-1 bg-[#0b0f19] relative {tabs.length === 0 || showForm ? 'hidden' : ''}"
+          class="flex-1 min-w-0 min-h-0 p-1 bg-[#0b0f19] relative"
         >
           {#each tabs as t (t.sessionId)}
             <div class="absolute inset-0 {activeTabId === t.sessionId ? '' : 'hidden'}" use:mountTerminal={t.sessionId}></div>
@@ -1212,6 +1232,12 @@
               </div>
             </div>
           {/if}
+        </div>
+        {#if activeTab && !activeTab.closed && filesOpen[activeTab.sessionId]}
+          {#key activeTab.sessionId}
+            <SftpPanel sessionId={activeTab.sessionId} onclose={() => (filesOpen[activeTab.sessionId] = false)} />
+          {/key}
+        {/if}
         </div>
 
         <!-- Form koneksi (overlay: selalu tampil saat dipanggil / belum ada tab) -->

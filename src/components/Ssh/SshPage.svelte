@@ -717,11 +717,14 @@
     if (!entry) return;
     // Karakter kontrol (ESC, BEL, dsb.) tidak terlihat di clipboard tapi bisa
     // menjalankan escape sequence / perintah tersembunyi — selalu dibuang.
+    // Begitu juga karakter format Unicode tak terlihat (\p{Cf}: bidi override
+    // seperti U+202E, zero-width, BOM) dan pemisah U+2028/2029: semuanya bisa
+    // membuat pratinjau tampak berbeda dari yang sebenarnya diterima shell.
     // Tab & baris baru dipertahankan.
     let removedControls = 0;
     const text = raw
       .replace(/\r\n?/g, '\n')
-      .replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, () => {
+      .replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f\u2028\u2029\p{Cf}]/gu, () => {
         removedControls++;
         return '';
       });
@@ -1162,14 +1165,14 @@
                     {#if pastePreview.removedControls > 0}
                       <div class="flex gap-2 px-2.5 py-2 rounded-lg bg-amber-950/40 border border-amber-800/50 text-amber-200">
                         <AlertTriangle class="w-3.5 h-3.5 flex-shrink-0 mt-px" />
-                        <span>{pastePreview.removedControls} karakter kontrol tersembunyi dibuang dari isi clipboard.</span>
+                        <span>{pastePreview.removedControls} karakter kontrol / tak terlihat dibuang dari isi clipboard.</span>
                       </div>
                     {/if}
                   </div>
                 {/if}
 
                 <div class="m-4 flex-1 min-h-0 overflow-auto rounded-lg bg-[#0b0f19] border border-slate-800">
-                  <table class="font-mono text-[12px] leading-5 border-collapse">
+                  <table dir="ltr" class="font-mono text-[12px] leading-5 border-collapse [unicode-bidi:isolate]">
                     <tbody>
                       {#each pastePreviewLines as line, i}
                         <tr>

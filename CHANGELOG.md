@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.37] - 2026-10-19
+
+### ✨ Fitur Baru
+- **Pratinjau sebelum tempel di terminal SSH** — setiap tempel (Ctrl+V, Ctrl+Shift+V, klik kanan) menampilkan isi clipboard lengkap dengan nomor baris dan harus disetujui dulu. Ada peringatan untuk perintah berisiko (rm -rf, sudo, curl | sh, dsb.) dan tempel multi-baris yang akan langsung dieksekusi, serta opsi membuang baris baru di akhir agar perintah tidak langsung jalan.
+
+### 🔒 Keamanan
+- Karakter kontrol dan karakter Unicode tak terlihat (bidi override, zero-width, BOM) dibuang dari isi tempel, sehingga yang tampil di pratinjau sama persis dengan yang dikirim ke server (mencegah pastejacking).
+
+### 🐛 Perbaikan
+- **Terminal SSH tidak lagi berantakan** setelah pindah ke Catatan lalu kembali — terminal tiap sesi tetap hidup dan dipasang ulang apa adanya, output selama halaman ditinggal tetap tercatat.
+
+---
+
 ## [0.1.36] - 2026-10-12
 
 ### ✨ Fitur Baru

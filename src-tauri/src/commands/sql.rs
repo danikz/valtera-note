@@ -1,19 +1,45 @@
-use rusqlite::Connection;
+use rusqlite::limits::Limit;
+use rusqlite::{Connection, OpenFlags};
 use std::time::Instant;
+use tauri::AppHandle;
+use crate::db::DatabaseManager;
 use crate::models::SqlResultDto;
+use crate::services::path_guard;
+
+/// DB internal aplikasi selalu boleh diinspeksi; DB lain harus dipilih
+/// pengguna (dialog / drag-drop).
+fn ensure_db_allowed(app: &AppHandle, db_path: &str) -> Result<(), String> {
+    let is_internal = DatabaseManager::get_db_path()
+        .ok()
+        .and_then(|internal| Some((dunce::canonicalize(internal).ok()?, dunce::canonicalize(db_path).ok()?)))
+        .is_some_and(|(a, b)| a == b);
+    if is_internal {
+        Ok(())
+    } else {
+        path_guard::ensure_file(app, db_path)
+    }
+}
+
+/// Read-only, tanpa URI filename (path yang dicek = file yang dibuka), dan
+/// tanpa ATTACH / VACUUM INTO agar query tidak bisa menyentuh file lain.
+fn open_readonly(db_path: &str) -> Result<Connection, String> {
+    let conn = Connection::open_with_flags(db_path, OpenFlags::SQLITE_OPEN_READ_ONLY)
+        .map_err(|e| e.to_string())?;
+    conn.set_limit(Limit::SQLITE_LIMIT_ATTACHED, 0);
+    Ok(conn)
+}
 
 #[tauri::command]
 pub async fn execute_sqlite_query(
+    app: AppHandle,
     db_path: String,
     query: String,
     limit: Option<usize>,
 ) -> Result<SqlResultDto, String> {
+    ensure_db_allowed(&app, &db_path)?;
     tokio::task::spawn_blocking(move || {
         let start_time = Instant::now();
-        let conn = Connection::open_with_flags(
-            &db_path,
-            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_URI,
-        ).map_err(|e| e.to_string())?;
+        let conn = open_readonly(&db_path)?;
 
         let max_rows = limit.unwrap_or(500);
         let mut stmt = conn.prepare(&query).map_err(|e| e.to_string())?;
@@ -86,12 +112,13 @@ pub async fn format_sql_query(query: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub async fn inspect_sqlite_tables(db_path: String) -> Result<Vec<crate::models::TableSummaryDto>, String> {
+pub async fn inspect_sqlite_tables(
+    app: AppHandle,
+    db_path: String,
+) -> Result<Vec<crate::models::TableSummaryDto>, String> {
+    ensure_db_allowed(&app, &db_path)?;
     tokio::task::spawn_blocking(move || {
-        let conn = Connection::open_with_flags(
-            &db_path,
-            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_URI,
-        ).map_err(|e| e.to_string())?;
+        let conn = open_readonly(&db_path)?;
 
         let mut stmt = conn.prepare(
             "SELECT name, type FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' ORDER BY name"
@@ -141,9 +168,27 @@ pub async fn inspect_sqlite_tables(db_path: String) -> Result<Vec<crate::models:
 
 #[tauri::command]
 pub async fn get_internal_db_path() -> Result<String, String> {
-    let config_dir = dirs::config_dir()
-        .or_else(|| dirs::data_local_dir())
-        .unwrap_or_else(|| std::env::temp_dir());
-    let path = config_dir.join("valtera-note").join("valtera_note.db");
-    Ok(path.to_string_lossy().into_owned())
+    Ok(DatabaseManager::get_db_path()?.to_string_lossy().into_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn readonly_conn_cannot_reach_other_files() {
+        let dir = std::env::temp_dir().join(format!("valtera-sqlguard-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = dir.join("a.db");
+        Connection::open(&db).unwrap().execute_batch("CREATE TABLE t(x);").unwrap();
+
+        let conn = open_readonly(db.to_str().unwrap()).unwrap();
+        let other = dir.join("b.db");
+        let attach = format!("ATTACH DATABASE '{}' AS o", other.display());
+        assert!(conn.execute_batch(&attach).is_err());
+        let vacuum = format!("VACUUM INTO '{}'", other.display());
+        assert!(conn.execute_batch(&vacuum).is_err());
+        assert!(!other.exists());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

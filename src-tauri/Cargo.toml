@@ -24,7 +24,7 @@ tauri-plugin-window-state = "2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }
-rusqlite = { version = "0.32", features = ["bundled", "chrono"] }
+rusqlite = { version = "0.32", features = ["bundled", "chrono", "limits"] }
 encoding_rs = "0.8"
 notify = "6.1"
 regex = "1.10"
@@ -32,6 +32,7 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 chrono = { version = "0.4", features = ["serde"] }
 sha2 = "0.10"
 dirs = "5.0"
+dunce = "1"
 argon2 = "0.5"
 chacha20poly1305 = "0.10"
 base64 = "0.22"

@@ -4,6 +4,7 @@ use serde::Serialize;
 use tauri::{AppHandle, State};
 
 use crate::db::DatabaseManager;
+use crate::services::path_guard;
 use crate::ssh::sftp::{self, SftpListing};
 use crate::ssh::{
     disconnect_session, open_session, replay_session, resize_session, write_to_session,
@@ -151,7 +152,8 @@ pub async fn sftp_list(
 }
 
 /// Unduh file remote ke `local_dir` (null = folder Downloads); hasilnya path
-/// file lokal. Progres dikirim lewat event `sftp-progress`.
+/// file lokal. Progres dikirim lewat event `sftp-progress`. Folder pilihan
+/// harus pernah dipilih pengguna lewat dialog/drag-drop.
 #[tauri::command]
 pub async fn sftp_download(
     app: AppHandle,
@@ -161,7 +163,14 @@ pub async fn sftp_download(
     local_dir: Option<String>,
     manager: State<'_, SshManager>,
 ) -> Result<String, String> {
-    sftp::download(&app, &manager, &id, &transfer_id, &remote_path, local_dir).await
+    let local_dir = local_dir.filter(|d| !d.trim().is_empty());
+    if let Some(dir) = &local_dir {
+        path_guard::ensure_dir(&app, dir)?;
+    }
+    let target = sftp::download(&app, &manager, &id, &transfer_id, &remote_path, local_dir).await?;
+    // File buatan aplikasi sendiri: boleh di-reveal / dibuka di editor.
+    path_guard::grant_file(&app, std::path::Path::new(&target));
+    Ok(target)
 }
 
 /// Unggah file lokal ke folder remote; hasilnya path file remote.
@@ -174,6 +183,7 @@ pub async fn sftp_upload(
     remote_dir: String,
     manager: State<'_, SshManager>,
 ) -> Result<String, String> {
+    path_guard::ensure_file(&app, &local_path)?;
     sftp::upload(&app, &manager, &id, &transfer_id, &local_path, &remote_dir).await
 }
 
@@ -190,7 +200,8 @@ pub fn sftp_default_download_dir() -> Option<String> {
 
 /// Tampilkan file hasil unduhan di file manager OS.
 #[tauri::command]
-pub fn reveal_in_folder(path: String) -> Result<(), String> {
+pub fn reveal_in_folder(app: AppHandle, path: String) -> Result<(), String> {
+    path_guard::ensure_file(&app, &path)?;
     let p = std::path::Path::new(&path);
     if !p.exists() {
         return Err("File tidak ditemukan".to_string());

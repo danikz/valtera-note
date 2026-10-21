@@ -54,7 +54,7 @@ impl DatabaseManager {
         Connection::open(&db_path).map_err(|e| e.to_string())
     }
 
-    fn get_db_path() -> Result<PathBuf, String> {
+    pub fn get_db_path() -> Result<PathBuf, String> {
         let config_dir = dirs::config_dir()
             .or_else(|| dirs::data_local_dir())
             .unwrap_or_else(|| std::env::temp_dir());

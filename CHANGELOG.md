@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.39] - 2026-10-21
+
+### ✨ Fitur Baru
+- **Pilihan resolusi Remote Desktop** — form koneksi RDP kini punya pilihan resolusi tetap (1024×768 hingga 1920×1080) yang dibuka sebagai jendela. Gunakan bila layar remote tampil hitam saat layar penuh 1920×1080 (umumnya akibat encoder H.264/driver grafis di server). Default tetap "ikut layar".
+
+### 🔒 Keamanan
+- **Akses file lokal hanya untuk path yang dipilih pengguna** — baca/simpan file, upload/download SFTP, "Tampilkan" di folder, dan inspeksi database SQLite kini hanya menerima file/folder yang dipilih lewat dialog, drag & drop, atau "Open with". Izin tersimpan sehingga tab sesi tetap bisa disimpan setelah aplikasi dibuka ulang; file yang sedang terbuka saat update otomatis diizinkan.
+- Koneksi SQLite selalu read-only tanpa URI filename, dan `ATTACH` / `VACUUM INTO` diblokir agar query tidak bisa menyentuh file lain.
+
+### 🐛 Perbaikan
+- Error dari backend saat membuka/menyimpan file atau menjalankan query kini ditampilkan, tidak lagi diam-diam diganti data contoh.
+- Path relatif dari "Open with" saat aplikasi sudah terbuka kini di-resolve dari folder yang benar.
+
+---
+
 ## [0.1.38] - 2026-10-19
 
 ### ✨ Fitur Baru

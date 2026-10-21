@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.41] - 2026-10-21
+
+### 🐛 Perbaikan
+- **Server pembaruan pindah ke `valtera-note-update.valtera.id`** — domain `r2.dev` bawaan Cloudflare diblokir sebagian ISP di Indonesia sehingga v0.1.40 tidak bisa mengecek pembaruan. Pengguna v0.1.40 perlu memasang v0.1.41 sekali secara manual.
+
+---
+
 ## [0.1.40] - 2026-10-21
 
 ### ✨ Fitur Baru

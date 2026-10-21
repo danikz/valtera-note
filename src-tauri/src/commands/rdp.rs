@@ -35,6 +35,25 @@ pub struct RdpLaunchParams {
     pub fullscreen: bool,
     #[serde(default)]
     pub multimon: bool,
+    /// Resolusi tetap (mode jendela). Kosong = ikut layar lokal.
+    #[serde(default)]
+    pub width: Option<u32>,
+    #[serde(default)]
+    pub height: Option<u32>,
+}
+
+impl RdpLaunchParams {
+    /// Resolusi tetap bila keduanya diisi dan masuk rentang yang diterima mstsc.
+    /// Sebagian server menampilkan layar hitam di resolusi besar (full HD layar
+    /// penuh) — resolusi tetap yang lebih kecil membuat sesinya tetap tampil.
+    fn fixed_size(&self) -> Option<(u32, u32)> {
+        match (self.width, self.height) {
+            (Some(w), Some(h)) if (200..=8192).contains(&w) && (200..=8192).contains(&h) => {
+                Some((w, h))
+            }
+            _ => None,
+        }
+    }
 }
 
 fn default_port() -> u16 {
@@ -70,19 +89,26 @@ fn build_rdp_file(p: &RdpLaunchParams) -> String {
     } else {
         format!("{}:{}", host, p.port)
     };
-    let lines = [
+    let size = p.fixed_size();
+    let fullscreen = p.fullscreen && size.is_none();
+    let multimon = p.multimon && size.is_none();
+    let mut lines = vec![
         format!("full address:s:{}", address),
         format!("username:s:{}", full_username(&p.username, p.domain.as_deref())),
-        format!("screen mode id:i:{}", if p.fullscreen { 2 } else { 1 }),
-        format!("use multimon:i:{}", if p.multimon { 1 } else { 0 }),
+        format!("screen mode id:i:{}", if fullscreen { 2 } else { 1 }),
+        format!("use multimon:i:{}", if multimon { 1 } else { 0 }),
         "smart sizing:i:1".to_string(),
-        "dynamic resolution:i:1".to_string(),
+        format!("dynamic resolution:i:{}", if size.is_some() { 0 } else { 1 }),
         "redirectclipboard:i:1".to_string(),
         "prompt for credentials:i:0".to_string(),
         "authentication level:i:2".to_string(),
         "enablecredsspsupport:i:1".to_string(),
         "autoreconnection enabled:i:1".to_string(),
     ];
+    if let Some((w, h)) = size {
+        lines.push(format!("desktopwidth:i:{}", w));
+        lines.push(format!("desktopheight:i:{}", h));
+    }
     lines.join("\r\n") + "\r\n"
 }
 
@@ -264,11 +290,16 @@ fn launch_platform(p: &RdpLaunchParams, db: Arc<DatabaseManager>) -> Result<(), 
 
     let mut cmd = std::process::Command::new("mstsc.exe");
     cmd.arg(format!("/v:{}:{}", host_for_addr(&host), p.port));
-    if p.fullscreen {
-        cmd.arg("/f");
-    }
-    if p.multimon {
-        cmd.arg("/multimon");
+    // /f dan /multimon mengabaikan /w /h — resolusi tetap selalu mode jendela.
+    if let Some((w, h)) = p.fixed_size() {
+        cmd.arg(format!("/w:{}", w)).arg(format!("/h:{}", h));
+    } else {
+        if p.fullscreen {
+            cmd.arg("/f");
+        }
+        if p.multimon {
+            cmd.arg("/multimon");
+        }
     }
     cmd.spawn()
         .map_err(|e| format!("Gagal menjalankan Remote Desktop (mstsc): {}", e))?;
@@ -307,6 +338,30 @@ mod tests {
         assert_eq!(host_for_addr("srv.example.com"), "srv.example.com");
         assert_eq!(host_for_addr("fe80::1"), "[fe80::1]");
         assert_eq!(host_for_addr("[fe80::1]"), "[fe80::1]");
+    }
+
+    fn params(width: Option<u32>, height: Option<u32>) -> RdpLaunchParams {
+        RdpLaunchParams {
+            id: "x".into(),
+            host: "10.0.0.5".into(),
+            port: 3389,
+            username: "u".into(),
+            password: None,
+            domain: None,
+            fullscreen: true,
+            multimon: false,
+            width,
+            height,
+        }
+    }
+
+    #[test]
+    fn fixed_size_requires_both_in_range() {
+        assert_eq!(params(Some(1280), Some(720)).fixed_size(), Some((1280, 720)));
+        assert_eq!(params(Some(1280), None).fixed_size(), None);
+        assert_eq!(params(None, None).fixed_size(), None);
+        assert_eq!(params(Some(100), Some(720)).fixed_size(), None);
+        assert_eq!(params(Some(1280), Some(9000)).fixed_size(), None);
     }
 
     #[test]

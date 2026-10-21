@@ -61,6 +61,14 @@ jobs:
       - name: Install Frontend Dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Ensure updater endpoint is configured
+        shell: bash
+        run: |
+          if grep -q "GANTI-DENGAN-URL-PUBLIK-R2" src-tauri/tauri.conf.json; then
+            echo "::error::Endpoint updater di src-tauri/tauri.conf.json masih placeholder — isi dengan URL publik bucket R2."
+            exit 1
+          fi
+
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0
         env:
@@ -74,6 +82,59 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+
+  # Repo private → aset GitHub Release tidak bisa diunduh tanpa login, jadi
+  # updater membaca latest.json + installer dari bucket Cloudflare R2 publik.
+  publish-r2:
+    needs: build-tauri
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+    runs-on: ubuntu-22.04
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+      R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+      R2_BUCKET: ${{ vars.R2_BUCKET }}
+      R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read app version
+        id: appver
+        run: echo "version=$(node -p "require('./src-tauri/tauri.conf.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Download updater assets from GitHub release
+        env:
+          TAG: v${{ steps.appver.outputs.version }}
+        run: |
+          mkdir -p r2 && cd r2
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern latest.json --clobber
+          for name in $(jq -r '.platforms[].url | split("/") | last' latest.json | sort -u); do
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$name" --clobber
+          done
+          # Arahkan URL tiap platform ke R2, bukan ke GitHub.
+          jq --arg base "${R2_PUBLIC_URL%/}/$TAG" \
+            '.platforms |= map_values(.url = ($base + "/" + (.url | split("/") | last)))' \
+            latest.json > latest.r2.json
+          cat latest.r2.json
+
+      - name: Upload to Cloudflare R2
+        working-directory: r2
+        env:
+          TAG: v${{ steps.appver.outputs.version }}
+        run: |
+          for name in $(jq -r '.platforms[].url | split("/") | last' latest.json | sort -u); do
+            aws s3 cp "$name" "s3://$R2_BUCKET/$TAG/$name" --endpoint-url "$R2_ENDPOINT"
+          done
+          # latest.json diunggah terakhir supaya klien tidak pernah melihat URL yang belum ada.
+          aws s3 cp latest.r2.json "s3://$R2_BUCKET/latest.json" --endpoint-url "$R2_ENDPOINT" \
+            --content-type application/json --cache-control "no-cache, max-age=0"
 
   build-android:
     permissions:

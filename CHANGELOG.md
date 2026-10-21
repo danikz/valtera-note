@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.40] - 2026-10-21
+
+### ✨ Fitur Baru
+- **Update otomatis tanpa klik** — saat aplikasi dibuka dan ada versi baru, pembaruan langsung diunduh, dipasang, lalu aplikasi restart sendiri.
+
+### 🔧 Infrastruktur
+- **Server pembaruan pindah ke Cloudflare R2** — `latest.json` dan installer kini diambil dari bucket R2 publik, sehingga auto-update tetap berjalan walau repositori GitHub dijadikan private.
+
+---
+
 ## [0.1.39] - 2026-10-21
 
 ### ✨ Fitur Baru

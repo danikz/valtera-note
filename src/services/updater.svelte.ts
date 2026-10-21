@@ -46,6 +46,11 @@ class UpdaterService {
         this.releaseDate = update.date ? new Date(update.date).toLocaleDateString('id-ID', { dateStyle: 'medium' }) : '';
         this.updateAvailable = true;
         this.showUpdateModal = true;
+        // Cek otomatis saat startup: langsung unduh & pasang tanpa perlu klik,
+        // lalu aplikasi restart sendiri ke versi baru.
+        if (!manual) {
+          void this.downloadAndInstall();
+        }
         return true;
       } else {
         this.updateAvailable = false;

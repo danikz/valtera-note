@@ -1,9 +1,11 @@
 use crate::models::{FilePayloadDto, FileSaveResultDto};
-use crate::services::FsService;
+use crate::services::{path_guard, FsService};
 use std::path::Path;
+use tauri::AppHandle;
 
 #[tauri::command]
-pub async fn read_file_content(path: String) -> Result<FilePayloadDto, String> {
+pub async fn read_file_content(app: AppHandle, path: String) -> Result<FilePayloadDto, String> {
+    path_guard::ensure_file(&app, &path)?;
     tokio::task::spawn_blocking(move || FsService::read_file(&path))
         .await
         .map_err(|e| e.to_string())?
@@ -11,20 +13,24 @@ pub async fn read_file_content(path: String) -> Result<FilePayloadDto, String> {
 
 #[tauri::command]
 pub async fn write_file_content(
+    app: AppHandle,
     path: String,
     content: String,
     line_ending: Option<String>,
 ) -> Result<FileSaveResultDto, String> {
+    path_guard::ensure_file(&app, &path)?;
     tokio::task::spawn_blocking(move || FsService::write_file(&path, &content, line_ending))
         .await
         .map_err(|e| e.to_string())?
 }
 
+/// File yang diberikan lewat argumen ("Open with") dianggap dipilih pengguna.
 #[tauri::command]
-pub fn get_cli_open_file() -> Option<String> {
+pub fn get_cli_open_file(app: AppHandle) -> Option<String> {
     let args: Vec<String> = std::env::args().collect();
     for arg in args.iter().skip(1) {
         if !arg.starts_with('-') && Path::new(arg).exists() {
+            path_guard::grant_file(&app, Path::new(arg));
             return Some(arg.clone());
         }
     }

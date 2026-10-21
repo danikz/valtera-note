@@ -46,15 +46,21 @@ pub fn run() {
     }
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+        .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
                 let _ = window.unminimize();
                 let _ = window.set_focus();
 
                 for arg in args.iter().skip(1) {
-                    if !arg.starts_with('-') && std::path::Path::new(arg).exists() {
-                        let _ = app.emit("open-file-path", arg.clone());
+                    if arg.starts_with('-') {
+                        continue;
+                    }
+                    // Path relatif milik instance kedua, bukan cwd proses ini.
+                    let path = std::path::Path::new(&cwd).join(arg);
+                    if path.exists() {
+                        services::path_guard::grant_file(app, &path);
+                        let _ = app.emit("open-file-path", path.to_string_lossy().into_owned());
                     }
                 }
             }
@@ -70,6 +76,7 @@ pub fn run() {
             // Sisa kredensial RDP sementara dari sesi sebelumnya (app ditutup/crash
             // sebelum timer pembersih jalan).
             let db = Arc::clone(app.state::<Arc<DatabaseManager>>().inner());
+            services::path_guard::init(app.handle(), Arc::clone(&db));
             std::thread::spawn(move || commands::rdp::cleanup_pending_credentials(&db));
             // Pastikan salt/verifier E2E ada di user_metadata Supabase (pengguna lama
             // yang sudah login sebelum fitur ini) agar aplikasi mobile bisa unlock.

@@ -57,6 +57,7 @@ export const ipc = {
         return await invoke<FilePayload>('read_file_content', { path });
       } catch (err) {
         console.warn('IPC readFile error:', err);
+        throw err;
       }
     }
     return {
@@ -81,6 +82,7 @@ export const ipc = {
         });
       } catch (err) {
         console.warn('IPC writeFile error:', err);
+        throw err;
       }
     }
     return {
@@ -136,6 +138,7 @@ export const ipc = {
         return await invoke<SqlResult>('execute_sqlite_query', { dbPath, query, limit });
       } catch (err) {
         console.warn('IPC executeSqlQuery error:', err);
+        throw err;
       }
     }
     return {

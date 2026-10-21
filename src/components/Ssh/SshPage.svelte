@@ -59,9 +59,21 @@
     domain?: string;
     fullscreen?: boolean;
     multimon?: boolean;
+    // Resolusi tetap (jendela). Kosong = ikut layar lokal.
+    width?: number;
+    height?: number;
   }
 
   const DEFAULT_PORT: Record<ConnKind, number> = { ssh: 22, rdp: 3389 };
+
+  // Sebagian server (encoder H.264/driver grafis) menampilkan layar hitam di
+  // resolusi besar — resolusi tetap yang lebih kecil jadi jalan keluarnya.
+  const RDP_RESOLUTIONS = ['1024x768', '1280x720', '1366x768', '1440x900', '1600x900', '1920x1080'];
+
+  function parseResolution(v: string): { width: number; height: number } | null {
+    const m = /^(\d+)x(\d+)$/.exec(v);
+    return m ? { width: Number(m[1]), height: Number(m[2]) } : null;
+  }
 
   // Satu tab = satu sesi hidup = satu instance terminal sendiri.
   // Pindah tab hanya show/hide DOM sehingga scrollback tiap sesi tetap utuh,
@@ -119,6 +131,7 @@
   let domain = $state('');
   let fullscreen = $state(true);
   let multimon = $state(false);
+  let resolution = $state(''); // '' = ikut layar, selain itu 'WxH'
   let label = $state('');
   let host = $state('');
   let port = $state(22);
@@ -288,6 +301,7 @@
     domain = '';
     fullscreen = true;
     multimon = false;
+    resolution = '';
     label = '';
     host = '';
     port = 22;
@@ -376,6 +390,7 @@
       domain = stored.domain ?? '';
       fullscreen = stored.fullscreen ?? true;
       multimon = stored.multimon ?? false;
+      resolution = stored.width && stored.height ? `${stored.width}x${stored.height}` : '';
       formError = '';
     } catch {
       host = '';
@@ -488,6 +503,7 @@
         password: finalPassword,
         fullscreen,
         multimon,
+        ...(parseResolution(resolution) ?? {}),
         ...(domain.trim() ? { domain: domain.trim() } : {}),
         ...(workspace.trim() ? { workspace: workspace.trim() } : {})
       };
@@ -520,7 +536,9 @@
       password: creds.password ?? null,
       domain: creds.domain ?? null,
       fullscreen: creds.fullscreen ?? true,
-      multimon: creds.multimon ?? false
+      multimon: creds.multimon ?? false,
+      width: creds.width ?? null,
+      height: creds.height ?? null
     });
   }
 
@@ -1429,14 +1447,29 @@
               {#if connKind === 'rdp'}
                 <div class="space-y-1.5">
                   <span class="text-xs font-semibold text-slate-300">Tampilan</span>
-                  <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                    <input type="checkbox" bind:checked={fullscreen} class="accent-sky-500" />
+                  <select
+                    bind:value={resolution}
+                    aria-label="Resolusi"
+                    class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 focus:outline-none focus:border-sky-500 cursor-pointer"
+                  >
+                    <option value="">Resolusi: ikut layar</option>
+                    {#each RDP_RESOLUTIONS as r (r)}
+                      <option value={r}>Resolusi: {r.replace('x', ' × ')} (jendela)</option>
+                    {/each}
+                  </select>
+                  <label class="flex items-center gap-2 text-xs cursor-pointer {resolution ? 'text-slate-600' : 'text-slate-300'}">
+                    <input type="checkbox" bind:checked={fullscreen} disabled={!!resolution} class="accent-sky-500" />
                     Layar penuh
                   </label>
-                  <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                    <input type="checkbox" bind:checked={multimon} class="accent-sky-500" />
+                  <label class="flex items-center gap-2 text-xs cursor-pointer {resolution ? 'text-slate-600' : 'text-slate-300'}">
+                    <input type="checkbox" bind:checked={multimon} disabled={!!resolution} class="accent-sky-500" />
                     Gunakan semua monitor
                   </label>
+                  {#if resolution}
+                    <p class="text-[10.5px] text-slate-500">
+                      Resolusi tetap dibuka sebagai jendela. Pakai ini bila layar remote hitam di layar penuh.
+                    </p>
+                  {/if}
                 </div>
               {/if}
 

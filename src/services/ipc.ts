@@ -470,6 +470,8 @@ export const ipc = {
     domain?: string | null;
     fullscreen: boolean;
     multimon: boolean;
+    width?: number | null;
+    height?: number | null;
   }): Promise<void> {
     if (isTauri) {
       await invoke('rdp_launch', { params });

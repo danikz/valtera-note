@@ -46,6 +46,7 @@ class SecureStorageService {
   static const _keyE2eRemember = 'e2e_remember_device';
   static const _keyCustomFolders = 'custom_folders';
   static const _keyThemeMode = 'app_theme_mode';
+  static const _keySshKnownHosts = 'ssh_known_hosts';
 
   const SecureStorageService({
     FlutterSecureStorage storage = const FlutterSecureStorage(),
@@ -185,6 +186,23 @@ class SecureStorageService {
     await _storage.delete(key: _keyE2eSalt);
     await _storage.delete(key: _keyE2eVerifier);
     await clearE2eKey();
+  }
+
+  /// Fingerprint host key SSH yang sudah dipercaya: "host:port" -> "type SHA256:...".
+  Future<Map<String, String>> getSshKnownHosts() async {
+    final raw = await _storage.read(key: _keySshKnownHosts);
+    if (raw == null || raw.trim().isEmpty) return {};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        return decoded.map((k, v) => MapEntry(k.toString(), v.toString()));
+      }
+    } catch (_) {}
+    return {};
+  }
+
+  Future<void> saveSshKnownHosts(Map<String, String> hosts) async {
+    await _storage.write(key: _keySshKnownHosts, value: jsonEncode(hosts));
   }
 }
 

@@ -10,6 +10,9 @@ import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/setup/data/repositories/setup_repository.dart';
 import '../../features/setup/presentation/controllers/setup_controller.dart';
 import '../../features/setup/presentation/screens/setup_screen.dart';
+import '../../features/ssh/presentation/screens/ssh_host_form_screen.dart';
+import '../../features/ssh/presentation/screens/ssh_hosts_screen.dart';
+import '../../features/ssh/presentation/screens/ssh_terminal_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final setupState = ref.watch(setupControllerProvider);
@@ -49,6 +52,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/search',
         builder: (context, state) => const SearchScreen(),
+      ),
+      GoRoute(
+        path: '/ssh',
+        builder: (context, state) => const SshHostsScreen(),
+        routes: [
+          GoRoute(
+            path: 'host/:id',
+            builder: (context, state) {
+              final id = state.pathParameters['id'];
+              return SshHostFormScreen(hostId: id == 'new' ? null : id);
+            },
+          ),
+          GoRoute(
+            path: 'terminal/:sid',
+            builder: (context, state) =>
+                SshTerminalScreen(sessionId: state.pathParameters['sid']!),
+          ),
+        ],
       ),
       GoRoute(
         path: '/settings',

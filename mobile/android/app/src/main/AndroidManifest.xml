@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Wajib di build release: tanpa ini APK tidak bisa ke Supabase / SSH. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <application
-        android:label="valtera_note"
+        android:label="Valtera Note"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

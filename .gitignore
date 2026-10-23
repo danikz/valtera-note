@@ -43,6 +43,15 @@ desktop.ini
 *.key
 *.key.pub
 
+# Kunci rilis Android — JANGAN PERNAH di-commit (hilang/bocor = tidak bisa update APK)
+/secrets/
+**/secrets/
+*.jks
+*.keystore
+*.p12
+*.pfx
+**/key.properties
+
 # Logs
 npm-debug.log*
 yarn-debug.log*

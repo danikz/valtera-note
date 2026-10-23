@@ -3,6 +3,9 @@ import '../../../../core/crypto/e2e_controller.dart';
 import '../../../notes/data/repositories/notes_repository_impl.dart';
 import '../../../notes/presentation/controllers/notes_list_controller.dart';
 import '../../../setup/data/repositories/setup_repository.dart';
+import '../../../ssh/data/ssh_repository.dart';
+import '../../../ssh/presentation/controllers/ssh_hosts_controller.dart';
+import '../../../ssh/presentation/controllers/ssh_sessions_controller.dart';
 import '../../../sync/domain/sync_engine.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../domain/models/auth_state.dart';
@@ -110,10 +113,13 @@ class AuthController extends Notifier<AuthState> {
     final storage = ref.read(secureStorageServiceProvider);
     await ref.read(syncQueueDataSourceProvider).clearQueue();
     await ref.read(notesLocalDataSourceProvider).clearAll();
+    ref.read(sshSessionsControllerProvider.notifier).closeAll();
+    await ref.read(sshLocalDataSourceProvider).clearAll();
     await storage.saveCustomFolders(const []);
     await storage.clearAllE2e();
     await ref.read(e2eControllerProvider.notifier).refreshConfig();
     ref.invalidate(notesListControllerProvider);
+    ref.invalidate(sshHostsControllerProvider);
 
     state = const AuthState(isLoggedIn: false);
   }

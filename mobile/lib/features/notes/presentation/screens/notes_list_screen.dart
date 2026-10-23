@@ -6,6 +6,7 @@ import '../../../../core/network/connectivity_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/theme_controller.dart';
+import '../../../../core/update/app_update_service.dart';
 import '../../../../core/widgets/offline_banner.dart';
 import '../../../../core/widgets/unlock_master_password_dialog.dart';
 import '../../../sync/domain/sync_engine.dart';
@@ -22,6 +23,12 @@ class NotesListScreen extends ConsumerWidget {
     final syncStatusAsync = ref.watch(syncStatusStreamProvider);
     final e2eState = ref.watch(e2eControllerProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Cek update Android sekali per app dibuka (provider tidak diulang).
+    ref.listen<AsyncValue<AppUpdateInfo?>>(startupUpdateProvider, (_, next) {
+      final info = next.value;
+      if (info != null) showAppUpdateDialog(context, info);
+    });
 
     final isOnline = isOnlineAsync.value ?? true;
     final syncInfo = syncStatusAsync.value ?? const SyncStatusInfo();

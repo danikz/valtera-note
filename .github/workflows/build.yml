@@ -189,6 +189,46 @@ jobs:
             mv "app-$abi-release.apk" "Valtera-Note-${{ steps.appver.outputs.version }}-android-$abi.apk"
           done
 
+      # Repo private → APK di GitHub Release tidak bisa diunduh publik. App
+      # Android membaca android/latest.json di R2 untuk notifikasi update.
+      - name: Upload APKs to Cloudflare R2
+        if: github.event_name != 'pull_request'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+          R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+          R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+          VERSION: ${{ steps.appver.outputs.version }}
+        run: |
+          BUILD=$(sed -n 's/^version: .*+\([0-9]*\).*/\1/p' mobile/pubspec.yaml)
+          BASE="${R2_PUBLIC_URL%/}/android"
+          OUT=mobile/build/app/outputs/flutter-apk
+          # Catatan rilis = bagian versi ini di CHANGELOG.md.
+          NOTES=$(awk -v v="## [$VERSION]" 'index($0, v) == 1 {f=1; next} f && /^(## \[|---)/ {exit} f' CHANGELOG.md \
+            | sed 's/\*\*//g; s/`//g; s/^### //')
+
+          APKS='{}'
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            name="Valtera-Note-$VERSION-android-$abi.apk"
+            aws s3 cp "$OUT/$name" "s3://$R2_BUCKET/android/v$VERSION/$name" --endpoint-url "$R2_ENDPOINT" \
+              --content-type application/vnd.android.package-archive
+            # Link tetap "selalu versi terbaru" untuk dibagikan.
+            aws s3 cp "$OUT/$name" "s3://$R2_BUCKET/android/Valtera-Note-android-$abi.apk" --endpoint-url "$R2_ENDPOINT" \
+              --content-type application/vnd.android.package-archive --cache-control "no-cache, max-age=0"
+            APKS=$(jq --arg abi "$abi" --arg url "$BASE/v$VERSION/$name" '. + {($abi): $url}' <<< "$APKS")
+          done
+
+          jq -n --arg version "$VERSION" --argjson build "$BUILD" --arg notes "$NOTES" --argjson apks "$APKS" \
+            '{version: $version, build: $build, notes: $notes, apks: $apks}' > android-latest.json
+          cat android-latest.json
+          # latest.json terakhir supaya app tidak pernah melihat URL yang belum ada.
+          aws s3 cp android-latest.json "s3://$R2_BUCKET/android/latest.json" --endpoint-url "$R2_ENDPOINT" \
+            --content-type application/json --cache-control "no-cache, max-age=0"
+
       - name: Wait for release & upload APKs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

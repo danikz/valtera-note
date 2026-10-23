@@ -3,7 +3,7 @@ import 'package:sqflite/sqflite.dart';
 
 class AppDatabase {
   static const String databaseName = 'valtera_note.db';
-  static const int databaseVersion = 1;
+  static const int databaseVersion = 2;
 
   // Table local_notes
   static const String tableNotes = 'local_notes';
@@ -29,6 +29,26 @@ class AppDatabase {
   static const String colQueueAttemptCount = 'attempt_count';
   static const String colQueueLastError = 'last_error';
   static const String colQueueStatus = 'status';
+
+  // Table ssh_connections — payload ciphertext E2E, sama dengan desktop.
+  static const String tableSsh = 'ssh_connections';
+  static const String colSshId = 'id';
+  static const String colSshLabel = 'label';
+  static const String colSshPayload = 'payload';
+  static const String colSshUpdatedAt = 'updated_at';
+  static const String colSshIsDeleted = 'is_deleted';
+  static const String colSshDirty = 'dirty';
+
+  static const String _createSshTableSql = '''
+    CREATE TABLE IF NOT EXISTS $tableSsh (
+      $colSshId TEXT PRIMARY KEY,
+      $colSshLabel TEXT NOT NULL DEFAULT '',
+      $colSshPayload TEXT NOT NULL DEFAULT '',
+      $colSshUpdatedAt TEXT NOT NULL,
+      $colSshIsDeleted INTEGER NOT NULL DEFAULT 0,
+      $colSshDirty INTEGER NOT NULL DEFAULT 0
+    );
+  ''';
 
   // DDL Scripts
   static const String createNotesTableSql = '''
@@ -110,6 +130,12 @@ class AppDatabase {
           );
         ''');
         await db.execute('CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON $tableSyncQueue($colQueueStatus);');
+        await db.execute(_createSshTableSql);
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute(_createSshTableSql);
+        }
       },
     );
   }

@@ -46,6 +46,8 @@ dependencies:
   intl: ^0.20.3
   http: ^1.2.0
   cryptography: ^2.9.0
+  dartssh2: ^4.1.0
+  xterm: ^4.0.0
 
 dev_dependencies:
   flutter_test:

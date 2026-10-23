@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.43] - 2026-10-23
+
+### ✨ Fitur Baru
+- **Update otomatis Android** — APK kini di-hosting di Cloudflare R2 (`valtera-note-update.valtera.id/android/`). Saat dibuka, app mengecek versi terbaru dan menawarkan unduh APK yang cocok dengan HP. Ada juga tombol "Cek Pembaruan" di Pengaturan.
+- **Link unduh tetap** untuk versi terbaru: `https://valtera-note-update.valtera.id/android/Valtera-Note-android-arm64-v8a.apk`.
+
+### 🐛 Perbaikan
+- Pengaturan Android menampilkan versi aplikasi yang sebenarnya.
+
+---
+
 ## [0.1.42] - 2026-10-23
 
 ### ✨ Fitur Baru

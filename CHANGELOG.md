@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.42] - 2026-10-23
+
+### ✨ Fitur Baru
+- **SSH di Android (ala Termius)** — daftar host per workspace yang tersinkron E2E dengan SSH Manager desktop, Quick Connect `user@host:port`, auth password / private key (OpenSSH, RSA, EC) dengan passphrase, verifikasi host key (TOFU + peringatan bila berubah), banyak sesi sekaligus dalam tab, toolbar tombol ekstra (Esc, Ctrl, Alt, Tab, panah, Home/End, PgUp/PgDn), tempel/salin, ukuran font, dan hubungkan ulang.
+
+### 🐛 Perbaikan
+- **APK Android release tidak bisa online** — permission `INTERNET` hanya ada di manifest debug, sehingga build release gagal menghubungi Supabase.
+- **Nama aplikasi Android** tampil sebagai "Valtera Note" (sebelumnya `valtera_note`).
+- **APK bisa ditandatangani keystore rilis tetap** (lewat `android/key.properties` atau secret CI) agar pembaruan bisa dipasang menimpa versi lama.
+
+---
+
 ## [0.1.41] - 2026-10-21
 
 ### 🐛 Perbaikan

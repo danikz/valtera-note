@@ -72,6 +72,13 @@ impl DatabaseManager {
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
+            CREATE TABLE IF NOT EXISTS email_accounts (
+                id TEXT PRIMARY KEY,
+                label TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
             CREATE TABLE IF NOT EXISTS workspaces (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 supabase_id TEXT UNIQUE,
@@ -483,6 +490,27 @@ impl DatabaseManager {
                 )
                 .map_err(|e| e.to_string())?;
                 snippets_done += 1;
+            }
+        }
+
+        // Kredensial akun email (payload E2E) ikut dirotasi ke kunci baru.
+        {
+            let mut stmt = tx
+                .prepare("SELECT id, payload FROM email_accounts WHERE payload LIKE 'enc:v1:%'")
+                .map_err(|e| e.to_string())?;
+            let rows: Vec<(String, String)> = stmt
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+                .map_err(|e| e.to_string())?
+                .filter_map(|r| r.ok())
+                .collect();
+            drop(stmt);
+            for (id, payload) in rows {
+                let enc = encrypt(&decrypt(&payload)?)?;
+                tx.execute(
+                    "UPDATE email_accounts SET payload = ?1 WHERE id = ?2",
+                    params![enc, id],
+                )
+                .map_err(|e| e.to_string())?;
             }
         }
 

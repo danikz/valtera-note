@@ -1,5 +1,6 @@
 pub mod commands;
 pub mod crypto;
+pub mod mail;
 pub mod ssh;
 pub mod db;
 pub mod models;
@@ -94,6 +95,7 @@ pub fn run() {
         })
         .manage(db)
         .manage(crate::ssh::SshManager::default())
+        .manage(crate::mail::MailManager::default())
         .manage(keys)
         .invoke_handler(tauri::generate_handler![
             // File operations
@@ -147,6 +149,13 @@ pub fn run() {
             commands::ssh::sftp_cancel,
             commands::ssh::sftp_default_download_dir,
             commands::ssh::reveal_in_folder,
+            commands::email::email_account_list,
+            commands::email::email_account_save,
+            commands::email::email_account_delete,
+            commands::email::email_test,
+            commands::email::email_inbox,
+            commands::email::email_message,
+            commands::email::email_delete,
             commands::rdp::rdp_test,
             commands::rdp::rdp_launch,
             commands::supabase::test_supabase_connection,

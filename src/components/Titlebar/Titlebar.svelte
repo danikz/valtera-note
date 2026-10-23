@@ -35,11 +35,12 @@
     LogOut,
     ChevronDown,
     Info,
-    Image as ImageIcon
+    Image as ImageIcon,
+    Mail
   } from 'lucide-svelte';
   import { APP_VERSION } from '../../constants/app';
 
-  export type ToolType = 'json' | 'sqlite' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid' | 'hash' | 'ssh';
+  export type ToolType = 'json' | 'sqlite' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid' | 'hash' | 'ssh' | 'email';
 
   let { 
     onOpenSyncModal, 
@@ -422,6 +423,16 @@
           </div>
         {/if}
       </div>
+
+      <!-- Inbox Email (langsung buka halaman, tanpa dropdown) -->
+      <button
+        onclick={(e) => { e.stopPropagation(); closeMenu(); if (onOpenTool) onOpenTool('email'); }}
+        class="px-2 py-0.5 rounded text-xs transition-colors cursor-pointer flex items-center space-x-1 {activeView === 'tools' && activeTool === 'email' ? 'bg-slate-800 text-white font-medium' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'}"
+        title="Inbox Email (IMAP, hanya baca)"
+      >
+        <Mail class="w-3 h-3 text-sky-400" />
+        <span>Email</span>
+      </button>
 
       <!-- Tools Menu (Requested by User) -->
       <div class="relative">

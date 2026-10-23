@@ -12,7 +12,8 @@
     Sliders,
     Image as ImageIcon,
     Terminal as TerminalIcon,
-    Hash
+    Hash,
+    Mail
   } from 'lucide-svelte';
   import JsonToolPage from './JsonToolPage.svelte';
   import FaviconToolPage from './FaviconToolPage.svelte';
@@ -23,8 +24,9 @@
   import HashToolPage from './HashToolPage.svelte';
   import SqliteToolPage from './SqliteToolPage.svelte';
   import SshPage from '../Ssh/SshPage.svelte';
+  import EmailPage from '../Email/EmailPage.svelte';
 
-  export type ToolType = 'json' | 'sqlite' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid' | 'hash' | 'ssh';
+  export type ToolType = 'json' | 'sqlite' | 'favicon' | 'mysql-password' | 'base64' | 'url' | 'uuid' | 'hash' | 'ssh' | 'email';
 
   let { 
     activeTool = 'json',
@@ -56,6 +58,12 @@
       label: 'SSH Manager',
       icon: TerminalIcon,
       iconColor: 'text-emerald-400'
+    },
+    {
+      id: 'email',
+      label: 'Inbox Email',
+      icon: Mail,
+      iconColor: 'text-sky-400'
     },
     { 
       id: 'favicon', 
@@ -179,6 +187,8 @@
       <SqliteToolPage onBack={onBack} showBackButton={false} />
     {:else if activeTool === 'ssh'}
       <SshPage />
+    {:else if activeTool === 'email'}
+      <EmailPage />
     {:else if activeTool === 'favicon'}
       <FaviconToolPage onBack={onBack} />
     {:else if activeTool === 'mysql-password'}

@@ -28,6 +28,37 @@ export interface SftpListing {
   entries: SftpEntry[];
 }
 
+export interface MailSummary {
+  uid: number;
+  subject: string;
+  fromName: string;
+  fromAddr: string;
+  date: number | null; // unix detik
+  seen: boolean;
+  hasAttachment: boolean;
+  size: number;
+}
+
+export interface InboxPage {
+  total: number;
+  unseen: number;
+  messages: MailSummary[];
+  hasMore: boolean;
+}
+
+export interface MailMessage {
+  uid: number;
+  subject: string;
+  fromName: string;
+  fromAddr: string;
+  to: string[];
+  cc: string[];
+  date: number | null;
+  html: string | null; // mentah dari server — wajib disanitasi sebelum ditampilkan
+  text: string | null;
+  attachments: Array<{ name: string; mime: string; size: number }>;
+}
+
 export const ipc = {
   async getCliOpenFile(): Promise<string | null> {
     if (isTauri) {
@@ -345,6 +376,58 @@ export const ipc = {
       return await invoke<string[]>('ai_list_models');
     }
     return [];
+  },
+
+  // ===== Inbox Email (IMAP read-only, kredensial E2E) =====
+  async emailAccountList(): Promise<Array<{ id: string; label: string; payload: string; updated_at: string }>> {
+    if (isTauri) {
+      return await invoke('email_account_list');
+    }
+    return [];
+  },
+
+  async emailAccountSave(id: string, label: string, payload: string): Promise<void> {
+    if (isTauri) {
+      await invoke('email_account_save', { id, label, payload });
+    }
+  },
+
+  async emailAccountDelete(id: string): Promise<void> {
+    if (isTauri) {
+      await invoke('email_account_delete', { id });
+    }
+  },
+
+  async emailTest(email: string, password: string, host: string, port: number): Promise<number> {
+    if (isTauri) {
+      return await invoke<number>('email_test', { email, password, host, port });
+    }
+    throw new Error('Inbox email hanya tersedia di aplikasi desktop.');
+  },
+
+  async emailInbox(accountId: string, beforeUid?: number | null, limit?: number): Promise<InboxPage> {
+    if (isTauri) {
+      return await invoke<InboxPage>('email_inbox', { accountId, beforeUid: beforeUid ?? null, limit: limit ?? null });
+    }
+    throw new Error('Inbox email hanya tersedia di aplikasi desktop.');
+  },
+
+  async emailMessage(accountId: string, uid: number): Promise<MailMessage> {
+    if (isTauri) {
+      return await invoke<MailMessage>('email_message', { accountId, uid });
+    }
+    throw new Error('Inbox email hanya tersedia di aplikasi desktop.');
+  },
+
+  async emailDelete(
+    accountId: string,
+    uids: number[],
+    permanent: boolean
+  ): Promise<{ deleted: number; movedTo: string | null; needsPermanent: boolean }> {
+    if (isTauri) {
+      return await invoke('email_delete', { accountId, uids, permanent });
+    }
+    throw new Error('Inbox email hanya tersedia di aplikasi desktop.');
   },
 
   // ===== SSH Manager (kredensial E2E + sesi interaktif) =====

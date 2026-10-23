@@ -6,6 +6,7 @@ import '../../../../core/crypto/e2e_controller.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/theme_controller.dart';
+import '../../../../core/update/app_update_service.dart';
 import '../../../../core/widgets/valtera_button.dart';
 import '../../../../core/widgets/valtera_text_field.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
@@ -23,6 +24,28 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String? _supabaseUrl;
   bool _isSyncing = false;
+  bool _checkingUpdate = false;
+
+  Future<void> _handleCheckUpdate() async {
+    setState(() => _checkingUpdate = true);
+    try {
+      final info = await ref.read(appUpdateServiceProvider).check();
+      if (!mounted) return;
+      if (info != null) {
+        await showAppUpdateDialog(context, info);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Sudah versi terbaru.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      }
+    } finally {
+      if (mounted) setState(() => _checkingUpdate = false);
+    }
+  }
 
   @override
   void initState() {
@@ -328,9 +351,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 24),
 
           // Section: Tentang Aplikasi
+          ValteraButton(
+            text: 'Cek Pembaruan',
+            variant: ValteraButtonVariant.secondary,
+            icon: Icons.system_update_rounded,
+            isLoading: _checkingUpdate,
+            onPressed: _checkingUpdate ? null : _handleCheckUpdate,
+          ),
+          const SizedBox(height: 16),
           Center(
             child: Text(
-              'Valtera Note Android • Versi 1.0.0 (MVP)\nPT Valtera Teknologi Digital',
+              'Valtera Note Android • Versi ${ref.watch(packageInfoProvider).value?.version ?? '-'}'
+              '\nPT Valtera Teknologi Digital',
               textAlign: TextAlign.center,
               style: AppTypography.bodySmall(
                 color: isDark

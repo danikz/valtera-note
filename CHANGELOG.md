@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.44] - 2026-10-23
+
+### ✨ Fitur Baru
+- **Inbox Email (IMAP)** — baca email dari banyak akun sekaligus, tiap akun terpisah dan dikelompokkan per domain (mis. beberapa domain di Hostinger). Buka lewat tombol **Email** di titlebar atau tab *Inbox Email* di Tools. Default server `imap.hostinger.com` port 993 (SSL).
+- Password email disimpan terenkripsi E2E dengan master password dan diuji login sebelum disimpan.
+- Membuka email tidak mengubah status "belum dibaca" di server. Isi HTML ditampilkan aman (tanpa script), gambar eksternal diblokir sampai diizinkan, tautan dibuka di browser.
+- **Tandai & hapus cepat** — centang beberapa email (Shift+klik untuk rentang, atau tandai semua), lalu klik **Hapus** atau tekan `Delete`. Email dipindah ke folder Sampah di server; hapus permanen hanya dengan konfirmasi bila folder Sampah tidak ada.
+
+---
+
 ## [0.1.43] - 2026-10-23
 
 ### ✨ Fitur Baru

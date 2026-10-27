@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.45] - 2026-10-27
+
+### 🔒 Keamanan
+- Kunci tanda tangan pembaruan otomatis (Tauri updater) dan keystore APK Android diganti setelah insiden kebocoran secret GitHub Actions.
+- Versi ini **tidak bisa diterima lewat pembaruan otomatis** dari v0.1.44 ke bawah; pasang ulang installer desktop dan APK secara manual. Pembaruan berikutnya kembali otomatis.
+
+---
+
 ## [0.1.44] - 2026-10-23
 
 ### ✨ Fitur Baru
